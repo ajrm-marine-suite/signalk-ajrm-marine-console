@@ -6,6 +6,8 @@ const ACTIVE_MODULE_KEY = "ajrmMarineConsole.activeModule";
 const AUDIO_ACCESS_TOKEN_STORAGE_KEY = "ajrmMarineAudio.accessToken";
 const BROWSER_OUTPUT_MODE_STORAGE_KEY = "ajrmMarineAudio.browserOutputMode";
 const BROWSER_OUTPUT_STORAGE_KEY = "ajrmMarineAudio.browserOutput";
+const SILENT_AUDIO_DATA_URL =
+  "data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 let activeFrame = null;
 let consoleStatus = null;
 let lastConsoleAudioUrl = "";
@@ -13,6 +15,7 @@ let lastConsoleAnnouncementKey = "";
 let lastConsoleSpeechKey = "";
 let browserAudioStarted = false;
 let browserAudioUnlocked = false;
+let browserAudioUnlocking = false;
 let firstBrowserAudioRefresh = true;
 
 const els = {
@@ -279,34 +282,82 @@ function unlockBrowserAudio() {
     renderBrowserAudioButton(mode);
     return;
   }
+  if (browserAudioUnlocking) {
+    renderBrowserAudioButton(mode);
+    return;
+  }
   if (mode === "off") {
     renderBrowserAudioButton(mode);
     return;
   }
   if (mode === "speech") {
-    browserAudioUnlocked = true;
-    renderBrowserAudioButton(mode);
+    primeBrowserSpeech(mode);
     return;
   }
-  if (!els.browserAudioHost.src) {
-    browserAudioUnlocked = true;
-    renderBrowserAudioButton(mode);
-    return;
-  }
-  els.browserAudioHost.play().then(() => {
-    browserAudioUnlocked = true;
-    renderBrowserAudioButton(mode);
-  }).catch(() => {
+  primeBrowserAudioElement(mode);
+}
+
+function primeBrowserSpeech(mode) {
+  const speech = window.speechSynthesis;
+  const Utterance = window.SpeechSynthesisUtterance;
+  if (!speech || !Utterance) {
     browserAudioUnlocked = false;
     renderBrowserAudioButton(mode);
+    return;
+  }
+  browserAudioUnlocking = true;
+  renderBrowserAudioButton(mode);
+  try {
+    const utterance = new Utterance(" ");
+    utterance.volume = 0;
+    utterance.onend = () => finishBrowserAudioUnlock(mode, true);
+    utterance.onerror = () => finishBrowserAudioUnlock(mode, false);
+    speech.speak(utterance);
+    window.setTimeout(() => finishBrowserAudioUnlock(mode, true), 500);
+  } catch (_error) {
+    finishBrowserAudioUnlock(mode, false);
+  }
+}
+
+function primeBrowserAudioElement(mode) {
+  browserAudioUnlocking = true;
+  renderBrowserAudioButton(mode);
+  const previousSrc = els.browserAudioHost.getAttribute("src") || "";
+  if (!previousSrc) {
+    els.browserAudioHost.src = SILENT_AUDIO_DATA_URL;
+  }
+  els.browserAudioHost.play().then(() => {
+    els.browserAudioHost.pause();
+    if (!previousSrc && els.browserAudioHost.getAttribute("src") === SILENT_AUDIO_DATA_URL) {
+      els.browserAudioHost.removeAttribute("src");
+      els.browserAudioHost.load();
+    }
+    finishBrowserAudioUnlock(mode, true);
+  }).catch(() => {
+    if (!previousSrc && els.browserAudioHost.getAttribute("src") === SILENT_AUDIO_DATA_URL) {
+      els.browserAudioHost.removeAttribute("src");
+      els.browserAudioHost.load();
+    }
+    finishBrowserAudioUnlock(mode, false);
   });
+}
+
+function finishBrowserAudioUnlock(mode, ok) {
+  if (!browserAudioUnlocking && browserAudioUnlocked === ok) return;
+  browserAudioUnlocking = false;
+  browserAudioUnlocked = ok;
+  renderBrowserAudioButton(mode);
 }
 
 function renderBrowserAudioButton(mode = browserOutputMode()) {
   const enabled = mode !== "off";
   els.enableBrowserAudio.hidden = !enabled;
   els.enableBrowserAudio.classList.toggle("ready", enabled && browserAudioUnlocked);
-  els.enableBrowserAudio.textContent = browserAudioUnlocked ? "Audio ready" : "Enable audio";
+  if (browserAudioUnlocking) {
+    els.enableBrowserAudio.textContent = "Enabling audio";
+  } else {
+    els.enableBrowserAudio.textContent = browserAudioUnlocked ? "Audio ready" : "Enable audio";
+  }
   els.enableBrowserAudio.title =
     mode === "piper"
       ? "Enable AJRM Marine Piper playback in this Console window"
