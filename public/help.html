@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>AJRM Marine Help</title>
+    <link rel="stylesheet" href="./help.css?v=0.2.0" />
+    <script defer src="./help.js?v=0.2.0"></script>
+  </head>
+  <body>
+    <main class="help-page">
+      <header class="help-header">
+        <h1>AJRM Marine Help</h1>
+        <p>Onboard reference for the AJRM Marine sailing workflows and safety logic.</p>
+      </header>
+
+              <div class="alert alert-warning" role="alert">
+                <strong>Alpha Release disclaimer:</strong>
+                This software is Alpha Release and has not been tested in live
+                environments and must not be relied upon for navigation or
+                safety. The Authors do not accept any responsibility for loss
+                or damage as a result of using this software.
+              </div>
+              <p class="text-body-secondary">
+                AJRM Marine is designed to keep the important traffic information
+                visible and audible without creating unnecessary alarm fatigue.
+                This is the onboard reference for the main sailing workflows and safety logic.
+              </p>
+
+              <ul class="nav nav-tabs" id="helpTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                  <button
+                    class="nav-link active"
+                    id="help-overview-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#help-overview"
+                    type="button"
+                    role="tab"
+                    aria-controls="help-overview"
+                    aria-selected="true"
+                  >
+                    Overview
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button
+                    class="nav-link"
+                    id="help-alerts-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#help-alerts"
+                    type="button"
+                    role="tab"
+                    aria-controls="help-alerts"
+                    aria-selected="false"
+                  >
+                    Alerts
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button
+                    class="nav-link"
+                    id="help-silencing-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#help-silencing"
+                    type="button"
+                    role="tab"
+                    aria-controls="help-silencing"
+                    aria-selected="false"
+                  >
+                    Silencing
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button
+                    class="nav-link"
+                    id="help-profiles-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#help-profiles"
+                    type="button"
+                    role="tab"
+                    aria-controls="help-profiles"
+                    aria-selected="false"
+                  >
+                    Profiles
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button
+                    class="nav-link"
+                    id="help-current-settings-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#help-current-settings"
+                    type="button"
+                    role="tab"
+                    aria-controls="help-current-settings"
+                    aria-selected="false"
+                  >
+                    Current Settings
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button
+                    class="nav-link"
+                    id="help-charts-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#help-charts"
+                    type="button"
+                    role="tab"
+                    aria-controls="help-charts"
+                    aria-selected="false"
+                  >
+                    Charts
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button
+                    class="nav-link"
+                    id="help-security-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#help-security"
+                    type="button"
+                    role="tab"
+                    aria-controls="help-security"
+                    aria-selected="false"
+                  >
+                    Security
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button
+                    class="nav-link"
+                    id="help-debugging-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#help-debugging"
+                    type="button"
+                    role="tab"
+                    aria-controls="help-debugging"
+                    aria-selected="false"
+                  >
+                    Debugging
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button
+                    class="nav-link"
+                    id="help-about-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#help-about"
+                    type="button"
+                    role="tab"
+                    aria-controls="help-about"
+                    aria-selected="false"
+                  >
+                    About &amp; Tests
+                  </button>
+                </li>
+              </ul>
+
+              <div class="tab-content border border-top-0 p-3" id="helpTabContent">
+                <div
+                  class="tab-pane fade show active"
+                  id="help-overview"
+                  role="tabpanel"
+                  aria-labelledby="help-overview-tab"
+                  tabindex="0"
+                >
+                  <h6>Overview</h6>
+                  <p>
+                    AJRM Marine Display keeps the chart, target list, alert panel,
+                    profile controls, settings, and Help interface focused on
+                    sailing use. AJRM Marine Traffic supplies target safety state,
+                    CPA/TCPA and profile decisions; AJRM Marine Notifications supplies
+                    alert lifecycle and priority.
+                  </p>
+                  <p>
+                    The map remains usable if GPS is unavailable. In that state
+                    the Display keeps chart browsing available and visibly
+                    reports the Traffic Core or Signal K data-health state.
+                  </p>
+                </div>
+                <div
+                  class="tab-pane fade"
+                  id="help-alerts"
+                  role="tabpanel"
+                  aria-labelledby="help-alerts-tab"
+                  tabindex="0"
+                >
+                  <h6>Alerts</h6>
+                  <p>
+                    AJRM Marine Display uses AJRM Marine Traffic and Notifications
+                    server-generated alert events for chart
+                    colouring, the bottom alert panel, optional popups, Signal K
+                    notifications, and sound outputs. The browser, audio
+                    plugin, and companion displays do not decide alert severity
+                    themselves; they display and speak the event that the
+                    provider has already classified.
+                  </p>
+                  <ul>
+                    <li>
+                      <strong>Normal:</strong> no attention required.
+                    </li>
+                    <li>
+                      <strong>Alert / Watch:</strong> a target worth watching,
+                      normally visual-only unless sound has been enabled for
+                      that state.
+                    </li>
+                    <li>
+                      <strong>Traffic advisory:</strong> relevant traffic inside
+                      the active profile's advisory CPA/TCPA limits. It is the
+                      lower audible traffic state.
+                    </li>
+                    <li>
+                      <strong>Collision alarm:</strong> traffic inside the
+                      active profile's danger CPA/TCPA limits, or another
+                      high-priority collision condition. This needs more urgent
+                      attention.
+                    </li>
+                    <li>
+                      <strong>Emergency:</strong> distress AIS traffic, such as
+                      AIS SART, MOB, or EPIRB targets. Emergency does not depend
+                      on CPA/TCPA and is sorted above ordinary traffic alarms.
+                    </li>
+                  </ul>
+                  <p>
+                    Repeat timing is controlled by the active profile's repeat
+                    sensitivity and the configured repeat intervals. A target
+                    that escalates to a higher state can be announced
+                    immediately, even if the previous state was recently spoken.
+                    The default repeat intervals are 3 minutes for Alert/Watch
+                    and Traffic advisory, 1 minute for Collision alarm, and 30
+                    seconds for Emergency before profile repeat sensitivity is
+                    applied.
+                  </p>
+                  <h6 class="mt-3">How encounter announcements are built</h6>
+                  <p>
+                    AJRM Marine builds spoken encounter messages server-side and
+                    sends the same wording to the chart, alert panel, Signal K
+                    notifications, browser speech, AJRM Marine Audio, and companion
+                    displays. The message is intended to explain why the target
+                    needs attention, not to replace the skipper's judgement.
+                  </p>
+                  <ul>
+                    <li>
+                      <strong>Severity first:</strong> Traffic advisory means
+                      the target is inside the active profile's advisory
+                      CPA/TCPA limits. Collision alarm means the target is
+                      inside the danger limits, or another high-priority
+                      collision condition is present.
+                    </li>
+                    <li>
+                      <strong>Speed thresholds:</strong> CPA/TCPA alert speed
+                      checks use the faster of own-vessel SOG and target SOG, so
+                      a stationary vessel outside a harbour can still become a
+                      collision alarm when own vessel is closing on it.
+                    </li>
+                    <li>
+                      <strong>Where to look:</strong> clock position is based on
+                      the target's current relative bearing from own vessel
+                      heading or course.
+                    </li>
+                    <li>
+                      <strong>What kind of vessel:</strong> AJRM Marine uses AIS
+                      name, class, length, and speed where available. Stationary
+                      vessels outside harbours are announced as stationary;
+                      stationary vessels inside known harbour regions are
+                      ignored for encounter alerts.
+                    </li>
+                    <li>
+                      <strong>What is happening:</strong> closest-approach
+                      geometry is described as a prediction: CPA will be on
+                      your port side, on your starboard side, ahead, or astern.
+                      On the same general course, AJRM Marine says You are
+                      overtaking it only when own vessel is faster and the
+                      target is ahead or abeam. It says It is overtaking you
+                      only when the target is faster and astern or abeam.
+                      Otherwise it says Same general course. Stationary targets
+                      use You will pass wording because they cannot pass own
+                      vessel.
+                    </li>
+                    <li>
+                      <strong>How close and when:</strong> CPA and TCPA describe
+                      the expected closest approach. With hull-aware CPA enabled,
+                      AJRM Marine uses vessel dimensions and AIS antenna offsets
+                      where available, and a conservative hull envelope when
+                      they are missing.
+                    </li>
+                  </ul>
+                  <h6 class="mt-3">How the geometry wording is chosen</h6>
+                  <div class="ais-plus-help-diagrams mb-3">
+                    <div class="ais-plus-help-diagram">
+                      <h6 class="mb-2">Action prompt sectors</h6>
+                      <p class="small text-body-secondary mb-2">
+                        Based on the target's current bearing relative to own
+                        vessel. Used only for moving collision-level targets.
+                      </p>
+                      <svg
+                        viewBox="0 0 240 240"
+                        role="img"
+                        aria-label="Relative bearing sectors for collision action prompts"
+                      >
+                        <circle
+                          cx="120"
+                          cy="120"
+                          r="82"
+                          fill="none"
+                          stroke="var(--bs-border-color)"
+                          stroke-width="1"
+                        />
+                        <path
+                          d="M 98.78 40.79 A 82 82 0 0 1 120 38"
+                          fill="none"
+                          stroke="#f97316"
+                          stroke-linecap="butt"
+                          stroke-width="18"
+                        />
+                        <path
+                          d="M 120 38 A 82 82 0 0 1 195.76 151.38"
+                          fill="none"
+                          stroke="#16a34a"
+                          stroke-linecap="butt"
+                          stroke-width="18"
+                        />
+                        <path
+                          d="M 195.76 151.38 A 82 82 0 1 1 98.78 40.79"
+                          fill="none"
+                          stroke="#2563eb"
+                          stroke-linecap="butt"
+                          stroke-width="18"
+                        />
+                        <path
+                          d="M 120 97 L 120 29 M 141.25 128.8 L 204.07 154.82 M 114.05 97.78 L 96.45 32.1"
+                          stroke="var(--bs-body-color)"
+                          stroke-dasharray="3 3"
+                          stroke-linecap="round"
+                          stroke-width="1.5"
+                        />
+                        <polygon
+                          points="120,95 132,130 120,124 108,130"
+                          fill="var(--bs-body-color)"
+                        />
+                        <circle cx="120" cy="120" r="18" fill="var(--bs-body-bg)" stroke="var(--bs-body-color)" />
+                        <text x="120" y="25" text-anchor="middle" font-size="11" fill="var(--bs-body-color)">0 deg</text>
+                        <text x="208" y="165" text-anchor="middle" font-size="11" fill="var(--bs-body-color)">112.5</text>
+                        <text x="89" y="30" text-anchor="middle" font-size="11" fill="var(--bs-body-color)">345</text>
+                        <text x="159" y="92" text-anchor="middle" font-size="12" fill="var(--bs-body-color)">Give Way</text>
+                        <text x="84" y="152" text-anchor="middle" font-size="12" fill="var(--bs-body-color)">Stand On</text>
+                        <text x="108" y="51" text-anchor="middle" font-size="10" fill="var(--bs-body-color)">Alter</text>
+                      </svg>
+                      <div class="small d-grid gap-1 mt-2">
+                        <span class="legend-item"
+                          ><span class="ais-plus-help-swatch" style="background: #f97316"></span
+                          >Port-bow head-on: alter starboard</span
+                        >
+                        <span class="legend-item"
+                          ><span class="ais-plus-help-swatch" style="background: #16a34a"></span
+                          >Starboard sector: Give Way</span
+                        >
+                        <span class="legend-item"
+                          ><span class="ais-plus-help-swatch" style="background: #2563eb"></span
+                          >Port and astern sectors: Stand On</span
+                        >
+                        <span class="legend-item"
+                          ><span class="ais-plus-help-swatch" style="background: #6b7280"></span
+                          >Stationary collision target: pass well clear</span
+                        >
+                      </div>
+                    </div>
+                    <div class="ais-plus-help-diagram">
+                      <h6 class="mb-2">CPA pass wording</h6>
+                      <p class="small text-body-secondary mb-2">
+                        Based on where the target is predicted to be at closest
+                        approach, relative to own vessel's course.
+                      </p>
+                      <svg
+                        viewBox="0 0 240 240"
+                        role="img"
+                        aria-label="Closest approach sectors for passing announcements"
+                      >
+                        <circle
+                          cx="120"
+                          cy="120"
+                          r="82"
+                          fill="none"
+                          stroke="var(--bs-border-color)"
+                          stroke-width="1"
+                        />
+                        <path
+                          d="M 62.02 62.02 A 82 82 0 0 1 120 38"
+                          fill="none"
+                          stroke="#0ea5e9"
+                          stroke-linecap="butt"
+                          stroke-width="18"
+                        />
+                        <path
+                          d="M 120 38 A 82 82 0 0 1 177.98 62.02"
+                          fill="none"
+                          stroke="#0ea5e9"
+                          stroke-linecap="butt"
+                          stroke-width="18"
+                        />
+                        <path
+                          d="M 177.98 62.02 A 82 82 0 0 1 177.98 177.98"
+                          fill="none"
+                          stroke="#22c55e"
+                          stroke-linecap="butt"
+                          stroke-width="18"
+                        />
+                        <path
+                          d="M 177.98 177.98 A 82 82 0 0 1 62.02 177.98"
+                          fill="none"
+                          stroke="#a855f7"
+                          stroke-linecap="butt"
+                          stroke-width="18"
+                        />
+                        <path
+                          d="M 62.02 177.98 A 82 82 0 0 1 62.02 62.02"
+                          fill="none"
+                          stroke="#ef4444"
+                          stroke-linecap="butt"
+                          stroke-width="18"
+                        />
+                        <path
+                          d="M 136.26 103.74 L 184.35 55.65 M 136.26 136.26 L 184.35 184.35 M 103.74 136.26 L 55.65 184.35 M 103.74 103.74 L 55.65 55.65"
+                          stroke="var(--bs-body-color)"
+                          stroke-dasharray="3 3"
+                          stroke-linecap="round"
+                          stroke-width="1.5"
+                        />
+                        <polygon
+                          points="120,95 132,130 120,124 108,130"
+                          fill="var(--bs-body-color)"
+                        />
+                        <circle cx="120" cy="120" r="18" fill="var(--bs-body-bg)" stroke="var(--bs-body-color)" />
+                        <text x="120" y="51" text-anchor="middle" font-size="12" fill="var(--bs-body-color)">Ahead</text>
+                        <text x="184" y="122" text-anchor="middle" font-size="12" fill="var(--bs-body-color)">Starboard</text>
+                        <text x="120" y="194" text-anchor="middle" font-size="12" fill="var(--bs-body-color)">Astern</text>
+                        <text x="56" y="122" text-anchor="middle" font-size="12" fill="var(--bs-body-color)">Port</text>
+                      </svg>
+                      <div class="small d-grid gap-1 mt-2">
+                        <span class="legend-item"
+                          ><span class="ais-plus-help-swatch" style="background: #0ea5e9"></span
+                          >Ahead: CPA will be ahead</span
+                        >
+                        <span class="legend-item"
+                          ><span class="ais-plus-help-swatch" style="background: #a855f7"></span
+                          >Astern: CPA will be astern</span
+                        >
+                        <span class="legend-item"
+                          ><span class="ais-plus-help-swatch" style="background: #22c55e"></span
+                          >Starboard: CPA will be on your starboard side</span
+                        >
+                        <span class="legend-item"
+                          ><span class="ais-plus-help-swatch" style="background: #ef4444"></span
+                          >Port: CPA will be on your port side</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                  <h6 class="mt-3">When alerts are suppressed</h6>
+                  <p>
+                    Suppression is also decided by the server, so all connected
+                    displays see the same result.
+                  </p>
+                  <ul>
+                    <li>
+                      <strong>Own vessel:</strong> excluded from traffic alerts, even if it appears in the AIS target list. AJRM Marine uses it only as the reference for relative bearing, CPA, TCPA, and profile logic.
+                    </li>
+                    <li>
+                      <strong>Base stations and AtoNs:</strong> AIS base
+                      stations and aids to navigation are classified as
+                      non-collision targets and do not create CPA encounter
+                      alerts.
+                    </li>
+                    <li>
+                      <strong>Out of range:</strong> targets outside the
+                      configured maximum target range are ignored for active
+                      encounter alerts. If a previously active target becomes
+                      range-ignored, AJRM Marine publishes a clear event so alert
+                      panels and companion displays can remove it.
+                    </li>
+                    <li>
+                      <strong>Stationary in harbour:</strong> stationary vessels
+                      inside known harbour regions are ignored for encounter
+                      alerts, even when own vessel is outside the harbour. This
+                      prevents anchored, moored, or berthed harbour traffic from
+                      being announced as a live collision risk while passing the
+                      harbour entrance.
+                    </li>
+                    <li>
+                      <strong>Stationary outside harbour:</strong> stationary
+                      vessels outside known harbour regions are still eligible
+                      for alerts. Their announcements include stationary and
+                      say You will pass it to port, You will pass it to
+                      starboard, You will pass ahead of it, or You will pass
+                      astern of it.
+                    </li>
+                    <li>
+                      <strong>Silenced or muted:</strong> silencing a target or
+                      muting sound suppresses speech, not awareness. The target
+                      remains visible on the chart and in lists.
+                    </li>
+                  </ul>
+                  <h6 class="mt-3">Collision avoidance prompt</h6>
+                  <p>
+                    Action prompt wording is added only to collision-level
+                    alerts where CPA geometry indicates collision or close
+                    quarters. If the projected geometry predicts a defined pass
+                    to port, starboard, ahead, or astern, AJRM Marine reports that
+                    CPA geometry and CPA/TCPA without advising a manoeuvre.
+                    Traffic advisories do not get Stand On, Give Way,
+                    alter-starboard, or pass-well-clear prompts.
+                  </p>
+                  <ul>
+                    <li>
+                      <strong>Alter course early to pass well clear</strong> is
+                      used for stationary collision targets. AJRM Marine does not
+                      apply head-on, give-way, or stand-on wording to stationary
+                      targets because they are not crossing under power.
+                    </li>
+                    <li>
+                      <strong>Head-on: alter starboard, pass port-to-port</strong>
+                      is used for moving targets only when the target is dead
+                      ahead or on the port bow, from 345 degrees through 360
+                      degrees relative.
+                    </li>
+                    <li>
+                      <strong>Give Way</strong> is used for collision-level
+                      targets in the starboard sector, from just over dead ahead
+                      through 112.5 degrees relative.
+                    </li>
+                    <li>
+                      <strong>Stand On</strong> is used for collision-level
+                      targets in the astern or red/port sector, from more than
+                      112.5 degrees through less than 345 degrees relative.
+                    </li>
+                  </ul>
+                  <p>
+                    The alter-starboard wording is deliberately narrow. AJRM Marine
+                    does not use it for a target already on the starboard bow,
+                    because turning further starboard could increase risk if the
+                    vessel is expected to pass safely to starboard. Always use
+                    the full situation, including visibility, sea room, other
+                    traffic, and vessel constraints, before making a manoeuvre.
+                  </p>
+                  <p>
+                    Lost GPS is treated as a system alert. It repeats every
+                    three minutes while GPS remains unavailable unless paused,
+                    and the pause is cleared automatically when GPS is received
+                    again.
+                  </p>
+                </div>
+                <div
+                  class="tab-pane fade"
+                  id="help-silencing"
+                  role="tabpanel"
+                  aria-labelledby="help-silencing-tab"
+                  tabindex="0"
+                >
+                  <h6>Silencing</h6>
+                  <p>
+                    Silence all stops current active traffic alerts from
+                    speaking without hiding them from the chart. Individual
+                    targets can also be silenced from the target list. Silenced
+                    vessels remain visible and are marked on the chart and in
+                    the list, so the skipper can still see what has been
+                    quietened.
+                  </p>
+                  <p>
+                    Silencing is server-authoritative, so all connected browser
+                    clients and companion displays read the same state after
+                    refreshing their server data.
+                  </p>
+                </div>
+                <div
+                  class="tab-pane fade"
+                  id="help-profiles"
+                  role="tabpanel"
+                  aria-labelledby="help-profiles-tab"
+                  tabindex="0"
+                >
+                  <h6>Profiles</h6>
+                  <p>
+                    Profiles hold the CPA/TCPA limits, vessel-size adjustments,
+                    and speed thresholds used by AJRM Marine Traffic. Display can
+                    select the active Traffic Core profile when commands are
+                    available. Threshold editing belongs to the Traffic Core
+                    administration web app.
+                  </p>
+                  <p>
+                    Automatic profile selection is provided by Traffic Core when
+                    enabled. Manual profile selection remains available from
+                    Display.
+                  </p>
+                </div>
+                <div
+                  class="tab-pane fade"
+                  id="help-current-settings"
+                  role="tabpanel"
+                  aria-labelledby="help-current-settings-tab"
+                  tabindex="0"
+                >
+                  <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                    <h6 class="mb-0">Current Settings</h6>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-secondary"
+                      id="buttonRefreshHelpSettings"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                  <div id="helpSettingsStatus" class="small text-body-secondary mb-3">
+                    Loading...
+                  </div>
+                  <div id="helpSettingsContent"></div>
+                </div>
+                <div
+                  class="tab-pane fade"
+                  id="help-charts"
+                  role="tabpanel"
+                  aria-labelledby="help-charts-tab"
+                  tabindex="0"
+                >
+                  <h6>Charts</h6>
+                  <p>
+                    Auto Charts chooses a local Signal K chart provider layer
+                    for the current map position and zoom. Basemaps are separate
+                    background layers; OpenSeaMap is a transparent seamark
+                    overlay and should sit above charts so wind farms, buoys,
+                    and other seamarks remain visible.
+                  </p>
+                  <p>
+                    Manual panning pauses own-vessel following. Press the centre
+                    vessel button to recentre on your vessel and resume
+                    automatic following.
+                  </p>
+                </div>
+                <div
+                  class="tab-pane fade"
+                  id="help-security"
+                  role="tabpanel"
+                  aria-labelledby="help-security-tab"
+                  tabindex="0"
+                >
+                  <h6>HTTPS and iPhone Trust</h6>
+                  <p>
+                    AJRM Marine, Companion, AJRM Marine Harbour Editor, Vessel Simulator, and
+                    the Signal K Admin UI are all served by the same Signal K
+                    server. Certificate warnings must therefore be fixed at the
+                    Signal K server hostname, not inside each webapp.
+                  </p>
+                  <ol>
+                    <li>
+                      Give the Raspberry Pi a stable boat-network name, for
+                      example <code>nemo3.local</code>, and preferably a fixed
+                      LAN IP address.
+                    </li>
+                    <li>
+                      Install <code>mkcert</code> on the Pi or another trusted
+                      computer and create a local certificate authority.
+                    </li>
+                    <li>
+                      Generate a certificate for every name used to open Signal
+                      K, for example <code>nemo3.local</code>,
+                      <code>nemo3</code>, and the Pi IP address.
+                    </li>
+                    <li>
+                      Copy the generated certificate to
+                      <code>~/.signalk/ssl-cert.pem</code> and the private key
+                      to <code>~/.signalk/ssl-key.pem</code> on the Pi. Both
+                      files must be readable only by the Signal K user.
+                    </li>
+                    <li>
+                      Ensure the systemd service starts Signal K with
+                      <code>SSLPORT=3443</code>, then restart Signal K.
+                    </li>
+                    <li>
+                      Install the mkcert root CA on the iPhone. Open the CA
+                      file on the iPhone, install the profile in Settings, then
+                      enable full trust in
+                      <code>Settings &gt; General &gt; About &gt; Certificate Trust Settings</code>.
+                    </li>
+                  </ol>
+                  <p>
+                    After that, open Signal K using the same hostname that is in
+                    the certificate, for example
+                    <code>https://nemo3.local:3443/signalk</code>.
+                  </p>
+                </div>
+                <div
+                  class="tab-pane fade"
+                  id="help-debugging"
+                  role="tabpanel"
+                  aria-labelledby="help-debugging-tab"
+                  tabindex="0"
+                >
+                  <h6>Debugging a Problem</h6>
+                  <p>
+                    After updating AJRM Marine, the browser can keep an old
+                    JavaScript or CSS file in its cache. If the server has been
+                    updated but the chart, settings, badge, or help text still
+                    looks unchanged, do a hard refresh before assuming the
+                    plugin is still wrong.
+                  </p>
+                  <ul>
+                    <li>
+                      <strong>Chrome, Edge, or Firefox on Windows/Linux:</strong>
+                      press <code>Ctrl+F5</code> or
+                      <code>Ctrl+Shift+R</code>.
+                    </li>
+                    <li>
+                      <strong>Chrome, Edge, Firefox, or Safari on Mac:</strong>
+                      press <code>Cmd+Shift+R</code>. In Safari,
+                      <code>Option+Cmd+R</code> also reloads the page from the
+                      network.
+                    </li>
+                    <li>
+                      <strong>Safari on iPhone or iPad:</strong> tap reload
+                      first. If the old page remains, clear the site data in
+                      <code>Settings &gt; Safari &gt; Advanced &gt; Website Data</code>,
+                      search for the Signal K hostname such as
+                      <code>nemo3.local</code>, delete that entry, then reopen
+                      AJRM Marine.
+                    </li>
+                    <li>
+                      <strong>iPad with a hardware keyboard:</strong>
+                      <code>Cmd+Shift+R</code> can be used in many browsers.
+                      If it still shows old behaviour, clear Safari website
+                      data for the Signal K hostname.
+                    </li>
+                    <li>
+                      <strong>Installed Home Screen webapp:</strong> close the
+                      webapp from the app switcher after clearing site data,
+                      then open it again from the Home Screen.
+                    </li>
+                  </ul>
+                  <p>
+                    If a hard refresh does not change the behaviour, check the
+                    Signal K plugin version, then capture a fresh AJRM Marine
+                    snapshot so the browser state and server state can be
+                    compared.
+                  </p>
+                </div>
+                <div
+                  class="tab-pane fade"
+                  id="help-about"
+                  role="tabpanel"
+                  aria-labelledby="help-about-tab"
+                  tabindex="0"
+                >
+                  <h6>About AJRM Marine Display</h6>
+                  <p>
+                    AJRM Marine is authored and maintained by Anthony McDonald, with assistance from William McAusland.
+                  </p>
+                  <p>
+                    AJRM Marine also acknowledges the great work of the Signal K
+                    project and the Signal K plugin authors whose server, APIs,
+                    conventions, and plugin ecosystem this software is built
+                    on.
+                  </p>
+                  <p>
+                    AJRM Marine is derived from
+                    <code>signalk-ais-target-prioritizer</code> by Jeremy
+                    Waters and from
+                    <code>signalk-ais-encounter-enricher</code>. The upstream
+                    prioritizer is MIT licensed, and AJRM Marine keeps that
+                    license.
+                  </p>
+                  <h6>Running Tests</h6>
+                  <p>
+                    From the repository root, run the full lint, unit-test, and
+                    plugin syntax-check suite with:
+                  </p>
+                  <pre class="bg-body-tertiary rounded p-2"><code>npm test</code></pre>
+                  <p>
+                    When changing the webapp, rebuild the Signal K-served
+                    production assets before release with:
+                  </p>
+                  <pre class="bg-body-tertiary rounded p-2"><code>npm run build:web:recovered</code></pre>
+                </div>
+
+    </main>
+  </body>
+</html>

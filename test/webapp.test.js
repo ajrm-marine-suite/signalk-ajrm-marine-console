@@ -1,0 +1,87 @@
+"use strict";
+
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const test = require("node:test");
+
+const root = path.join(__dirname, "..");
+
+test("Console uses one compact toolbar and hidden loading overlay cannot display", () => {
+  const html = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
+  const css = fs.readFileSync(path.join(root, "public", "styles.css"), "utf8");
+  assert.match(html, /<header class="consolebar">/);
+  assert.match(html, /<nav id="tabs" class="tabs"/);
+  assert.doesNotMatch(html, /Sailing workspace/);
+  assert.doesNotMatch(html, /<h1>AJRM Marine Console/);
+  assert.doesNotMatch(html, /Record incident/);
+  assert.doesNotMatch(html, /id="services"/);
+  assert.doesNotMatch(css, /\.service-grid/);
+  assert.match(css, /--console-vh:\s*100vh/);
+  assert.match(css, /height:\s*var\(--console-vh\)/);
+  assert.match(css, /html,\s*body\s*\{[^}]*overflow:\s*hidden;/s);
+  assert.match(css, /\.consolebar\s*\{[^}]*z-index:\s*20;/s);
+  assert.match(css, /\.frame-host\s*\{[^}]*overflow:\s*hidden;/s);
+  assert.match(css, /\.frame-message\[hidden\]\s*\{\s*display:\s*none;/);
+  assert.match(css, /grid-template-rows:\s*auto minmax\(0,\s*1fr\)/);
+  assert.match(html, /id="overviewHelp"/);
+  assert.match(html, /src="\.\/help\.html"/);
+  assert.doesNotMatch(
+    fs.readFileSync(path.join(root, "plugin", "modules.js"), "utf8"),
+    /id:\s*"help"/,
+  );
+  assert.ok(fs.existsSync(path.join(root, "public", "help.css")));
+  assert.ok(fs.existsSync(path.join(root, "public", "help.js")));
+  const help = fs.readFileSync(path.join(root, "public", "help.html"), "utf8");
+  assert.match(help, /AJRM Marine Help/);
+  assert.match(help, /id="help-current-settings"/);
+  assert.match(help, /id="help-charts"/);
+  assert.doesNotMatch(help, /id="modalHelp"/);
+  const helpScript = fs.readFileSync(path.join(root, "public", "help.js"), "utf8");
+  assert.match(helpScript, /CPA and TCPA Limits/);
+  assert.match(helpScript, /Vessel size categories/);
+  assert.match(helpScript, /Guard Limits/);
+  assert.match(helpScript, /Harbour switching/);
+});
+
+test("Console updates viewport height for iPad Safari iframe layout", () => {
+  const script = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
+  assert.match(script, /function updateViewportHeight\(\)/);
+  assert.match(script, /window\.innerHeight/);
+  assert.match(script, /--console-vh/);
+  assert.match(script, /window\.addEventListener\("resize", updateViewportHeight\)/);
+  assert.match(script, /window\.addEventListener\("orientationchange"/);
+});
+
+test("Console frontend treats CapturePlus as an ordinary selectable webapp", () => {
+  const script = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
+  assert.doesNotMatch(script, /toggleIncidentCapture/);
+  assert.doesNotMatch(script, /incidentCapture/);
+  assert.doesNotMatch(script, /CapturePlus unavailable:/);
+  assert.match(script, /No webapps are selected/);
+});
+
+test("Console unloads all inactive webapp iframes and owns root browser audio", () => {
+  const html = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
+  const script = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
+  assert.match(html, /id="browserAudioHost"/);
+  assert.match(html, /id="enableBrowserAudio"/);
+  assert.match(script, /AUDIO_STATUS_URL/);
+  assert.match(script, /AUDIO_ACCESS_TOKEN_STORAGE_KEY/);
+  assert.match(script, /audioAuthHeaders/);
+  assert.match(script, /BROWSER_OUTPUT_MODE_STORAGE_KEY/);
+  assert.match(script, /let activeFrame = null/);
+  assert.match(script, /function unloadActiveFrame\(\)/);
+  assert.match(script, /activeFrame\.remove\(\)/);
+  assert.doesNotMatch(script, /keepAliveFrames/);
+  assert.doesNotMatch(script, /dataset\.keepAlive/);
+  assert.match(script, /consoleAudioHost=1/);
+  assert.match(script, /function refreshBrowserAudio\(\)/);
+  assert.match(script, /status\.muted === true && announcement\.force !== true/);
+  assert.match(script, /function unlockBrowserAudio\(\)/);
+  assert.match(script, /renderBrowserAudioButton/);
+  assert.match(script, /firstBrowserAudioRefresh/);
+  assert.match(script, /lastConsoleAnnouncementKey/);
+  assert.match(script, /function consoleAnnouncementKey/);
+  assert.match(script, /if \(browserAudioUnlocked\) \{/);
+});

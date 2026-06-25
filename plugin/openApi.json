@@ -1,0 +1,25 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AJRM Marine Console API",
+    "version": "0.5.0",
+    "description": "Configurable Console webapp manifest and selected webapp overview."
+  },
+  "servers": [
+    {
+      "url": "/plugins/signalk-ajrm-marine-console"
+    }
+  ],
+  "paths": {
+    "/status": {
+      "get": {
+        "summary": "Get Console module manifest and selected webapp status",
+        "responses": {
+          "200": {
+            "description": "Current Console status"
+          }
+        }
+      }
+    }
+  }
+}
