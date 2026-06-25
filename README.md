@@ -72,7 +72,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+ssh://git@ssh.github.com:443/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.5.1 --omit=dev --no-package-lock
+npm install git+ssh://git@ssh.github.com:443/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.5.2 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

@@ -208,7 +208,7 @@ async function refreshBrowserAudio() {
   const announcement = status.lastAnnouncement || {};
   if (status.muted === true && announcement.force !== true) return;
   const message = String(announcement.message || "").trim();
-  const audioUrl = announcement.publicAudioUrl || announcement.audioUrl || "";
+  const audioUrl = announcement.audioUrl || announcement.publicAudioUrl || "";
   const announcementKey = consoleAnnouncementKey(announcement, message);
   if (firstBrowserAudioRefresh) {
     lastConsoleAudioUrl = audioUrl;
