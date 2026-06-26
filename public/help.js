@@ -63,7 +63,6 @@ function currentSettingsHtml(uiState = {}, profiles = {}, repeatIntervals = {}) 
   const profile = uiState.currentProfile || profiles.current || "harbor";
   const repeats = { ...DEFAULT_REPEAT_INTERVALS, ...repeatIntervals };
   const profileRows = [];
-  const guardRows = [];
 
   for (const profileKey of PROFILE_KEYS) {
     const settings = profiles[profileKey] || {};
@@ -99,13 +98,6 @@ function currentSettingsHtml(uiState = {}, profiles = {}, repeatIntervals = {}) 
           </tr>`);
       }
     }
-
-    guardRows.push(`
-      <tr${activeClass}>
-        <td>${escapeHtml(profileLabel(profileKey))}</td>
-        <td>${escapeHtml(formatDistanceNm(settings.guard?.range))}</td>
-        <td>${escapeHtml(formatSpeed(settings.guard?.speed))}</td>
-      </tr>`);
   }
 
   const vesselSize = profiles.vesselSize || {};
@@ -158,14 +150,6 @@ function currentSettingsHtml(uiState = {}, profiles = {}, repeatIntervals = {}) 
           <th>TCPA</th><th>Repeat interval</th><th>Ignore below</th>
         </tr></thead>
         <tbody>${profileRows.join("")}</tbody>
-      </table>
-    </div>
-
-    <h6>Guard Limits</h6>
-    <div class="table-responsive">
-      <table>
-        <thead><tr><th>Profile</th><th>Guard range</th><th>Ignore below</th></tr></thead>
-        <tbody>${guardRows.join("")}</tbody>
       </table>
     </div>`;
 }

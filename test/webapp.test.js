@@ -40,7 +40,6 @@ test("Console uses one compact toolbar and hidden loading overlay cannot display
   const helpScript = fs.readFileSync(path.join(root, "public", "help.js"), "utf8");
   assert.match(helpScript, /CPA and TCPA Limits/);
   assert.match(helpScript, /Vessel size categories/);
-  assert.match(helpScript, /Guard Limits/);
   assert.match(helpScript, /Harbour switching/);
 });
 

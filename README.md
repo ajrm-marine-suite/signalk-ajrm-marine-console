@@ -5,6 +5,9 @@ suite. It gives the operational webapps one consistent navigation surface
 without merging their backend responsibilities or preventing them from working
 standalone.
 
+Version `0.5.3` removes obsolete profile-range rows from the shared
+help/settings summary.
+
 Version `0.3.15` adds the main Signal K administration screen as a built-in
 second tab. Overview remains first; selected webapps follow after Signal K.
 
@@ -72,7 +75,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+ssh://git@ssh.github.com:443/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.5.2 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.5.3 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

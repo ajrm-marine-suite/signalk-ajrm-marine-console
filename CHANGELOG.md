@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3
+
+- Remove obsolete profile-range rows from the shared help/settings summary.
+
 ## 0.5.2
 
 - Prefer the authenticated Signal K audio route for Console-hosted browser playback.
