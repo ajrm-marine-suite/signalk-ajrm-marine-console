@@ -59,6 +59,24 @@ test("Console discovers installed Signal K webapps dynamically", () => {
   assert.equal(webapps.find((module) => module.id === "signalk-ajrm-marine-logger").version, "1.0.12");
 });
 
+test("Console shortens AJRM Marine suite tab titles only", () => {
+  const nodeModulesDir = fs.mkdtempSync(path.join(os.tmpdir(), "console-webapps-"));
+  writePackage(nodeModulesDir, "signalk-ajrm-marine-display", {
+    signalk: { displayName: "AJRM Marine Display" },
+  });
+  writePackage(nodeModulesDir, "signalk-ajrm-marine-gps-integrity", {
+    signalk: { displayName: "AJRM Marine GPS Integrity" },
+  });
+  writePackage(nodeModulesDir, "signalk-third-party-demo", {
+    signalk: { displayName: "AJRM Marine Demo" },
+  });
+
+  const webapps = discoverWebapps({ nodeModulesDir });
+  assert.equal(webapps.find((module) => module.id === "signalk-ajrm-marine-display").title, "Display");
+  assert.equal(webapps.find((module) => module.id === "signalk-ajrm-marine-gps-integrity").title, "GPS Integrity");
+  assert.equal(webapps.find((module) => module.id === "signalk-third-party-demo").title, "AJRM Marine Demo");
+});
+
 test("Console module visibility and default selection are configurable with webapp checkboxes", () => {
   const available = [
     {

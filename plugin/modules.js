@@ -104,17 +104,28 @@ function isObject(value) {
 }
 
 function webappModule(pkg) {
-  const displayName = String(pkg.signalk?.displayName || pkg.displayName || "").trim();
   return {
     id: cleanId(pkg.name),
     packageName: String(pkg.name || ""),
-    title: displayName || titleFromPackageName(pkg.name),
+    title: consoleTitleForPackage(pkg),
     icon: iconForPackage(pkg.name),
     kind: "webapp",
     url: `/${webappUrlPath(pkg.name)}/`,
     description: String(pkg.description || "Signal K webapp."),
     version: String(pkg.version || ""),
   };
+}
+
+function consoleTitleForPackage(pkg) {
+  const displayName = String(pkg.signalk?.displayName || pkg.displayName || "").trim();
+  const title = displayName || titleFromPackageName(pkg.name);
+  if (!isAjrmMarinePackage(pkg.name)) return title;
+  const shortened = title.replace(/^AJRM Marine\s+/i, "").trim();
+  return shortened || title;
+}
+
+function isAjrmMarinePackage(name) {
+  return String(name || "").startsWith("signalk-ajrm-marine-");
 }
 
 function packageDirs(nodeModulesDir) {

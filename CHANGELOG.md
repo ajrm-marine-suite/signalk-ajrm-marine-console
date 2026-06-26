@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.4
+
+- Shorten AJRM Marine suite app titles in the Console tab bar while leaving
+  third-party webapp names unchanged.
+
 ## 0.5.3
 
 - Remove obsolete profile-range rows from the shared help/settings summary.
