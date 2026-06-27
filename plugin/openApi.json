@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "AJRM Marine Console API",
-    "version": "0.5.2",
+    "version": "0.5.5",
     "description": "Configurable Console webapp manifest and selected webapp overview."
   },
   "servers": [

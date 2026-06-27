@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.5
+
+- Remove obsolete suite-name fallback matching from the Console audio tab detection.
+
 ## 0.5.4
 
 - Shorten AJRM Marine suite app titles in the Console tab bar while leaving

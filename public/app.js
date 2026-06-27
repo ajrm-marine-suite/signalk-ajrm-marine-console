@@ -146,7 +146,7 @@ function isAudioModule(module) {
   return (
     module.id === "signalk-ajrm-marine-audio" ||
     module.packageName === "signalk-ajrm-marine-audio" ||
-    /watchkeeper audio/i.test(module.title || "")
+    /(?:ajrm marine )?audio/i.test(module.title || "")
   );
 }
 
