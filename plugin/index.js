@@ -61,7 +61,7 @@ module.exports = function ajrmMarineConsole(app) {
     availableWebapps = discoverWebapps();
     const modules = configuredModules(options, availableWebapps);
     return {
-      contract: "ais-plus-console-status",
+      contract: "ajrm-marine-console-status",
       contractVersion: 1,
       sessionId,
       version: packageInfo.version,

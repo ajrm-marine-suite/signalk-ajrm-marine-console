@@ -143,7 +143,7 @@ function currentSettingsHtml(uiState = {}, profiles = {}, repeatIntervals = {}) 
       The active profile is highlighted. Values include each profile's current
       CPA, TCPA and repeat sensitivity.
     </p>
-    <div class="table-responsive ais-plus-help-table-scroll mb-3">
+    <div class="table-responsive ajrm-marine-help-table-scroll mb-3">
       <table>
         <thead><tr>
           <th>Profile</th><th>Vessel</th><th>Level</th><th>CPA</th>

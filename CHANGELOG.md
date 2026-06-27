@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.6
+
+- Rename Console status contracts and help CSS namespaces to AJRM Marine naming.
+
 ## 0.5.5
 
 - Remove obsolete suite-name fallback matching from the Console audio tab detection.

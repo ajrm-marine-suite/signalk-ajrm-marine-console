@@ -27,7 +27,7 @@ test("Console publishes an installable sailing module manifest", () => {
     },
   });
   const status = messages[0].updates[0].values[0].value;
-  assert.equal(status.contract, "ais-plus-console-status");
+  assert.equal(status.contract, "ajrm-marine-console-status");
   assert.equal(status.defaultModule, "overview");
   assert.deepEqual(
     status.modules.map((module) => module.id),
@@ -78,7 +78,7 @@ test("Console config schema renders discovered webapps as checkbox booleans", ()
     {
       id: "signalk-ajrm-marine-logger",
       packageName: "signalk-ajrm-marine-logger",
-      title: "CapturePlus",
+      title: "AJRM Marine Logger",
       description: "Capture diagnostics",
       version: "1.1.1",
     },

@@ -50,7 +50,7 @@ pre { overflow: auto; background: #0b2232; padding: .75rem; border-radius: .55re
 .gap-2 { gap: .5rem; }
 .btn { border: 1px solid #3f6b84; border-radius: .45rem; padding: .4rem .65rem; background: #143249; color: white; cursor: pointer; }
 .btn:hover { background: #1b4563; }
-.table-responsive, .ais-plus-help-table-scroll { width: 100%; overflow: auto; }
+.table-responsive, .ajrm-marine-help-table-scroll { width: 100%; overflow: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: .45rem .55rem; border-bottom: 1px solid #244256; text-align: left; white-space: nowrap; }
 th { position: sticky; top: 0; background: #102b3e; }
@@ -58,10 +58,10 @@ th { position: sticky; top: 0; background: #102b3e; }
 dl { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem .8rem; }
 dt { font-weight: 750; }
 dd { margin: 0; color: #b8d0de; }
-.ais-plus-help-diagrams { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1rem; }
-.ais-plus-help-diagram { overflow: auto; border: 1px solid #294b61; border-radius: .6rem; padding: .8rem; }
-.ais-plus-help-diagram svg { max-width: 100%; height: auto; }
-.ais-plus-help-swatch { display: inline-block; width: .8rem; height: .8rem; margin-right: .35rem; border-radius: .2rem; }
+.ajrm-marine-help-diagrams { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1rem; }
+.ajrm-marine-help-diagram { overflow: auto; border: 1px solid #294b61; border-radius: .6rem; padding: .8rem; }
+.ajrm-marine-help-diagram svg { max-width: 100%; height: auto; }
+.ajrm-marine-help-swatch { display: inline-block; width: .8rem; height: .8rem; margin-right: .35rem; border-radius: .2rem; }
 @media (max-width: 720px) {
   .help-header { display: block; }
   .help-header p { margin-top: .2rem; }

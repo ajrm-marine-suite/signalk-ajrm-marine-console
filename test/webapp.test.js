@@ -52,11 +52,11 @@ test("Console updates viewport height for iPad Safari iframe layout", () => {
   assert.match(script, /window\.addEventListener\("orientationchange"/);
 });
 
-test("Console frontend treats CapturePlus as an ordinary selectable webapp", () => {
+test("Console frontend treats Logger as an ordinary selectable webapp", () => {
   const script = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
   assert.doesNotMatch(script, /toggleIncidentCapture/);
   assert.doesNotMatch(script, /incidentCapture/);
-  assert.doesNotMatch(script, /CapturePlus unavailable:/);
+  assert.doesNotMatch(script, /AJRM Marine Logger unavailable:/);
   assert.match(script, /No webapps are selected/);
 });
 
