@@ -68,6 +68,8 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /AUDIO_STATUS_URL/);
   assert.match(script, /AUDIO_ACCESS_TOKEN_STORAGE_KEY/);
   assert.match(script, /audioAuthHeaders/);
+  assert.match(script, /BROWSER_AUDIO_AUTH_RETRY_MS/);
+  assert.match(script, /nextBrowserAudioRefreshAt/);
   assert.match(script, /BROWSER_OUTPUT_MODE_STORAGE_KEY/);
   assert.match(script, /let activeFrame = null/);
   assert.match(script, /function unloadActiveFrame\(\)/);
@@ -75,7 +77,8 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.doesNotMatch(script, /keepAliveFrames/);
   assert.doesNotMatch(script, /dataset\.keepAlive/);
   assert.match(script, /consoleAudioHost=1/);
-  assert.match(script, /function refreshBrowserAudio\(\)/);
+  assert.match(script, /function refreshBrowserAudio\(\{ force = false \} = \{\}\)/);
+  assert.match(script, /error\.status = response\.status/);
   assert.match(script, /status\.muted === true && announcement\.force !== true/);
   assert.match(script, /announcement\.audioUrl \|\| announcement\.publicAudioUrl/);
   assert.match(script, /function unlockBrowserAudio\(\)/);

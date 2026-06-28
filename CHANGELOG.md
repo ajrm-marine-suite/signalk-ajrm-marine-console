@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.14
+
+- Back off Console-hosted browser audio status polling after Audio
+  authentication failures so stale or unauthenticated Console views do not
+  produce repeated Audio status 401s.
+
 ## 0.5.13
 
 - Rename the optional suite catalogue entry from Alerts to Alert Panel.

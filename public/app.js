@@ -6,6 +6,8 @@ const ACTIVE_MODULE_KEY = "ajrmMarineConsole.activeModule";
 const AUDIO_ACCESS_TOKEN_STORAGE_KEY = "ajrmMarineAudio.accessToken";
 const BROWSER_OUTPUT_MODE_STORAGE_KEY = "ajrmMarineAudio.browserOutputMode";
 const BROWSER_OUTPUT_STORAGE_KEY = "ajrmMarineAudio.browserOutput";
+const BROWSER_AUDIO_REFRESH_MS = 2000;
+const BROWSER_AUDIO_AUTH_RETRY_MS = 60000;
 const SILENT_AUDIO_DATA_URL =
   "data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 let activeFrame = null;
@@ -17,6 +19,7 @@ let browserAudioStarted = false;
 let browserAudioUnlocked = false;
 let browserAudioUnlocking = false;
 let firstBrowserAudioRefresh = true;
+let nextBrowserAudioRefreshAt = 0;
 
 const els = {
   version: document.getElementById("version"),
@@ -185,7 +188,9 @@ async function jsonRequest(path, options = {}) {
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(body.error || body.message || `${response.status} ${response.statusText}`);
+    const error = new Error(body.error || body.message || `${response.status} ${response.statusText}`);
+    error.status = response.status;
+    throw error;
   }
   return body;
 }
@@ -209,11 +214,12 @@ function startBrowserAudioHost() {
   if (browserAudioStarted) return;
   browserAudioStarted = true;
   document.addEventListener("click", unlockBrowserAudio, { capture: true });
-  refreshBrowserAudio();
-  window.setInterval(refreshBrowserAudio, 2000);
+  refreshBrowserAudio({ force: true });
+  window.setInterval(refreshBrowserAudio, BROWSER_AUDIO_REFRESH_MS);
 }
 
-async function refreshBrowserAudio() {
+async function refreshBrowserAudio({ force = false } = {}) {
+  if (!force && Date.now() < nextBrowserAudioRefreshAt) return;
   const mode = browserOutputMode();
   renderBrowserAudioButton(mode);
   if (mode === "off") {
@@ -225,7 +231,11 @@ async function refreshBrowserAudio() {
     status = await jsonRequest(AUDIO_STATUS_URL, {
       headers: audioAuthHeaders(),
     });
-  } catch (_error) {
+    nextBrowserAudioRefreshAt = 0;
+  } catch (error) {
+    if (error.status === 401 || error.status === 403) {
+      nextBrowserAudioRefreshAt = Date.now() + BROWSER_AUDIO_AUTH_RETRY_MS;
+    }
     return;
   }
   const announcement = status.lastAnnouncement || {};
