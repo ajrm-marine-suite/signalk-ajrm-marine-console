@@ -1,12 +1,18 @@
 # Changelog
 
+## 0.5.9
+
+- Show every AJRM Marine app on the Overview screen, with missing apps greyed
+  out as downloadable suite capabilities.
+- Select every installed AJRM Marine suite webapp for the tab bar by default,
+  including optional apps that the user has chosen to install.
+
 ## 0.5.8
 
 - Present Console as the AJRM Marine Suite AppStore entry point.
 - Declare mandatory suite apps with `signalk.requires` and optional apps with
   `signalk.recommends`.
-- Select mandatory suite webapps by default while leaving optional apps unticked
-  until the user chooses them.
+- Select mandatory suite webapps by default.
 
 ## 0.5.7
 

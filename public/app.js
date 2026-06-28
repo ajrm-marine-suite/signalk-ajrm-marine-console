@@ -71,13 +71,36 @@ function renderNavigation() {
         `<button class="tab" type="button" data-module="${escapeHtml(module.id)}">${escapeHtml(module.icon)} ${escapeHtml(module.title)}</button>`,
     )
     .join("");
-  els.moduleCards.innerHTML = consoleStatus.modules
-    .filter((module) => module.kind === "webapp")
+  const overviewApps =
+    Array.isArray(consoleStatus.suiteApps) && consoleStatus.suiteApps.length
+      ? consoleStatus.suiteApps
+      : consoleStatus.modules.filter((module) => module.kind === "webapp");
+  els.moduleCards.innerHTML = overviewApps
     .map(
       (module) =>
-        `<button class="module-card" type="button" data-module="${escapeHtml(module.id)}"><strong>${escapeHtml(module.icon)} ${escapeHtml(module.title)}</strong><span>${escapeHtml(module.description)}</span><small>${escapeHtml(module.packageName || module.id)}${module.version ? ` · v${escapeHtml(module.version)}` : ""}</small></button>`,
+        moduleCardHtml(module),
     )
     .join("") || '<p class="empty-note">No webapps are selected. Choose installed Signal K webapps in the AJRM Marine Console plugin configuration.</p>';
+}
+
+function moduleCardHtml(module) {
+  const installed = module.installed !== false;
+  const selected = module.selected !== false;
+  const role = module.role === "core" ? "Mandatory" : module.role === "optional" ? "Optional" : "";
+  const state = installed
+    ? selected
+      ? "Installed"
+      : "Installed - enable tab in settings"
+    : "Not installed";
+  const classes = [
+    "module-card",
+    installed ? "installed" : "missing",
+    selected ? "selected" : "not-selected",
+  ].join(" ");
+  const attrs = selected
+    ? `data-module="${escapeHtml(module.id)}"`
+    : `aria-disabled="${installed ? "false" : "true"}"`;
+  return `<button class="${classes}" type="button" ${attrs}><strong>${escapeHtml(module.icon)} ${escapeHtml(module.title)}</strong><span>${escapeHtml(module.description)}</span><small>${escapeHtml([role, state, module.version ? `v${module.version}` : ""].filter(Boolean).join(" · "))}</small></button>`;
 }
 
 function selectModule(id) {

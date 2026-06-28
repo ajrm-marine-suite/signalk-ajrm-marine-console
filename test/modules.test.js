@@ -12,6 +12,7 @@ const {
   defaultModule,
   discoverWebapps,
   selectedWebappIds,
+  suiteAppCatalog,
   webappOrder,
 } = require("../plugin/modules");
 
@@ -146,21 +147,56 @@ test("Console supports checkbox-style webapp selection settings", () => {
   );
 });
 
-test("Console selects core suite webapps by default but leaves optional apps off", () => {
+test("Console selects installed suite webapps by default", () => {
   const available = [
     ...CORE_SUITE_WEBAPPS.map((id) => ({ id, title: id, kind: "webapp" })),
     ...OPTIONAL_SUITE_WEBAPPS.map((id) => ({ id, title: id, kind: "webapp" })),
     { id: "signalk-freeboard-sk", title: "Freeboard SK", kind: "webapp" },
   ];
+  const expected = [...CORE_SUITE_WEBAPPS, ...OPTIONAL_SUITE_WEBAPPS];
 
   assert.deepEqual(
     Array.from(selectedWebappIds({}, available)).sort(),
-    CORE_SUITE_WEBAPPS.slice().sort(),
+    expected.slice().sort(),
   );
   assert.deepEqual(
     configuredModules({}, available).map((module) => module.id),
-    ["overview", "signalk-admin", ...CORE_SUITE_WEBAPPS],
+    ["overview", "signalk-admin", ...expected],
   );
+});
+
+test("Console suite catalogue includes missing apps grey-list data", () => {
+  const available = [
+    {
+      id: "signalk-ajrm-marine-display",
+      packageName: "signalk-ajrm-marine-display",
+      title: "Display",
+      kind: "webapp",
+      url: "/signalk-ajrm-marine-display/",
+      version: "0.5.0",
+    },
+    {
+      id: "signalk-ajrm-marine-harbour-editor",
+      packageName: "signalk-ajrm-marine-harbour-editor",
+      title: "Harbour Editor",
+      kind: "webapp",
+      url: "/signalk-ajrm-marine-harbour-editor/",
+      version: "0.5.0",
+    },
+  ];
+
+  const catalog = suiteAppCatalog({}, available);
+  assert.equal(catalog.length, CORE_SUITE_WEBAPPS.length + OPTIONAL_SUITE_WEBAPPS.length);
+  assert.deepEqual(
+    catalog.map((entry) => entry.id),
+    [...CORE_SUITE_WEBAPPS, ...OPTIONAL_SUITE_WEBAPPS],
+  );
+  assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-display").installed, true);
+  assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-display").selected, true);
+  assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-traffic").installed, false);
+  assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-traffic").role, "core");
+  assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-harbour-editor").role, "optional");
+  assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-harbour-editor").selected, true);
 });
 
 test("Console orders selected webapp tabs from config", () => {

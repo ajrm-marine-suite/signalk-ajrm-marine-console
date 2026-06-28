@@ -82,6 +82,7 @@ test("Console exposes status through plugin and Signal K API routes", () => {
   assert.equal(body.ok, true);
   assert.equal(body.version, packageInfo.version);
   assert.ok(Array.isArray(body.availableWebapps));
+  assert.ok(Array.isArray(body.suiteApps));
   assert.equal(body.defaultModule, "overview");
 });
 

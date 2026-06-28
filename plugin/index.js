@@ -8,6 +8,7 @@ const {
   defaultModule,
   discoverWebapps,
   selectedWebappIds,
+  suiteAppCatalog,
 } = require("./modules");
 
 const PLUGIN_ID = "signalk-ajrm-marine-console";
@@ -66,6 +67,7 @@ module.exports = function ajrmMarineConsole(app) {
       sessionId,
       version: packageInfo.version,
       availableWebapps,
+      suiteApps: suiteAppCatalog(options, availableWebapps, modules),
       selectedWebapps: modules
         .filter((module) => module.kind === "webapp")
         .map((module) => module.id),

@@ -45,7 +45,74 @@ const OPTIONAL_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-pi-controller",
 ];
 
-const DEFAULT_WEBAPPS = CORE_SUITE_WEBAPPS;
+const DEFAULT_WEBAPPS = [...CORE_SUITE_WEBAPPS, ...OPTIONAL_SUITE_WEBAPPS];
+
+const SUITE_APP_INFO = {
+  "signalk-ajrm-marine-display": {
+    title: "Display",
+    description: "Operational traffic display and chart view.",
+  },
+  "signalk-ajrm-marine-traffic": {
+    title: "Traffic",
+    description: "AIS closest-approach, profiles, and alert decisions.",
+  },
+  "signalk-ajrm-marine-notifications": {
+    title: "Notifications",
+    description: "Shared alert broker for visual and audio consumers.",
+  },
+  "signalk-ajrm-marine-audio": {
+    title: "Audio",
+    description: "Speech, browser audio, and Piper playback.",
+  },
+  "signalk-ajrm-marine-vessel-database": {
+    title: "Vessel Database",
+    description: "Known vessel names, dimensions, and enrichment data.",
+  },
+  "signalk-ajrm-marine-capture": {
+    title: "Capture",
+    description: "Voyage/debug bundles for replay and diagnosis.",
+  },
+  "signalk-ajrm-marine-snapshot": {
+    title: "Snapshot",
+    description: "System snapshots for support and debugging.",
+  },
+  "signalk-ajrm-marine-logger": {
+    title: "Logger",
+    description: "Signal K recording and replay.",
+  },
+  "signalk-ajrm-marine-voyage-viewer": {
+    title: "Voyage Viewer",
+    description: "Analyse voyage captures and plot recorded tracks.",
+  },
+  "signalk-ajrm-marine-simulator": {
+    title: "Simulator",
+    description: "Own-vessel, environment, GPS, and AIS test simulator.",
+  },
+  "signalk-ajrm-marine-gps-integrity": {
+    title: "GPS Integrity",
+    description: "GNSS quality checks, outage counts, and dead-reckoning comparison.",
+  },
+  "signalk-ajrm-marine-dr-plotter": {
+    title: "DR Plotter",
+    description: "Dead-reckoning chart plotter for GPS loss testing.",
+  },
+  "signalk-ajrm-marine-instruments": {
+    title: "Instruments",
+    description: "Large-format Signal K instrument display.",
+  },
+  "signalk-ajrm-marine-instrument-alerts": {
+    title: "Instrument Alerts",
+    description: "Audible thresholds for depth, wind, temperature, and other instruments.",
+  },
+  "signalk-ajrm-marine-harbour-editor": {
+    title: "Harbour Editor",
+    description: "Local harbour/profile region editor.",
+  },
+  "signalk-ajrm-marine-pi-controller": {
+    title: "Pi Controller",
+    description: "Raspberry Pi status, shutdown, and optional Piper install.",
+  },
+};
 
 function discoverWebapps(options = {}) {
   const nodeModulesDir =
@@ -81,6 +148,32 @@ function configuredModules(options = {}, availableWebapps = discoverWebapps()) {
       return 0;
     });
   return [OVERVIEW_MODULE, SIGNALK_ADMIN_MODULE, ...modules];
+}
+
+function suiteAppCatalog(
+  options = {},
+  availableWebapps = discoverWebapps(),
+  modules = configuredModules(options, availableWebapps),
+) {
+  const installed = new Map(availableWebapps.map((module) => [module.id, module]));
+  const selected = new Set(modules.map((module) => module.id));
+  return [...CORE_SUITE_WEBAPPS, ...OPTIONAL_SUITE_WEBAPPS].map((id) => {
+    const module = installed.get(id);
+    const info = SUITE_APP_INFO[id] || {};
+    return {
+      id,
+      packageName: id,
+      title: module?.title || info.title || titleFromPackageName(id),
+      icon: module?.icon || iconForPackage(id),
+      kind: "suite-app",
+      role: CORE_SUITE_WEBAPPS.includes(id) ? "core" : "optional",
+      installed: Boolean(module),
+      selected: selected.has(id),
+      url: module?.url || "",
+      description: module?.description || info.description || "AJRM Marine Suite app.",
+      version: module?.version || "",
+    };
+  });
 }
 
 function defaultModule(options = {}, modules = configuredModules(options)) {
@@ -237,5 +330,6 @@ module.exports = {
   defaultModule,
   discoverWebapps,
   selectedWebappIds,
+  suiteAppCatalog,
   webappOrder,
 };

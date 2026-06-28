@@ -34,8 +34,10 @@ you want those features:
 - AJRM Marine Harbour Editor
 - AJRM Marine Pi Controller
 
-Console selects mandatory suite webapps by default when they are installed.
-Optional webapps remain unticked until selected in the Console plugin settings.
+Console lists every suite app on the Overview screen. Missing apps are greyed
+out, while installed apps appear normally. Every installed AJRM Marine suite
+webapp is selected for the tab bar by default; untick apps in the Console plugin
+settings if you want a shorter operational toolbar.
 
 Version `0.5.4` shortens AJRM Marine suite app titles in the Console tab bar
 while leaving third-party webapp names unchanged.
@@ -107,7 +109,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.5.8 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.5.9 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
