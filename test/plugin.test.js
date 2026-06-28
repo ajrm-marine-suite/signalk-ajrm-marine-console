@@ -13,13 +13,15 @@ test("Console package is the AJRM Marine Suite AppStore entry point", () => {
     "signalk-ajrm-marine-traffic",
     "signalk-ajrm-marine-notifications",
     "signalk-ajrm-marine-audio",
-    "signalk-ajrm-marine-vessel-database",
-    "signalk-ajrm-marine-capture",
-    "signalk-ajrm-marine-snapshot",
   ]);
+  assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-vessel-database"));
+  assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-capture"));
+  assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-snapshot"));
+  assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-alerts"));
   assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-gps-integrity"));
   assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-harbour-editor"));
   assert.ok(!packageInfo.signalk.requires.includes(packageInfo.name));
+  assert.ok(!packageInfo.signalk.requires.includes("signalk-ajrm-marine-vessel-database"));
 });
 
 test("Console publishes an installable sailing module manifest", () => {

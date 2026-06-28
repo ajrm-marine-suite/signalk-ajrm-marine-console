@@ -28,17 +28,18 @@ const CORE_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-traffic",
   "signalk-ajrm-marine-notifications",
   "signalk-ajrm-marine-audio",
-  "signalk-ajrm-marine-vessel-database",
-  "signalk-ajrm-marine-capture",
-  "signalk-ajrm-marine-snapshot",
 ];
 
 const OPTIONAL_SUITE_WEBAPPS = [
+  "signalk-ajrm-marine-vessel-database",
+  "signalk-ajrm-marine-capture",
+  "signalk-ajrm-marine-snapshot",
   "signalk-ajrm-marine-logger",
   "signalk-ajrm-marine-voyage-viewer",
   "signalk-ajrm-marine-simulator",
   "signalk-ajrm-marine-gps-integrity",
   "signalk-ajrm-marine-dr-plotter",
+  "signalk-ajrm-marine-alerts",
   "signalk-ajrm-marine-instruments",
   "signalk-ajrm-marine-instrument-alerts",
   "signalk-ajrm-marine-harbour-editor",
@@ -51,66 +52,87 @@ const SUITE_APP_INFO = {
   "signalk-ajrm-marine-display": {
     title: "Display",
     description: "Operational traffic display and chart view.",
+    groupLabel: "Core",
   },
   "signalk-ajrm-marine-traffic": {
     title: "Traffic",
     description: "AIS closest-approach, profiles, and alert decisions.",
+    groupLabel: "Core",
   },
   "signalk-ajrm-marine-notifications": {
     title: "Notifications",
     description: "Shared alert broker for visual and audio consumers.",
+    groupLabel: "Core",
   },
   "signalk-ajrm-marine-audio": {
     title: "Audio",
     description: "Speech, browser audio, and Piper playback.",
+    groupLabel: "Core",
   },
   "signalk-ajrm-marine-vessel-database": {
     title: "Vessel Database",
     description: "Known vessel names, dimensions, and enrichment data.",
+    groupLabel: "Optional",
   },
   "signalk-ajrm-marine-capture": {
     title: "Capture",
     description: "Voyage/debug bundles for replay and diagnosis.",
+    groupLabel: "Voyage diagnostics",
   },
   "signalk-ajrm-marine-snapshot": {
     title: "Snapshot",
     description: "System snapshots for support and debugging.",
+    groupLabel: "Voyage diagnostics",
   },
   "signalk-ajrm-marine-logger": {
     title: "Logger",
     description: "Signal K recording and replay.",
+    groupLabel: "Voyage diagnostics",
   },
   "signalk-ajrm-marine-voyage-viewer": {
     title: "Voyage Viewer",
     description: "Analyse voyage captures and plot recorded tracks.",
+    groupLabel: "Voyage diagnostics",
   },
   "signalk-ajrm-marine-simulator": {
     title: "Simulator",
     description: "Own-vessel, environment, GPS, and AIS test simulator.",
+    groupLabel: "Testing",
   },
   "signalk-ajrm-marine-gps-integrity": {
     title: "GPS Integrity",
     description: "GNSS quality checks, outage counts, and dead-reckoning comparison.",
+    groupLabel: "GPS / DR",
   },
   "signalk-ajrm-marine-dr-plotter": {
     title: "DR Plotter",
     description: "Dead-reckoning chart plotter for GPS loss testing.",
+    groupLabel: "GPS / DR",
+  },
+  "signalk-ajrm-marine-alerts": {
+    title: "Alerts",
+    description: "Focused alert panel for active and recent suite messages.",
+    groupLabel: "Optional",
   },
   "signalk-ajrm-marine-instruments": {
     title: "Instruments",
     description: "Large-format Signal K instrument display.",
+    groupLabel: "Instruments",
   },
   "signalk-ajrm-marine-instrument-alerts": {
     title: "Instrument Alerts",
     description: "Audible thresholds for depth, wind, temperature, and other instruments.",
+    groupLabel: "Instruments",
   },
   "signalk-ajrm-marine-harbour-editor": {
     title: "Harbour Editor",
     description: "Local harbour/profile region editor.",
+    groupLabel: "Optional",
   },
   "signalk-ajrm-marine-pi-controller": {
     title: "Pi Controller",
     description: "Raspberry Pi status, shutdown, and optional Piper install.",
+    groupLabel: "Pi support",
   },
 };
 
@@ -167,6 +189,7 @@ function suiteAppCatalog(
       icon: module?.icon || iconForPackage(id),
       kind: "suite-app",
       role: CORE_SUITE_WEBAPPS.includes(id) ? "core" : "optional",
+      groupLabel: info.groupLabel || (CORE_SUITE_WEBAPPS.includes(id) ? "Core" : "Optional"),
       installed: Boolean(module),
       selected: selected.has(id),
       url: module?.url || "",

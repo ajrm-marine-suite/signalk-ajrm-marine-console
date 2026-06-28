@@ -86,7 +86,7 @@ function renderNavigation() {
 function moduleCardHtml(module) {
   const installed = module.installed !== false;
   const selected = module.selected !== false;
-  const role = module.role === "core" ? "Mandatory" : module.role === "optional" ? "Optional" : "";
+  const role = module.role === "core" ? "Core" : module.groupLabel || "Optional";
   const state = installed
     ? selected
       ? "Installed"
