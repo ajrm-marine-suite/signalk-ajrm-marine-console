@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.11
+
+- Rename the Overview eyebrow from "Current watch" to "Suite overview" for
+  public-facing screenshots.
+
 ## 0.5.10
 
 - Improve shared help geometry diagrams with explicit high-contrast SVG labels
