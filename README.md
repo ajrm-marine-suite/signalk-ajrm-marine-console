@@ -25,7 +25,7 @@ you want those features:
 - Navigation integrity: AJRM Marine GPS Integrity and DR Plotter
 - Instruments: AJRM Marine Instruments and Instrument Alerts
 - AJRM Marine Vessel Database
-- AJRM Marine Alerts
+- AJRM Marine Alert Panel
 - AJRM Marine Simulator
 - AJRM Marine Harbour Editor
 - AJRM Marine Pi Controller
@@ -112,7 +112,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.5.12 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.5.13 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

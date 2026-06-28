@@ -110,7 +110,7 @@ const SUITE_APP_INFO = {
     groupLabel: "GPS / DR",
   },
   "signalk-ajrm-marine-alerts": {
-    title: "Alerts",
+    title: "Alert Panel",
     description: "Focused alert panel for active and recent suite messages.",
     groupLabel: "Optional",
   },

@@ -1,12 +1,16 @@
 # Changelog
 
+## 0.5.13
+
+- Rename the optional suite catalogue entry from Alerts to Alert Panel.
+
 ## 0.5.12
 
 - Reduce the Console AppStore dependency core to Display, Traffic,
   Notifications, and Audio.
 - Move Vessel Database, voyage diagnostics, GPS/DR, instruments, simulator, and
   Pi support apps into optional recommended groups shown on the Overview screen.
-- Add AJRM Marine Alerts to the advertised optional suite catalogue.
+- Add AJRM Marine Alert Panel to the advertised optional suite catalogue.
 
 ## 0.5.11
 
