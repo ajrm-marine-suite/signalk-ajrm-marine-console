@@ -6,6 +6,22 @@ const createPlugin = require("../plugin");
 const { schemaFor } = require("../plugin");
 const packageInfo = require("../package.json");
 
+test("Console package is the AJRM Marine Suite AppStore entry point", () => {
+  assert.equal(packageInfo.signalk.displayName, "AJRM Marine Suite");
+  assert.deepEqual(packageInfo.signalk.requires, [
+    "signalk-ajrm-marine-display",
+    "signalk-ajrm-marine-traffic",
+    "signalk-ajrm-marine-notifications",
+    "signalk-ajrm-marine-audio",
+    "signalk-ajrm-marine-vessel-database",
+    "signalk-ajrm-marine-capture",
+    "signalk-ajrm-marine-snapshot",
+  ]);
+  assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-gps-integrity"));
+  assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-harbour-editor"));
+  assert.ok(!packageInfo.signalk.requires.includes(packageInfo.name));
+});
+
 test("Console publishes an installable sailing module manifest", () => {
   const messages = [];
   const statuses = [];

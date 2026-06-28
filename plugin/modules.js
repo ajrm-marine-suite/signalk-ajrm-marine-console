@@ -23,11 +23,29 @@ const SIGNALK_ADMIN_MODULE = {
   version: "",
 };
 
-const DEFAULT_WEBAPPS = [
+const CORE_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-display",
-  "signalk-ajrm-marine-instruments",
+  "signalk-ajrm-marine-traffic",
+  "signalk-ajrm-marine-notifications",
   "signalk-ajrm-marine-audio",
+  "signalk-ajrm-marine-vessel-database",
+  "signalk-ajrm-marine-capture",
+  "signalk-ajrm-marine-snapshot",
 ];
+
+const OPTIONAL_SUITE_WEBAPPS = [
+  "signalk-ajrm-marine-logger",
+  "signalk-ajrm-marine-voyage-viewer",
+  "signalk-ajrm-marine-simulator",
+  "signalk-ajrm-marine-gps-integrity",
+  "signalk-ajrm-marine-dr-plotter",
+  "signalk-ajrm-marine-instruments",
+  "signalk-ajrm-marine-instrument-alerts",
+  "signalk-ajrm-marine-harbour-editor",
+  "signalk-ajrm-marine-pi-controller",
+];
+
+const DEFAULT_WEBAPPS = CORE_SUITE_WEBAPPS;
 
 function discoverWebapps(options = {}) {
   const nodeModulesDir =
@@ -210,7 +228,9 @@ function iconForPackage(name) {
 }
 
 module.exports = {
+  CORE_SUITE_WEBAPPS,
   DEFAULT_WEBAPPS,
+  OPTIONAL_SUITE_WEBAPPS,
   OVERVIEW_MODULE,
   SIGNALK_ADMIN_MODULE,
   configuredModules,

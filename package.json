@@ -1,7 +1,7 @@
 {
   "name": "signalk-ajrm-marine-console",
-  "version": "0.5.7",
-  "description": "Shared console for AJRM Marine Suite web applications.",
+  "version": "0.5.8",
+  "description": "Suite entry point, navigation shell, and shared help for AJRM Marine applications.",
   "main": "plugin/index.js",
   "scripts": {
     "build:help": "node scripts/extract-help.js",
@@ -43,7 +43,27 @@
   ],
   "signalk-plugin-enabled-by-default": true,
   "signalk": {
-    "displayName": "AJRM Marine Console",
-    "appIcon": "./icon.svg"
+    "displayName": "AJRM Marine Suite",
+    "appIcon": "./icon.svg",
+    "requires": [
+      "signalk-ajrm-marine-display",
+      "signalk-ajrm-marine-traffic",
+      "signalk-ajrm-marine-notifications",
+      "signalk-ajrm-marine-audio",
+      "signalk-ajrm-marine-vessel-database",
+      "signalk-ajrm-marine-capture",
+      "signalk-ajrm-marine-snapshot"
+    ],
+    "recommends": [
+      "signalk-ajrm-marine-logger",
+      "signalk-ajrm-marine-voyage-viewer",
+      "signalk-ajrm-marine-simulator",
+      "signalk-ajrm-marine-gps-integrity",
+      "signalk-ajrm-marine-dr-plotter",
+      "signalk-ajrm-marine-instruments",
+      "signalk-ajrm-marine-instrument-alerts",
+      "signalk-ajrm-marine-harbour-editor",
+      "signalk-ajrm-marine-pi-controller"
+    ]
   }
 }

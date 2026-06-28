@@ -1,9 +1,41 @@
-# AJRM Marine Console
+# AJRM Marine Suite
 
-AJRM Marine Console is the sailing-focused application shell for the AJRM Marine
-suite. It gives the operational webapps one consistent navigation surface
-without merging their backend responsibilities or preventing them from working
-standalone.
+AJRM Marine Suite is installed through the Console package. Console is the
+sailing-focused application shell for the AJRM Marine suite: it gives the
+operational webapps one consistent navigation surface and carries the suite-level
+help without merging their backend responsibilities.
+
+In the Signal K AppStore this package is presented as **AJRM Marine Suite**. The
+installed webapp remains the suite Console.
+
+## Suite Dependencies
+
+Installing this package through a Signal K server that supports AppStore
+dependencies installs the mandatory suite apps declared in `signalk.requires`:
+
+- AJRM Marine Display
+- AJRM Marine Traffic
+- AJRM Marine Notifications
+- AJRM Marine Audio
+- AJRM Marine Vessel Database
+- AJRM Marine Capture
+- AJRM Marine Snapshot
+
+Optional suite apps are declared in `signalk.recommends`. Install them only when
+you want those features:
+
+- AJRM Marine Logger
+- AJRM Marine Voyage Viewer
+- AJRM Marine Simulator
+- AJRM Marine GPS Integrity
+- AJRM Marine DR Plotter
+- AJRM Marine Instruments
+- AJRM Marine Instrument Alerts
+- AJRM Marine Harbour Editor
+- AJRM Marine Pi Controller
+
+Console selects mandatory suite webapps by default when they are installed.
+Optional webapps remain unticked until selected in the Console plugin settings.
 
 Version `0.5.4` shortens AJRM Marine suite app titles in the Console tab bar
 while leaving third-party webapp names unchanged.
@@ -75,7 +107,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.5.7 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.5.8 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
@@ -91,6 +123,7 @@ Open **Webapps → AJRM Marine Console**.
 
 ## Public Beta
 
-Shared console for AJRM Marine Suite web applications.
+Suite entry point, navigation shell, and shared help for AJRM Marine
+applications.
 
 Development assistance: OpenAI Codex helped with code generation, refactoring, and automated testing during the beta development cycle.

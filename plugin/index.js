@@ -142,7 +142,7 @@ function schemaFor(availableWebapps = discoverWebapps()) {
         type: "object",
         title: "Webapps to show as Console tabs",
         description:
-          "Console discovers installed Signal K webapps dynamically. Tick the apps that should appear as tabs. AJRM Marine Logger and AJRM Marine Capture can be selected like any other webapp.",
+          "Console discovers installed Signal K webapps dynamically. Core AJRM Marine Suite apps are selected by default. Optional apps remain available here and can be ticked when installed.",
         properties: webappProperties,
         additionalProperties: false,
         default: Object.fromEntries(

@@ -6,6 +6,8 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const {
+  CORE_SUITE_WEBAPPS,
+  OPTIONAL_SUITE_WEBAPPS,
   configuredModules,
   defaultModule,
   discoverWebapps,
@@ -141,6 +143,23 @@ test("Console supports checkbox-style webapp selection settings", () => {
       available,
     ).map((module) => module.id),
     ["overview", "signalk-admin", "signalk-ajrm-marine-capture"],
+  );
+});
+
+test("Console selects core suite webapps by default but leaves optional apps off", () => {
+  const available = [
+    ...CORE_SUITE_WEBAPPS.map((id) => ({ id, title: id, kind: "webapp" })),
+    ...OPTIONAL_SUITE_WEBAPPS.map((id) => ({ id, title: id, kind: "webapp" })),
+    { id: "signalk-freeboard-sk", title: "Freeboard SK", kind: "webapp" },
+  ];
+
+  assert.deepEqual(
+    Array.from(selectedWebappIds({}, available)).sort(),
+    CORE_SUITE_WEBAPPS.slice().sort(),
+  );
+  assert.deepEqual(
+    configuredModules({}, available).map((module) => module.id),
+    ["overview", "signalk-admin", ...CORE_SUITE_WEBAPPS],
   );
 });
 

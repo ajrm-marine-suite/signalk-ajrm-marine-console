@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.8
+
+- Present Console as the AJRM Marine Suite AppStore entry point.
+- Declare mandatory suite apps with `signalk.requires` and optional apps with
+  `signalk.recommends`.
+- Select mandatory suite webapps by default while leaving optional apps unticked
+  until the user chooses them.
+
 ## 0.5.7
 
 - Update public install command to the current release tag.
