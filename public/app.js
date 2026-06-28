@@ -15,6 +15,7 @@ let consoleStatus = null;
 let lastConsoleAudioUrl = "";
 let lastConsoleAnnouncementKey = "";
 let lastConsoleSpeechKey = "";
+let seenConsoleAnnouncementKeys = new Set();
 let browserAudioStarted = false;
 let browserAudioUnlocked = false;
 let browserAudioUnlocking = false;
@@ -238,20 +239,34 @@ async function refreshBrowserAudio({ force = false } = {}) {
     }
     return;
   }
-  const announcement = status.lastAnnouncement || {};
-  if (status.muted === true && announcement.force !== true) return;
-  const message = String(announcement.message || "").trim();
-  const audioUrl = announcement.audioUrl || announcement.publicAudioUrl || "";
-  const announcementKey = consoleAnnouncementKey(announcement, message);
+  const announcements = browserAudioAnnouncements(status);
   if (firstBrowserAudioRefresh) {
-    lastConsoleAudioUrl = audioUrl;
-    lastConsoleAnnouncementKey = announcementKey;
-    lastConsoleSpeechKey = consoleSpeechKey(message, announcement);
+    const latest = announcements.at(-1) || {};
+    const latestMessage = String(latest.message || "").trim();
+    lastConsoleAudioUrl = latest.audioUrl || latest.publicAudioUrl || "";
+    lastConsoleAnnouncementKey = consoleAnnouncementKey(latest, latestMessage);
+    lastConsoleSpeechKey = consoleSpeechKey(latestMessage, latest);
+    rememberConsoleAnnouncements(announcements);
     firstBrowserAudioRefresh = false;
     return;
   }
-  if (mode === "piper") playConsolePiperAudio(audioUrl, announcementKey);
-  if (mode === "speech") speakConsoleMessage(message, announcement);
+  for (const announcement of announcements) {
+    if (status.muted === true && announcement.force !== true) continue;
+    const message = String(announcement.message || "").trim();
+    if (!message) continue;
+    const announcementKey = consoleAnnouncementKey(announcement, message);
+    if (seenConsoleAnnouncementKeys.has(announcementKey)) continue;
+    rememberConsoleAnnouncementKey(announcementKey);
+    if (mode === "piper") playConsolePiperAudio(announcement.audioUrl || announcement.publicAudioUrl || "", announcementKey);
+    if (mode === "speech") speakConsoleMessage(message, announcement);
+  }
+}
+
+function browserAudioAnnouncements(status = {}) {
+  if (Array.isArray(status.recentAnnouncements) && status.recentAnnouncements.length) {
+    return status.recentAnnouncements;
+  }
+  return status.lastAnnouncement ? [status.lastAnnouncement] : [];
 }
 
 function browserOutputMode() {
@@ -261,7 +276,7 @@ function browserOutputMode() {
 }
 
 function playConsolePiperAudio(audioUrl, announcementKey = audioUrl) {
-  if (!audioUrl || announcementKey === lastConsoleAnnouncementKey) return;
+  if (!audioUrl) return;
   lastConsoleAudioUrl = audioUrl;
   lastConsoleAnnouncementKey = announcementKey;
   els.browserAudioHost.src = audioUrl;
@@ -281,7 +296,6 @@ function speakConsoleMessage(message, announcement = {}) {
   const Utterance = window.SpeechSynthesisUtterance;
   if (!speech || !Utterance) return;
   const speechKey = consoleSpeechKey(message, announcement);
-  if (speechKey === lastConsoleSpeechKey) return;
   lastConsoleSpeechKey = speechKey;
   speech.speak(new Utterance(message));
   browserAudioUnlocked = true;
@@ -289,7 +303,7 @@ function speakConsoleMessage(message, announcement = {}) {
 }
 
 function consoleSpeechKey(message, announcement = {}) {
-  return `${message}:${announcement.audioUrl || announcement.publicAudioUrl || ""}`;
+  return consoleAnnouncementKey(announcement, message);
 }
 
 function consoleAnnouncementKey(announcement = {}, message = "") {
@@ -300,6 +314,21 @@ function consoleAnnouncementKey(announcement = {}, message = "") {
       announcement.playbackId ||
       `${message}:${announcement.timestamp || ""}`,
   );
+}
+
+function rememberConsoleAnnouncements(announcements = []) {
+  for (const announcement of announcements) {
+    const message = String(announcement?.message || "").trim();
+    rememberConsoleAnnouncementKey(consoleAnnouncementKey(announcement || {}, message));
+  }
+}
+
+function rememberConsoleAnnouncementKey(key) {
+  if (!key) return;
+  seenConsoleAnnouncementKeys.add(key);
+  if (seenConsoleAnnouncementKeys.size > 80) {
+    seenConsoleAnnouncementKeys = new Set([...seenConsoleAnnouncementKeys].slice(-60));
+  }
 }
 
 function stopBrowserAudioHost() {

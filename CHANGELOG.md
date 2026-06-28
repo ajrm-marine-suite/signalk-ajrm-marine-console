@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.15
+
+- Make the Console browser-audio host consume Audio's recent-announcements
+  list in order, so rapid traffic advisories and collision alarms are not
+  hidden by a later profile announcement between status polls.
+
 ## 0.5.14
 
 - Back off Console-hosted browser audio status polling after Audio

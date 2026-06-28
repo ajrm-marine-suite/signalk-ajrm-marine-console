@@ -89,6 +89,11 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /renderBrowserAudioButton/);
   assert.match(script, /firstBrowserAudioRefresh/);
   assert.match(script, /lastConsoleAnnouncementKey/);
+  assert.match(script, /seenConsoleAnnouncementKeys/);
+  assert.match(script, /status\.recentAnnouncements/);
+  assert.match(script, /function browserAudioAnnouncements/);
+  assert.match(script, /rememberConsoleAnnouncements\(announcements\)/);
+  assert.match(script, /seenConsoleAnnouncementKeys\.has\(announcementKey\)/);
   assert.match(script, /function consoleAnnouncementKey/);
   assert.match(script, /if \(browserAudioUnlocked\) \{/);
 });
