@@ -59,8 +59,30 @@ dl { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem .8rem; }
 dt { font-weight: 750; }
 dd { margin: 0; color: #b8d0de; }
 .ajrm-marine-help-diagrams { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 1rem; }
-.ajrm-marine-help-diagram { overflow: auto; border: 1px solid #294b61; border-radius: .6rem; padding: .8rem; }
+.ajrm-marine-help-diagram { overflow: auto; border: 1px solid #294b61; border-radius: .6rem; padding: .8rem; background: #071f2f; }
 .ajrm-marine-help-diagram svg { max-width: 100%; height: auto; }
+.ajrm-marine-help-diagram .diagram-guide { stroke: #dff4ff; }
+.ajrm-marine-help-diagram .diagram-own-vessel { fill: #e8f7ff; stroke: #e8f7ff; }
+.ajrm-marine-help-diagram .diagram-hull { fill: #071f2f; stroke: #e8f7ff; }
+.ajrm-marine-help-diagram .diagram-label-bg {
+  fill: rgba(4, 14, 24, .78);
+  stroke: rgba(223, 244, 255, .22);
+  stroke-width: .5;
+}
+.ajrm-marine-help-diagram .diagram-text {
+  fill: #f6fbff;
+  stroke: #04101a;
+  stroke-width: 3px;
+  paint-order: stroke fill;
+  font-weight: 800;
+}
+.ajrm-marine-help-diagram .diagram-small-text {
+  fill: #f6fbff;
+  stroke: #04101a;
+  stroke-width: 2px;
+  paint-order: stroke fill;
+  font-weight: 750;
+}
 .ajrm-marine-help-swatch { display: inline-block; width: .8rem; height: .8rem; margin-right: .35rem; border-radius: .2rem; }
 @media (max-width: 720px) {
   .help-header { display: block; }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.10
+
+- Improve shared help geometry diagrams with explicit high-contrast SVG labels
+  and dark label plates so sector wording remains readable on dark panels.
+
 ## 0.5.9
 
 - Show every AJRM Marine app on the Overview screen, with missing apps greyed
