@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.7
+
+- Update public install command to the current release tag.
+
 ## 0.5.6
 
 - Rename Console status contracts and help CSS namespaces to AJRM Marine naming.
