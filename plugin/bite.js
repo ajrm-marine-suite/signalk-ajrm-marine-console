@@ -134,6 +134,42 @@ const TESTS = [
     pluginId: GPS_INTEGRITY_PLUGIN_ID,
   },
   {
+    id: "gps-recovery-realigns-dr",
+    number: 12,
+    title: "GPS recovery realigns DR",
+    description: "Optional active test that lets retained-current DR drift after GPS loss, restores GPS, and checks operational DR locks back to GPS.",
+    timeoutSeconds: 30,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "gps-jump-rejection",
+    number: 13,
+    title: "GPS jump rejection",
+    description: "Optional active test that injects an impossible GPS jump and checks GPS Integrity rejects it without moving the trusted baseline.",
+    timeoutSeconds: 20,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "gps-intermittent-outage-count",
+    number: 14,
+    title: "GPS intermittent outage count",
+    description: "Optional active test that repeats missing-GPS samples and checks a continuous outage is counted once rather than once per update.",
+    timeoutSeconds: 25,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "docked-no-dr-drift",
+    number: 15,
+    title: "Docked no-DR-drift",
+    description: "Optional active test that injects a stationary healthy GPS fix with tide running and checks independent DR does not drift away.",
+    timeoutSeconds: 25,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
     id: "audio-output-summary",
     number: 99,
     title: "Audible summary output",
@@ -554,6 +590,12 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "dead-reckoning-loss-exercise") {
     return runDeadReckoningLossExerciseBite(app, { pluginId, consoleVersion, timeoutMs });
   }
+  if (testId === "gps-recovery-realigns-dr") return runGpsRecoveryRealignsDrBite(app, { pluginId, consoleVersion, timeoutMs });
+  if (testId === "gps-jump-rejection") return runGpsJumpRejectionBite(app, { pluginId, consoleVersion, timeoutMs });
+  if (testId === "gps-intermittent-outage-count") {
+    return runGpsIntermittentOutageCountBite(app, { pluginId, consoleVersion, timeoutMs });
+  }
+  if (testId === "docked-no-dr-drift") return runDockedNoDrDriftBite(app, { pluginId, consoleVersion, timeoutMs });
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
 
@@ -879,6 +921,37 @@ async function waitForSnapshot(app, { timeoutMs, predicate }) {
     await delay(Math.min(POLL_MS, Math.max(0, deadline - Date.now())));
   } while (Date.now() < deadline);
   return null;
+}
+
+async function publishAndWaitForGpsIntegrity(app, {
+  pluginId,
+  runId,
+  phase,
+  position,
+  includeGps,
+  includeCurrent,
+  currentDriftMps = DR_EXERCISE_CURRENT_DRIFT_MPS,
+  timeoutMs,
+  predicate,
+}) {
+  publishDeadReckoningExerciseSample(app, {
+    pluginId,
+    runId,
+    phase,
+    position,
+    includeGps,
+    includeCurrent,
+    currentDriftMps,
+  });
+  return waitForGpsIntegrity(app, { timeoutMs, predicate });
+}
+
+async function waitForGpsIntegrity(app, { timeoutMs, predicate }) {
+  const snapshot = await waitForSnapshot(app, {
+    timeoutMs,
+    predicate: (candidate) => predicate(candidate.gpsIntegrity || {}),
+  });
+  return snapshot?.gpsIntegrity || null;
 }
 
 function biteAudioSummaryEvidence(audio, { message, startedAtMs }) {
@@ -1626,6 +1699,350 @@ async function runDeadReckoningLossExerciseBite(app, { pluginId, consoleVersion,
       gpsIntegrity: gpsIntegritySummary(gpsIntegrity),
       evidence,
     },
+  });
+}
+
+async function runGpsRecoveryRealignsDrBite(app, { pluginId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const baselinePosition = { ...OWN_POSITION };
+  let baseline = null;
+  let lost = null;
+  let recovered = null;
+  try {
+    baseline = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "recovery-baseline",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      timeoutMs: Math.min(7000, timeoutMs / 3),
+      predicate: (state) => state.acceptedGps === true,
+    });
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "recovery-gps-lost",
+      position: baselinePosition,
+      includeGps: false,
+      includeCurrent: false,
+    });
+    lost = await waitForGpsIntegrity(app, {
+      timeoutMs: Math.min(9000, timeoutMs / 3),
+      predicate: (state) => deadReckoningLossExerciseEvidence(state, baselinePosition).complete,
+    });
+    recovered = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "recovery-gps-restored",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      currentDriftMps: 0,
+      timeoutMs: Math.max(5000, timeoutMs - (Date.now() - startedAtMs)),
+      predicate: (state) => {
+        const operational = state.operationalDeadReckoning || state.deadReckoning || {};
+        return state.acceptedGps === true &&
+          operational.source === "gps-locked" &&
+          offsetMetersBetween(baselinePosition, operational.position).distanceMeters < 1;
+      },
+    });
+  } finally {
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "restore-gps",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      currentDriftMps: 0,
+    });
+  }
+  const evidence = {
+    baseline: gpsIntegritySummary(baseline || {}),
+    lost: gpsIntegritySummary(lost || {}),
+    recovered: gpsIntegritySummary(recovered || {}),
+    recoveredOffsetMeters: recovered
+      ? offsetMetersBetween(baselinePosition, (recovered.operationalDeadReckoning || recovered.deadReckoning || {}).position)
+      : null,
+  };
+  const assertions = [
+    assertion("gps-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted."),
+    assertion("gps-loss-drifts", Boolean(lost), "Lost GPS should produce a retained-current DR drift."),
+    assertion(
+      "gps-recovery-accepted",
+      Boolean(recovered?.acceptedGps),
+      recovered?.acceptedGps ? "Restored GPS was accepted." : "Restored GPS was not accepted.",
+    ),
+    assertion(
+      "operational-dr-gps-locked",
+      (recovered?.operationalDeadReckoning || recovered?.deadReckoning || {}).source === "gps-locked",
+      `Operational DR source after recovery is ${(recovered?.operationalDeadReckoning || recovered?.deadReckoning || {}).source || "missing"}.`,
+    ),
+    assertion(
+      "operational-dr-realigned",
+      !evidence.recoveredOffsetMeters || evidence.recoveredOffsetMeters.distanceMeters < 1,
+      evidence.recoveredOffsetMeters
+        ? `Operational DR is ${displayMeters(evidence.recoveredOffsetMeters.distanceMeters)} from restored GPS.`
+        : "Recovered DR position was not available.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-recovery-realigns-dr",
+    testId: "gps-recovery-realigns-dr",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [evidence],
+    summary: result === "pass"
+      ? "GPS recovery realigned operational DR to the restored GPS fix."
+      : `GPS recovery realign check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: evidence,
+  });
+}
+
+async function runGpsJumpRejectionBite(app, { pluginId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const baselinePosition = { ...OWN_POSITION };
+  const jumpedPosition = { latitude: OWN_POSITION.latitude + 0.08, longitude: OWN_POSITION.longitude + 0.08 };
+  let baseline = null;
+  let jumped = null;
+  try {
+    baseline = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "jump-baseline",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      timeoutMs: Math.min(7000, timeoutMs / 2),
+      predicate: (state) => state.acceptedGps === true,
+    });
+    jumped = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "impossible-gps-jump",
+      position: jumpedPosition,
+      includeGps: true,
+      includeCurrent: true,
+      timeoutMs: Math.max(5000, timeoutMs - (Date.now() - startedAtMs)),
+      predicate: (state) => state.trust === "suspect" || state.acceptedGps === false,
+    });
+  } finally {
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "restore-gps",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      currentDriftMps: 0,
+    });
+  }
+  const trustedOffset = jumped
+    ? offsetMetersBetween(baselinePosition, jumped.lastTrustedFix?.position)
+    : null;
+  const positionJumpsBefore = Number(baseline?.counters?.positionJumps || 0);
+  const positionJumpsAfter = Number(jumped?.counters?.positionJumps || 0);
+  const assertions = [
+    assertion("jump-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted."),
+    assertion(
+      "jump-rejected",
+      jumped?.acceptedGps === false && (jumped?.trust === "suspect" || /Position jump/i.test((jumped?.reasons || []).join(" "))),
+      jumped ? `Jump trust=${jumped.trust}; acceptedGps=${jumped.acceptedGps}.` : "Jump state was not observed.",
+    ),
+    assertion(
+      "jump-counter-incremented",
+      positionJumpsAfter >= positionJumpsBefore + 1,
+      `Position jump counter before=${positionJumpsBefore}, after=${positionJumpsAfter}.`,
+    ),
+    assertion(
+      "trusted-baseline-retained",
+      trustedOffset !== null && trustedOffset.distanceMeters < 1,
+      trustedOffset
+        ? `Trusted baseline moved ${displayMeters(trustedOffset.distanceMeters)} after rejected jump.`
+        : "Trusted baseline was not available after rejected jump.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-jump-rejection",
+    testId: "gps-jump-rejection",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ trustedOffset, positionJumpsBefore, positionJumpsAfter }],
+    summary: result === "pass"
+      ? "Impossible GPS jump was rejected and the trusted baseline was retained."
+      : `GPS jump rejection check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { baseline: gpsIntegritySummary(baseline || {}), jumped: gpsIntegritySummary(jumped || {}) },
+  });
+}
+
+async function runGpsIntermittentOutageCountBite(app, { pluginId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const baselinePosition = { ...OWN_POSITION };
+  let baseline = null;
+  let lost = null;
+  let repeatedLost = null;
+  try {
+    baseline = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "intermittent-baseline",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      timeoutMs: Math.min(7000, timeoutMs / 3),
+      predicate: (state) => state.acceptedGps === true,
+    });
+    const startingLostFixes = Number(baseline?.counters?.lostFixes || 0);
+    for (let index = 0; index < 3; index += 1) {
+      publishDeadReckoningExerciseSample(app, {
+        pluginId,
+        runId,
+        phase: `intermittent-gps-lost-${index + 1}`,
+        position: baselinePosition,
+        includeGps: false,
+        includeCurrent: false,
+      });
+      repeatedLost = await waitForGpsIntegrity(app, {
+        timeoutMs: Math.min(5000, Math.max(1500, timeoutMs / 4)),
+        predicate: (state) => state.trust === "lost" && state.gps?.fixValid === false,
+      }) || repeatedLost;
+      if (!lost) lost = repeatedLost;
+      await delay(750);
+    }
+    repeatedLost = collectSnapshot(app).gpsIntegrity || repeatedLost;
+    repeatedLost._startingLostFixes = startingLostFixes;
+  } finally {
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "restore-gps",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      currentDriftMps: 0,
+    });
+  }
+  const before = Number(repeatedLost?._startingLostFixes ?? baseline?.counters?.lostFixes ?? 0);
+  const after = Number(repeatedLost?.counters?.lostFixes ?? before);
+  const assertions = [
+    assertion("intermittent-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted."),
+    assertion("intermittent-lost-observed", Boolean(lost), "GPS lost state should be observed."),
+    assertion(
+      "continuous-outage-counted-once",
+      after === before + 1,
+      `Lost-fix counter before=${before}, after=${after}; a continuous outage should add exactly one.`,
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-intermittent-outage-count",
+    testId: "gps-intermittent-outage-count",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ lostFixesBefore: before, lostFixesAfter: after }],
+    summary: result === "pass"
+      ? "Repeated missing-GPS samples were counted as one continuous outage."
+      : `GPS intermittent outage count check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { baseline: gpsIntegritySummary(baseline || {}), lost: gpsIntegritySummary(repeatedLost || {}) },
+  });
+}
+
+async function runDockedNoDrDriftBite(app, { pluginId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const baselinePosition = { ...OWN_POSITION };
+  let baseline = null;
+  let final = null;
+  try {
+    baseline = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "docked-baseline",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      timeoutMs: Math.min(7000, timeoutMs / 3),
+      predicate: (state) => state.acceptedGps === true,
+    });
+    const deadline = Date.now() + Math.max(5000, timeoutMs - (Date.now() - startedAtMs));
+    do {
+      publishDeadReckoningExerciseSample(app, {
+        pluginId,
+        runId,
+        phase: "docked-stationary-gps",
+        position: baselinePosition,
+        includeGps: true,
+        includeCurrent: true,
+      });
+      await delay(POLL_MS);
+      final = collectSnapshot(app).gpsIntegrity || final;
+    } while (Date.now() < deadline);
+  } finally {
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "restore-gps",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      currentDriftMps: 0,
+    });
+  }
+  const integrity = final?.integrityDeadReckoning || {};
+  const operational = final?.operationalDeadReckoning || final?.deadReckoning || {};
+  const integrityOffset = offsetMetersBetween(baselinePosition, integrity.position);
+  const operationalOffset = offsetMetersBetween(baselinePosition, operational.position);
+  const assertions = [
+    assertion("docked-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted."),
+    assertion("docked-gps-remained-accepted", final?.acceptedGps === true, "Healthy stationary GPS should remain accepted."),
+    assertion(
+      "independent-dr-did-not-drift",
+      integrityOffset.distanceMeters < 1,
+      `Independent DR moved ${displayMeters(integrityOffset.distanceMeters)} while stationary with healthy GPS.`,
+    ),
+    assertion(
+      "operational-dr-remained-gps-locked",
+      operational.source === "gps-locked" && operationalOffset.distanceMeters < 1,
+      `Operational DR source=${operational.source || "missing"}, offset=${displayMeters(operationalOffset.distanceMeters)}.`,
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "docked-no-dr-drift",
+    testId: "docked-no-dr-drift",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ integrityOffset, operationalOffset }],
+    summary: result === "pass"
+      ? "Healthy stationary GPS did not allow tide-only independent DR drift."
+      : `Docked no-DR-drift check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { baseline: gpsIntegritySummary(baseline || {}), final: gpsIntegritySummary(final || {}) },
   });
 }
 

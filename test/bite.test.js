@@ -114,8 +114,33 @@ function gpsIntegrityProjectionFor(startedAtMs) {
 
 function fakeDrIntegrityFromInjectedValues(previous, values) {
   const now = new Date().toISOString();
+  const phase = values["plugins.ajrmMarineConsole.bite.deadReckoningExercise"]?.phase || "";
   const position = values["navigation.position"];
+  if (/impossible-gps-jump/.test(phase)) {
+    return {
+      ...previous,
+      timestamp: now,
+      trust: "suspect",
+      acceptedGps: false,
+      reasons: ["Position jump implies 999.0 kn over ground."],
+      counters: {
+        ...previous.counters,
+        evaluations: Number(previous.counters.evaluations || 0) + 1,
+        rejectedFixes: Number(previous.counters.rejectedFixes || 0) + 1,
+        positionJumps: Number(previous.counters.positionJumps || 0) + 1,
+      },
+      gps: {
+        ...previous.gps,
+        position,
+        fixValid: true,
+        positionTimestamp: now,
+        lastReceivedPositionTimestamp: now,
+        positionAgeSeconds: 0,
+      },
+    };
+  }
   if (position) {
+    const stationary = /docked-stationary/.test(phase);
     return {
       ...previous,
       timestamp: now,
@@ -162,16 +187,32 @@ function fakeDrIntegrityFromInjectedValues(previous, values) {
         ageSeconds: 0,
         lastRealignedAt: now,
       },
+      integrityDeadReckoning: stationary
+        ? {
+            ...previous.integrityDeadReckoning,
+            position,
+            source: "heading-stw",
+            ageSeconds: 0,
+            uncertaintyRadiusMeters: 10,
+          }
+        : previous.integrityDeadReckoning,
     };
   }
   const baseline = previous.lastTrustedFix.position;
   const moved = { latitude: baseline.latitude, longitude: baseline.longitude + 0.00006 };
+  const previousLost = previous.trust === "lost" || previous.gps?.fixValid === false;
+  const previousLostFixes = Number(previous.counters?.lostFixes || 0);
   return {
     ...previous,
     timestamp: now,
     trust: "lost",
     acceptedGps: false,
     reasons: ["GPS position is missing or invalid."],
+    counters: {
+      ...previous.counters,
+      evaluations: Number(previous.counters?.evaluations || 0) + 1,
+      lostFixes: previousLost ? previousLostFixes : previousLostFixes + 1,
+    },
     gps: {
       ...previous.gps,
       position: null,
@@ -771,6 +812,10 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "gps-lost-age-consistency").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "dead-reckoning-projection").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "dead-reckoning-loss-exercise").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "gps-recovery-realigns-dr").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "gps-jump-rejection").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "gps-intermittent-outage-count").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "docked-no-dr-drift").enabled, true);
   assert.equal(statusBody.latestReportsByTest, undefined);
 
   app.ajrmMarineConsoleAvailableWebapps.push({
@@ -939,6 +984,32 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.assertions.find((item) => item.id === "dr-position-moved").pass, true);
   values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
 
+  for (const testId of [
+    "gps-recovery-realigns-dr",
+    "gps-jump-rejection",
+    "gps-intermittent-outage-count",
+    "docked-no-dr-drift",
+  ]) {
+    statusCode = 0;
+    runBody = null;
+    await routes.get("POST /ajrmMarineConsole/bite/run")(
+      { body: { testId, timeoutSeconds: 10 } },
+      {
+        set() {},
+        status(code) {
+          statusCode = code;
+        },
+        json(value) {
+          runBody = value;
+        },
+      },
+    );
+    assert.equal(statusCode, 200);
+    assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+    assert.equal(runBody.scenario, testId);
+    values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
+  }
+
   statusCode = 0;
   runBody = null;
   await routes.get("POST /ajrmMarineConsole/bite/run")(
@@ -1036,7 +1107,7 @@ test("Console exposes BITE status and run routes", async () => {
     { muted: false },
     { muted: true },
   ]);
-  assert.equal(runBody.reports.length, 13);
+  assert.equal(runBody.reports.length, 17);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "core-projections",
@@ -1050,11 +1121,15 @@ test("Console exposes BITE status and run routes", async () => {
     "gps-lost-age-consistency",
     "dead-reckoning-projection",
     "dead-reckoning-loss-exercise",
+    "gps-recovery-realigns-dr",
+    "gps-jump-rejection",
+    "gps-intermittent-outage-count",
+    "docked-no-dr-drift",
     "audio-output-summary",
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 12 tests passed/,
+    /Marine built in tests complete\. 16 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);

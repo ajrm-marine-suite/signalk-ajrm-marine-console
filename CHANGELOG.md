@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.61
+
+- Expand BITE GPS/DR coverage with active tests for GPS recovery realigning DR,
+  impossible GPS jump rejection, continuous outage counting, and stationary
+  healthy GPS suppressing tide-only independent DR drift.
+
 ## 0.5.60
 
 - Add an active BITE dead-reckoning GPS-loss exercise that injects a trusted
