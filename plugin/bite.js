@@ -29,6 +29,7 @@ const WATCH_PATHS = {
   notificationsAudio: "plugins.ajrmMarineNotifications.audio",
   audio: "plugins.ajrmMarineAudio",
   display: "plugins.ajrmMarineDisplay",
+  harbourEditor: "plugins.ajrmMarineHarbourEditor",
 };
 const REQUIRED_SUITE_PLUGINS = Object.freeze(packageInfo.signalk?.requires || []);
 const PREFLIGHT_TEST_ID = "preflight-safety";
@@ -558,7 +559,7 @@ function optionalPluginEvidence(app, pluginId) {
 
 function optionalPluginStatus(app, pluginId) {
   if (pluginId === HARBOUR_EDITOR_PLUGIN_ID) {
-    return app.ajrmMarineHarbourEditorStatus || null;
+    return readSelfPath(app, WATCH_PATHS.harbourEditor);
   }
   return null;
 }

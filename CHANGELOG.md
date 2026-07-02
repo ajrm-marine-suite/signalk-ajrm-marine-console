@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.48
+
+- Read the optional Harbour Editor BITE status from the Signal K path
+  `plugins.ajrmMarineHarbourEditor`, rather than a plugin-local app property
+  that Console cannot see.
+
 ## 0.5.47
 
 - Update the BITE report box while Run all is in progress so it shows the
