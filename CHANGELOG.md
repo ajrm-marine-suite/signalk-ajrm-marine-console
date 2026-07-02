@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.21
+
+- Extend Console BITE to verify the Display-facing visual alert path as well
+  as Traffic, Notifications, and Audio. The report now checks that Display is
+  publishing status and that the Notifications visual projection contains the
+  BITE collision event.
+
 ## 0.5.20
 
 - Correct BITE report wording so the Traffic assertion and observations show

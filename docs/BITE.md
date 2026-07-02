@@ -45,13 +45,15 @@ curl -sk -X POST https://localhost:3443/plugins/signalk-ajrm-marine-console/bite
 ```
 
 It publishes a short synthetic crossing encounter using the temporary AIS target
-`BITE TEST TARGET` / MMSI `235912345`, then watches Traffic, Notifications, and
-Audio status paths. At the end of the run it publishes a quiet cleanup sample so
-the synthetic encounter clears from Traffic.
+`BITE TEST TARGET` / MMSI `235912345`, then watches Traffic, Display,
+Notifications, and Audio status/projection paths. At the end of the run it
+publishes a quiet cleanup sample so the synthetic encounter clears from Traffic.
 
 The runner returns a machine-readable report with `pass`/`fail` assertions for:
 
 - Traffic publishing a `warn`, `alarm`, or `emergency` for the BITE target.
+- Display publishing its status projection, and the Display-facing visual alert
+  projection containing the BITE target.
 - Notifications publishing matching audio delivery.
 - Audio accepting, queueing, rendering, skipping, or muting matching BITE audio.
 - Any mute condition being explicit rather than silent.

@@ -30,6 +30,20 @@ test("BITE evaluation passes when Traffic, Notifications, and Audio align", () =
   const snapshot = {
     traffic: trafficProjection("alarm"),
     trafficAudioPolicy: { muted: false },
+    display: {
+      contract: "ajrm-marine-display-status",
+      enabled: true,
+    },
+    notifications: {
+      active: [{
+        state: "alarm",
+        timestamp: new Date().toISOString(),
+        delivery: { visual: true },
+        presentation: {
+          message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+        },
+      }],
+    },
     notificationsAudio: {
       timestamp: new Date().toISOString(),
       audioRequest: {
@@ -74,6 +88,20 @@ test("BITE evaluation fails when Traffic alerts but Audio has no matching event"
   const result = evaluateCollisionAudioSnapshot({
     traffic: trafficProjection("alarm"),
     trafficAudioPolicy: { muted: false },
+    display: {
+      contract: "ajrm-marine-display-status",
+      enabled: true,
+    },
+    notifications: {
+      active: [{
+        state: "alarm",
+        timestamp: new Date().toISOString(),
+        delivery: { visual: true },
+        presentation: {
+          message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+        },
+      }],
+    },
     notificationsAudio: null,
     audio: { muted: false, recentEvents: [] },
   }, {
@@ -115,6 +143,18 @@ test("Console exposes BITE status and run routes", async () => {
   const values = {
     "plugins.ajrmMarineTraffic.targets": trafficProjection("alarm"),
     "plugins.ajrmMarineTraffic.audioPolicy": { muted: false },
+    "plugins.ajrmMarineDisplay": {
+      contract: "ajrm-marine-display-status",
+      enabled: true,
+    },
+    "plugins.ajrmMarineNotifications": {
+      active: [{
+        state: "alarm",
+        timestamp: new Date(startedAtMs).toISOString(),
+        delivery: { visual: true },
+        presentation: { message: `Collision alarm. ${TEST_TARGET_NAME}.` },
+      }],
+    },
     "plugins.ajrmMarineNotifications.audio": {
       timestamp: new Date(startedAtMs).toISOString(),
       audioRequest: { message: `Collision alarm. ${TEST_TARGET_NAME}.` },

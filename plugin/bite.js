@@ -18,6 +18,7 @@ const WATCH_PATHS = {
   notifications: "plugins.ajrmMarineNotifications",
   notificationsAudio: "plugins.ajrmMarineNotifications.audio",
   audio: "plugins.ajrmMarineAudio",
+  display: "plugins.ajrmMarineDisplay",
 };
 
 function createBiteController(app, { pluginId, version }) {
@@ -129,6 +130,12 @@ function evaluateCollisionAudioSnapshot(snapshot, { startedAtMs, targetName, tar
   const audioPolicy = snapshot.trafficAudioPolicy || {};
   const notificationsAudio = snapshot.notificationsAudio;
   const audio = snapshot.audio || {};
+  const displayStatus = snapshot.display || {};
+  const displayEvidence = findDisplayAlertEvidence(snapshot.notifications, {
+    startedAtMs,
+    targetName,
+    targetMmsi,
+  });
   const audioEvidence = findAudioEvidence(audio, { startedAtMs, targetName, targetMmsi });
   const brokerEvidence = findBrokerAudioEvidence(notificationsAudio, {
     startedAtMs,
@@ -143,6 +150,20 @@ function evaluateCollisionAudioSnapshot(snapshot, { startedAtMs, targetName, tar
     trafficAlert
       ? `Traffic published ${trafficAlert.encounter?.state} for ${trafficAlert.name}.`
       : "Traffic has not published a warn/alarm/emergency for the BITE target.",
+  ));
+  assertions.push(assertion(
+    "display-ready",
+    displayStatus.enabled !== false && displayStatus.contract === "ajrm-marine-display-status",
+    displayStatus.contract === "ajrm-marine-display-status"
+      ? "Display status projection is present and enabled."
+      : "Display status projection is not present.",
+  ));
+  assertions.push(assertion(
+    "display-alert",
+    Boolean(displayEvidence),
+    displayEvidence
+      ? `Display-facing alert projection contains ${displayEvidence.state} for ${displayEvidence.message}`
+      : "Display-facing visual alert projection does not contain the BITE target.",
   ));
   assertions.push(assertion(
     "notifications-audio",
@@ -167,7 +188,7 @@ function evaluateCollisionAudioSnapshot(snapshot, { startedAtMs, targetName, tar
   ));
 
   const hardFailures = assertions.filter((item) => !item.pass);
-  const complete = Boolean(trafficAlert && (audioEvidence || brokerEvidence || muted));
+  const complete = Boolean(trafficAlert && displayEvidence && (audioEvidence || brokerEvidence || muted));
   const result = hardFailures.length ? "fail" : "pass";
   return {
     complete: complete || Date.now() - startedAtMs >= DEFAULT_TIMEOUT_MS,
@@ -241,6 +262,7 @@ function collectSnapshot(app) {
     notifications: readSelfPath(app, WATCH_PATHS.notifications),
     notificationsAudio: readSelfPath(app, WATCH_PATHS.notificationsAudio),
     audio: readSelfPath(app, WATCH_PATHS.audio),
+    display: readSelfPath(app, WATCH_PATHS.display),
   };
 }
 
@@ -283,6 +305,22 @@ function findBrokerAudioEvidence(value, { startedAtMs, targetName, targetMmsi })
     (freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs) || freshTimestamp)
     && messageMatches(candidate?.message || candidate?.presentation?.message || candidate?.audioMessage, targetName, targetMmsi)
   ) || null;
+}
+
+function findDisplayAlertEvidence(value, { startedAtMs, targetName, targetMmsi }) {
+  const candidates = flattenObjects(value);
+  const freshTimestamp = candidates.some((candidate) =>
+    freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs),
+  );
+  return candidates.find((candidate) => {
+    const state = String(candidate?.state || candidate?.priority?.level || "").toLowerCase();
+    const message = candidate?.message || candidate?.presentation?.message || "";
+    const visualEnabled = candidate?.delivery?.visual !== false;
+    return visualEnabled
+      && ["warn", "alarm", "emergency"].includes(state)
+      && (freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs) || freshTimestamp)
+      && messageMatches(message, targetName, targetMmsi);
+  }) || null;
 }
 
 function findAudioEvidence(audio, { startedAtMs, targetName, targetMmsi }) {
@@ -360,6 +398,7 @@ function summarizeSnapshot(snapshot) {
       notifications: Boolean(snapshot.notifications),
       notificationsAudio: Boolean(snapshot.notificationsAudio),
       audio: Boolean(snapshot.audio),
+      display: Boolean(snapshot.display),
     },
     trafficProfile: snapshot.traffic?.profile || "",
     trafficTargets: targets.length,
@@ -367,6 +406,7 @@ function summarizeSnapshot(snapshot) {
       .map((target) => target?.encounter?.state)
       .filter((state) => state && state !== "normal"),
     audioMuted: snapshot.audio?.muted === true,
+    displayEnabled: snapshot.display?.enabled !== false,
     trafficAudioMuted: snapshot.trafficAudioPolicy?.muted === true,
     audioTimelineState: snapshot.audio?.timeline?.event?.state || "",
     audioQueueLength: snapshot.audio?.queueLength ?? null,
