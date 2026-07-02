@@ -38,6 +38,7 @@
     "plugin",
     "public",
     "scripts",
+    "docs",
     "README.md",
     "LICENSE"
   ],
