@@ -49,7 +49,7 @@ test("Console publishes an installable sailing module manifest", () => {
   assert.equal(status.defaultModule, "overview");
   assert.deepEqual(
     status.modules.map((module) => module.id),
-    ["overview", "signalk-admin"],
+    ["overview", "bite", "signalk-admin"],
   );
   assert.deepEqual(status.selectedWebapps, []);
   assert.deepEqual(status.services, []);
@@ -125,10 +125,11 @@ test("Console config schema renders discovered webapps as checkbox booleans", ()
   );
   assert.match(
     schema.properties.tabOrder.description,
-    /Signal K is always second/,
+    /BITE is always second, Signal K is always third/,
   );
-  assert.deepEqual(schema.properties.defaultModule.enum.slice(0, 2), [
+  assert.deepEqual(schema.properties.defaultModule.enum.slice(0, 3), [
     "overview",
+    "bite",
     "signalk-admin",
   ]);
   assert.equal(schema.properties.selectedWebapps, undefined);

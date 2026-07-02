@@ -25,6 +25,7 @@ test("Console uses one compact toolbar and hidden loading overlay cannot display
   assert.match(css, /\.frame-message\[hidden\]\s*\{\s*display:\s*none;/);
   assert.match(css, /grid-template-rows:\s*auto minmax\(0,\s*1fr\)/);
   assert.match(html, /id="overviewHelp"/);
+  assert.match(html, /id="biteDashboard"/);
   assert.match(html, /id="biteTests"/);
   assert.match(html, /id="biteRunAll"/);
   assert.match(html, /id="biteLog"/);

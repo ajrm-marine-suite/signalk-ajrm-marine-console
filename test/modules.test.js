@@ -101,7 +101,7 @@ test("Console module visibility and default selection are configurable with weba
   );
   assert.deepEqual(
     modules.map((module) => module.id),
-    ["overview", "signalk-admin", "signalk-freeboard-sk"],
+    ["overview", "bite", "signalk-admin", "signalk-freeboard-sk"],
   );
   assert.equal(
     defaultModule({ defaultModule: "signalk-ajrm-marine-logger" }, modules),
@@ -143,7 +143,7 @@ test("Console supports checkbox-style webapp selection settings", () => {
       },
       available,
     ).map((module) => module.id),
-    ["overview", "signalk-admin", "signalk-ajrm-marine-capture"],
+    ["overview", "bite", "signalk-admin", "signalk-ajrm-marine-capture"],
   );
 });
 
@@ -161,7 +161,7 @@ test("Console selects installed suite webapps by default", () => {
   );
   assert.deepEqual(
     configuredModules({}, available).map((module) => module.id),
-    ["overview", "signalk-admin", ...expected],
+    ["overview", "bite", "signalk-admin", ...expected],
   );
 });
 
@@ -225,6 +225,7 @@ test("Console orders selected webapp tabs from config", () => {
     configuredModules(options, available).map((module) => module.id),
     [
       "overview",
+      "bite",
       "signalk-admin",
       "signalk-freeboard-sk",
       "signalk-ajrm-marine-capture",
@@ -257,11 +258,11 @@ test("Console uses discovered order when tab order is absent", () => {
       },
       available,
     ).map((module) => module.id),
-    ["overview", "signalk-admin", "signalk-ajrm-marine-logger", "signalk-freeboard-sk"],
+    ["overview", "bite", "signalk-admin", "signalk-ajrm-marine-logger", "signalk-freeboard-sk"],
   );
 });
 
-test("Console always places Signal K admin second", () => {
+test("Console always places BITE before Signal K admin", () => {
   const modules = configuredModules(
     {
       webapps: {
@@ -275,7 +276,7 @@ test("Console always places Signal K admin second", () => {
   );
   assert.deepEqual(
     modules.map((module) => module.id),
-    ["overview", "signalk-admin", "signalk-freeboard-sk"],
+    ["overview", "bite", "signalk-admin", "signalk-freeboard-sk"],
   );
-  assert.equal(modules[1].url, "/admin/");
+  assert.equal(modules[2].url, "/admin/");
 });

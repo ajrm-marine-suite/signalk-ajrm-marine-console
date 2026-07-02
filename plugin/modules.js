@@ -12,6 +12,15 @@ const OVERVIEW_MODULE = {
   defaultEnabled: true,
 };
 
+const BITE_MODULE = {
+  id: "bite",
+  title: "BITE",
+  icon: "✓",
+  kind: "native",
+  description: "Built-in test equipment for suite health checks.",
+  defaultEnabled: true,
+};
+
 const SIGNALK_ADMIN_MODULE = {
   id: "signalk-admin",
   title: "Signal K",
@@ -169,7 +178,7 @@ function configuredModules(options = {}, availableWebapps = discoverWebapps()) {
       }
       return 0;
     });
-  return [OVERVIEW_MODULE, SIGNALK_ADMIN_MODULE, ...modules];
+  return [OVERVIEW_MODULE, BITE_MODULE, SIGNALK_ADMIN_MODULE, ...modules];
 }
 
 function suiteAppCatalog(

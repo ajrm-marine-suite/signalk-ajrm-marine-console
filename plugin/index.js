@@ -197,7 +197,7 @@ function schemaFor(availableWebapps = discoverWebapps()) {
         type: "object",
         title: "Tab order",
         description:
-          "Optional ordering for selected webapp tabs. Overview is always first, Signal K is always second, and selected webapps are sorted by these numbers.",
+          "Optional ordering for selected webapp tabs. Overview is always first, BITE is always second, Signal K is always third, and selected webapps are sorted by these numbers.",
         properties: tabOrderProperties,
         additionalProperties: false,
         default: Object.fromEntries(
@@ -207,8 +207,8 @@ function schemaFor(availableWebapps = discoverWebapps()) {
       defaultModule: {
         type: "string",
         title: "Default tab",
-        enum: ["overview", "signalk-admin", ...enumValues],
-        enumNames: ["Overview", "Signal K", ...enumNames],
+        enum: ["overview", "bite", "signalk-admin", ...enumValues],
+        enumNames: ["Overview", "BITE", "Signal K", ...enumNames],
         default: "overview",
       },
     },

@@ -34,6 +34,7 @@ const els = {
   enableBrowserAudio: document.getElementById("enableBrowserAudio"),
   tabs: document.getElementById("tabs"),
   overview: document.getElementById("overview"),
+  biteDashboard: document.getElementById("biteDashboard"),
   overviewHelp: document.getElementById("overviewHelp"),
   overviewHelpButton: document.getElementById("overviewHelpButton"),
   overviewBackButton: document.getElementById("overviewBackButton"),
@@ -293,13 +294,15 @@ function selectModule(id) {
     tab.classList.toggle("active", tab.dataset.module === id);
   }
   if (module.kind === "native") {
-    els.overview.hidden = false;
+    els.overview.hidden = module.id !== "overview";
+    els.biteDashboard.hidden = module.id !== "bite";
     els.overviewHelp.hidden = true;
     els.frameHost.hidden = true;
     unloadActiveFrame();
     return;
   }
   els.overview.hidden = true;
+  els.biteDashboard.hidden = true;
   els.overviewHelp.hidden = true;
   els.frameHost.hidden = false;
   showFrame(module);
@@ -307,6 +310,7 @@ function selectModule(id) {
 
 function showOverviewHelp() {
   els.overview.hidden = true;
+  els.biteDashboard.hidden = true;
   els.frameHost.hidden = true;
   els.overviewHelp.hidden = false;
   unloadActiveFrame();

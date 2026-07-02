@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.29
+
+- Move the BITE dashboard from the Overview screen into its own native Console
+  tab placed immediately after Overview and before Signal K.
+
 ## 0.5.28
 
 - Persist each child BITE report before stopping Capture during Run all, so the
