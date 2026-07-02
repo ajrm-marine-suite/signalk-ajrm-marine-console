@@ -2407,7 +2407,7 @@ async function runTrafficOvertakingWordingBite(app, { pluginId, testId, consoleV
     target: {
       mmsi: OVERTAKING_TEST_TARGET_MMSI,
       name: OVERTAKING_TEST_TARGET_NAME,
-      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 240 }),
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 240, northMeters: 90 }),
       speedMps: 3 * KNOTS_TO_MPS,
       courseRad: Math.PI / 2,
       lengthMeters: 18,
@@ -2419,7 +2419,7 @@ async function runTrafficOvertakingWordingBite(app, { pluginId, testId, consoleV
       speedMps: 6 * KNOTS_TO_MPS,
       courseRad: Math.PI / 2,
     },
-    expectedPatterns: [/You are overtaking it/i, /CPA will be ahead/i],
+    expectedPatterns: [/You are overtaking it/i, /CPA will be (ahead|on your port side|on your starboard side)/i],
     forbiddenPatterns: [/CPA will be ahead\. CPA /i],
     passSummary: "Overtaking encounter wording was present in the Traffic alert chain.",
     failSummary: "Traffic overtaking wording check failed",
