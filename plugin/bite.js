@@ -2083,6 +2083,7 @@ async function runGpsRecoveryFreshFixBite(app, { pluginId, consoleVersion, timeo
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
   const baselinePosition = { ...OWN_POSITION };
+  const recoveredPosition = offsetPositionMeters(baselinePosition, { eastMeters: 4, northMeters: 0 });
   let baseline = null;
   let lost = null;
   let recovered = null;
@@ -2115,12 +2116,21 @@ async function runGpsRecoveryFreshFixBite(app, { pluginId, consoleVersion, timeo
       pluginId,
       runId,
       phase: "fresh-fix-gps-restored",
-      position: baselinePosition,
+      position: recoveredPosition,
       includeGps: true,
       includeCurrent: true,
       currentDriftMps: 0,
       timeoutMs: Math.max(5000, timeoutMs - (Date.now() - startedAtMs)),
-      predicate: (state) => state.acceptedGps === true && state.gps?.fixValid === true,
+      predicate: (state) => {
+        const stateTimestampMs = Date.parse(state.timestamp || "");
+        const receivedMs = Date.parse(state.gps?.lastReceivedPositionTimestamp || state.gps?.positionTimestamp || "");
+        return state.acceptedGps === true &&
+          state.gps?.fixValid === true &&
+          Number.isFinite(stateTimestampMs) &&
+          stateTimestampMs >= restoreStartedAtMs - 1000 &&
+          Number.isFinite(receivedMs) &&
+          receivedMs >= restoreStartedAtMs - 1000;
+      },
     });
   } finally {
     publishDeadReckoningExerciseSample(app, {
@@ -2154,6 +2164,13 @@ async function runGpsRecoveryFreshFixBite(app, { pluginId, consoleVersion, timeo
       receivedFresh
         ? "Last received GPS timestamp was refreshed when GPS returned."
         : `Last received GPS timestamp ${recovered?.gps?.lastReceivedPositionTimestamp || recovered?.gps?.positionTimestamp || "missing"} was not refreshed after recovery.`,
+    ),
+    assertion(
+      "fresh-fix-position-updated",
+      recovered ? offsetMetersBetween(recoveredPosition, recovered.gps?.position).distanceMeters < 1 : false,
+      recovered
+        ? `Recovered GPS position is ${displayMeters(offsetMetersBetween(recoveredPosition, recovered.gps?.position).distanceMeters)} from the injected fresh fix.`
+        : "Recovered GPS position was not observed.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
@@ -3306,6 +3323,14 @@ function offsetMetersBetween(from, to) {
     northMeters,
     distanceMeters: Math.sqrt(eastMeters ** 2 + northMeters ** 2),
   };
+}
+
+function offsetPositionMeters(position, { eastMeters = 0, northMeters = 0 } = {}) {
+  if (!validPosition(position)) return position;
+  const latitude = Number(position.latitude) + Number(northMeters || 0) / 111_320;
+  const meanLatRad = Number(position.latitude) * Math.PI / 180;
+  const longitude = Number(position.longitude) + Number(eastMeters || 0) / (111_320 * Math.cos(meanLatRad));
+  return { latitude, longitude };
 }
 
 function currentAvailable(value = {}) {
