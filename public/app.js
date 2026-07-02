@@ -121,7 +121,8 @@ function renderNavigation() {
 
 function renderBitePanel() {
   const tests = biteTests();
-  els.biteRunAll.disabled = biteRunning || tests.length === 0;
+  const enabledTests = tests.filter((test) => test.enabled !== false);
+  els.biteRunAll.disabled = biteRunning || enabledTests.length === 0;
   els.biteTests.innerHTML = tests.map((test) => biteTestHtml(test)).join("")
     || '<p class="empty-note">No BITE tests are available.</p>';
   if (!els.biteLog.value || els.biteLog.value === "BITE has not run yet.") {
@@ -154,7 +155,10 @@ function biteTests() {
 function biteTestHtml(test) {
   const result = biteResults[test.id] || null;
   const currentTestId = biteStatus?.currentRunAll?.currentTestId || biteRunningTestId || null;
-  const state = result
+  const available = test.enabled !== false;
+  const state = !available
+    ? "disabled"
+    : result
     ? result.ok
       ? "pass"
       : "fail"
@@ -166,8 +170,11 @@ function biteTestHtml(test) {
     running: "Running",
     pass: "Pass",
     fail: "Fail",
+    disabled: "Disabled",
   }[state];
-  const summary = state === "running"
+  const summary = state === "disabled"
+    ? test.disabledReason || "This optional test is disabled because the plugin is not installed."
+    : state === "running"
     ? "Running now..."
     : result?.summary || test.description || "";
   return `<article class="bite-test ${state}">
@@ -176,7 +183,7 @@ function biteTestHtml(test) {
       <strong>${biteTestNumber(test)} ${escapeHtml(test.title || test.id)}</strong>
       <span>${escapeHtml(summary)}</span>
     </div>
-    <button class="bite-run" type="button" data-bite-test="${escapeHtml(test.id)}" ${biteRunning ? "disabled" : ""}>Run</button>
+    <button class="bite-run" type="button" data-bite-test="${escapeHtml(test.id)}" ${biteRunning || !available ? "disabled" : ""}>Run</button>
   </article>`;
 }
 
@@ -187,6 +194,11 @@ function renderBiteError(error) {
 
 async function runBiteTest(testId) {
   const test = biteTests().find((candidate) => candidate.id === testId) || {};
+  if (test.enabled === false) {
+    els.biteLog.value = test.disabledReason || `BITE ${testId} is disabled because its optional plugin is not installed.`;
+    renderBitePanel();
+    return;
+  }
   biteRunning = true;
   biteRunningTestId = testId;
   els.biteLog.value = `Running BITE ${biteTestNumber(test)} ${test.title || testId}...`;

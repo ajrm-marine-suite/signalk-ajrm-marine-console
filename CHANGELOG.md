@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.43
+
+- Add optional BITE test support: optional checks remain visible in the
+  dashboard but are disabled and skipped by Run all when the matching plugin is
+  not installed.
+- Add an optional Harbour Editor availability check that verifies the plugin is
+  visible to Console and has a webapp route.
+
 ## 0.5.42
 
 - Send the final BITE audible summary as a forced test announcement so it

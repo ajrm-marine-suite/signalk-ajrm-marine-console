@@ -17,6 +17,7 @@ const TEST_TARGET_NAME = "BITE TEST TARGET";
 const QUIET_TEST_TARGET_MMSI = "235912346";
 const QUIET_TEST_TARGET_NAME = "BITE QUIET TARGET";
 const AUDIO_SUMMARY_PRIORITY = 700;
+const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
 const OWN_POSITION = { latitude: 56.21122, longitude: -5.55756 };
 const TARGET_POSITION = { latitude: 56.21122, longitude: -5.54756 };
 const QUIET_TARGET_POSITION = { latitude: 56.24122, longitude: -5.49756 };
@@ -96,6 +97,15 @@ const TESTS = [
     description: "Publishes a final spoken BITE summary so the skipper can confirm the selected audio output was actually heard.",
     timeoutSeconds: 30,
   },
+  {
+    id: "harbour-editor-availability",
+    number: 9,
+    title: "Harbour Editor availability",
+    description: "Optional check that AJRM Marine Harbour Editor is installed, enabled, and visible to Console.",
+    timeoutSeconds: 5,
+    optional: true,
+    pluginId: HARBOUR_EDITOR_PLUGIN_ID,
+  },
 ];
 const LIVE_FEED_PATHS = [
   "navigation.position",
@@ -143,7 +153,7 @@ function createBiteController(app, { pluginId, version }) {
         lastRunAllReport: lastRunAllReport?.consoleVersion === version ? lastRunAllReport : null,
         reports: reports.slice(-MAX_REPORTS),
         reportsDirectory: reportsDirectory(),
-        tests: TESTS,
+        tests: biteTestsForApp(app),
         watchPaths: WATCH_PATHS,
       };
     },
@@ -156,9 +166,15 @@ function createBiteController(app, { pluginId, version }) {
       running = true;
       try {
         const testId = String(options.testId || TESTS[0].id);
-        if (!TESTS.some((item) => item.id === testId)) {
+        const test = biteTestsForApp(app).find((item) => item.id === testId);
+        if (!test) {
           const error = new Error(`Unknown BITE test: ${testId}`);
           error.statusCode = 400;
+          throw error;
+        }
+        if (test.enabled === false) {
+          const error = new Error(test.disabledReason || `BITE test ${testId} is not available.`);
+          error.statusCode = 409;
           throw error;
         }
         const report = await runBiteTestById(app, {
@@ -268,7 +284,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       captureError = "AJRM Marine Capture API is unavailable; BITE reports will still be written but no voyage bundle will be created.";
       progress({ phase: "capture-unavailable", currentTestId: null });
     }
-    for (const test of TESTS.filter((item) => item.id !== PREFLIGHT_TEST_ID)) {
+    for (const test of biteTestsForApp(app).filter((item) => item.id !== PREFLIGHT_TEST_ID && item.enabled !== false)) {
       progress({ phase: "running", currentTestId: test.id });
       const report = await runBiteTestById(app, {
         pluginId,
@@ -344,6 +360,20 @@ function runAllReport({
   };
 }
 
+function biteTestsForApp(app) {
+  return TESTS.map((test) => {
+    if (!test.optional) return test;
+    const evidence = optionalPluginEvidence(app, test.pluginId);
+    return {
+      ...test,
+      enabled: evidence.installed,
+      disabledReason: evidence.installed
+        ? ""
+        : `${test.title} is disabled because ${test.pluginId} is not installed or not visible to Console.`,
+    };
+  });
+}
+
 function preflightReason(report) {
   const failedAssertions = (report?.assertions || []).filter((item) => !item.pass);
   if (!failedAssertions.length) return report?.summary || "pre-test check failed.";
@@ -376,6 +406,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "notifications-broker-health") return runNotificationsBrokerHealthBite(app, { consoleVersion });
   if (testId === "audio-output-summary") {
     return runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorReports, timeoutMs });
+  }
+  if (testId === "harbour-editor-availability") {
+    return runHarbourEditorAvailabilityBite(app, { consoleVersion });
   }
   if (testId === "quiet-target-no-alert") {
     return runQuietTargetNoAlertBite(app, { pluginId, testId, consoleVersion, timeoutMs });
@@ -493,6 +526,23 @@ function requiredSuitePluginEvidence(app) {
     runtimeChecks,
     runtimeFailures,
     message: ok ? "All required AJRM Marine suite plugins are installed and publishing/available." : parts.join(" "),
+  };
+}
+
+function optionalPluginEvidence(app, pluginId) {
+  const availableWebapps = Array.isArray(app.ajrmMarineConsoleAvailableWebapps)
+    ? app.ajrmMarineConsoleAvailableWebapps
+    : discoverWebapps();
+  const module = availableWebapps.find((candidate) =>
+    candidate?.id === pluginId || candidate?.packageName === pluginId
+  );
+  return {
+    pluginId,
+    installed: Boolean(module),
+    title: module?.title || "",
+    version: module?.version || "",
+    url: module?.url || "",
+    kind: module?.kind || "",
   };
 }
 
@@ -985,6 +1035,45 @@ async function runAudioRendererReadinessBite(app, { consoleVersion }) {
       queueLength: audio.queueLength,
       dependencies,
     },
+  });
+}
+
+async function runHarbourEditorAvailabilityBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, HARBOUR_EDITOR_PLUGIN_ID);
+  const assertions = [
+    assertion(
+      "harbour-editor-installed",
+      evidence.installed,
+      evidence.installed
+        ? "Harbour Editor is installed and visible to Console."
+        : "Harbour Editor is not installed or not visible to Console.",
+    ),
+    assertion(
+      "harbour-editor-webapp-route",
+      evidence.installed && evidence.url.length > 0,
+      evidence.url
+        ? `Harbour Editor webapp route is ${evidence.url}.`
+        : "Harbour Editor webapp route is missing.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "harbour-editor-availability",
+    testId: "harbour-editor-availability",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [evidence],
+    summary: result === "pass"
+      ? "Harbour Editor optional plugin is available."
+      : `Harbour Editor optional plugin check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: evidence,
   });
 }
 

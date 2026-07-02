@@ -69,6 +69,7 @@ test("Console frontend treats Logger as an ordinary selectable webapp", () => {
 
 test("Console unloads all inactive webapp iframes and owns root browser audio", () => {
   const html = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
+  const css = fs.readFileSync(path.join(root, "public", "styles.css"), "utf8");
   const script = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
   assert.match(html, /id="browserAudioHost"/);
   assert.match(html, /id="enableBrowserAudio"/);
@@ -96,10 +97,13 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /function stopBiteStatusPolling\(\)/);
   assert.match(script, /biteStatus\.currentRunAll\?\.reports/);
   assert.match(script, /biteStatus\?\.currentRunAll\?\.currentTestId \|\| biteRunningTestId/);
-  assert.match(script, /const summary = state === "running"/);
+  assert.match(script, /const summary = state === "disabled"/);
+  assert.match(script, /test\.enabled !== false/);
+  assert.match(script, /disabledReason/);
   assert.match(script, /Running BITE pre-test checks/);
   assert.match(script, /data-bite-test/);
   assert.match(script, /formatBiteReport/);
+  assert.match(css, /\.bite-test\.disabled/);
   assert.match(script, /error\.status = response\.status/);
   assert.match(script, /status\.muted === true && announcement\.force !== true/);
   assert.match(script, /announcement\.audioUrl \|\| announcement\.publicAudioUrl/);

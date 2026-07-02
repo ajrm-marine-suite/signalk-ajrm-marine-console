@@ -520,10 +520,51 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(Array.isArray(statusBody.tests), true);
   assert.equal(statusBody.tests[0].number, 0);
   assert.equal(statusBody.tests[1].id, "core-projections");
-  assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
+  assert.equal(statusBody.tests.at(-1).id, "harbour-editor-availability");
+  assert.equal(statusBody.tests.at(-1).enabled, false);
+  assert.match(statusBody.tests.at(-1).disabledReason, /signalk-ajrm-marine-harbour-editor/);
+
+  app.ajrmMarineConsoleAvailableWebapps.push({
+    id: "signalk-ajrm-marine-harbour-editor",
+    packageName: "signalk-ajrm-marine-harbour-editor",
+    title: "AJRM Marine Harbour Editor",
+    kind: "webapp",
+    url: "/signalk-ajrm-marine-harbour-editor/",
+    version: "0.5.3",
+  });
+  routes.get("GET /ajrmMarineConsole/bite/status")({}, {
+    set() {},
+    json(value) {
+      statusBody = value;
+    },
+  });
+  assert.equal(statusBody.tests.at(-1).id, "harbour-editor-availability");
+  assert.equal(statusBody.tests.at(-1).enabled, true);
 
   let statusCode = 0;
   let runBody;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "harbour-editor-availability", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, true);
+  assert.equal(runBody.scenario, "harbour-editor-availability");
+  assert.equal(runBody.snapshot.url, "/signalk-ajrm-marine-harbour-editor/");
+  app.ajrmMarineConsoleAvailableWebapps = app.ajrmMarineConsoleAvailableWebapps.filter(
+    (module) => module.id !== "signalk-ajrm-marine-harbour-editor",
+  );
+
+  statusCode = 0;
+  runBody = null;
   await routes.get("POST /ajrmMarineConsole/bite/run")(
     { body: { testId: "preflight-safety", timeoutSeconds: 5 } },
     {
