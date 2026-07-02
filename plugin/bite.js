@@ -18,6 +18,9 @@ const QUIET_TEST_TARGET_MMSI = "235912346";
 const QUIET_TEST_TARGET_NAME = "BITE QUIET TARGET";
 const OVERTAKING_TEST_TARGET_MMSI = "235912347";
 const OVERTAKING_TEST_TARGET_NAME = "BITE OVERTAKING TARGET";
+const CLOSE_QUARTERS_TEST_TARGET_MMSI = "235912348";
+const CLOSE_QUARTERS_TEST_TARGET_NAME = "BITE CLOSE TARGET";
+const UNNAMED_TEST_TARGET_MMSI = "235912349";
 const AUDIO_SUMMARY_PRIORITY = 150;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
 const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
@@ -210,6 +213,20 @@ const TESTS = [
     number: 20,
     title: "Traffic overtaking wording",
     description: "Publishes an overtaking encounter and checks the visual/audio wording includes the overtaking phrase and CPA direction.",
+    timeoutSeconds: 30,
+  },
+  {
+    id: "traffic-close-quarters-wording",
+    number: 21,
+    title: "Traffic close-quarters wording",
+    description: "Publishes a close-quarters encounter and checks the visual/audio wording says close quarters through the alert chain.",
+    timeoutSeconds: 30,
+  },
+  {
+    id: "traffic-unnamed-spoken-name",
+    number: 22,
+    title: "Traffic unnamed spoken name",
+    description: "Publishes an MMSI-only target and checks spoken audio does not attempt to read the MMSI as the vessel name.",
     timeoutSeconds: 30,
   },
   {
@@ -649,6 +666,12 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "traffic-overtaking-wording") {
     return runTrafficOvertakingWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-close-quarters-wording") {
+    return runTrafficCloseQuartersWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-unnamed-spoken-name") {
+    return runTrafficUnnamedSpokenNameBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
@@ -2426,6 +2449,64 @@ async function runTrafficOvertakingWordingBite(app, { pluginId, testId, consoleV
   });
 }
 
+async function runTrafficCloseQuartersWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  return runTrafficMessageScenarioBite(app, {
+    pluginId,
+    testId,
+    consoleVersion,
+    timeoutMs,
+    target: {
+      mmsi: CLOSE_QUARTERS_TEST_TARGET_MMSI,
+      name: CLOSE_QUARTERS_TEST_TARGET_NAME,
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 45 }),
+      speedMps: 3 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+      lengthMeters: 7,
+      beamMeters: 2,
+      aisClass: "B",
+    },
+    own: {
+      position: OWN_POSITION,
+      speedMps: 6 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+    },
+    expectedPatterns: [/Close quarters/i, /CPA \d+ meters/i],
+    forbiddenPatterns: [/CPA will be ahead\. CPA /i],
+    passSummary: "Close-quarters encounter wording was present in the Traffic alert chain.",
+    failSummary: "Traffic close-quarters wording check failed",
+  });
+}
+
+async function runTrafficUnnamedSpokenNameBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  return runTrafficMessageScenarioBite(app, {
+    pluginId,
+    testId,
+    consoleVersion,
+    timeoutMs,
+    target: {
+      mmsi: UNNAMED_TEST_TARGET_MMSI,
+      name: "",
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 45 }),
+      speedMps: 3 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+      lengthMeters: 7,
+      beamMeters: 2,
+      aisClass: "B",
+    },
+    own: {
+      position: OWN_POSITION,
+      speedMps: 6 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+    },
+    expectedPatterns: [/Small craft|Medium vessel|Large vessel/i],
+    expectedAudioPatterns: [/Small craft|Medium vessel|Large vessel/i],
+    forbiddenAudioPatterns: [new RegExp(UNNAMED_TEST_TARGET_MMSI)],
+    forbiddenPatterns: [/CPA will be ahead\. CPA /i],
+    passSummary: "Unnamed target spoken wording omitted the MMSI while preserving the alert chain.",
+    failSummary: "Traffic unnamed spoken-name check failed",
+  });
+}
+
 async function runTrafficMessageScenarioBite(app, {
   pluginId,
   testId,
@@ -2435,6 +2516,8 @@ async function runTrafficMessageScenarioBite(app, {
   own,
   expectedPatterns,
   forbiddenPatterns = [],
+  expectedAudioPatterns = [],
+  forbiddenAudioPatterns = [],
   passSummary,
   failSummary,
 }) {
@@ -2459,6 +2542,8 @@ async function runTrafficMessageScenarioBite(app, {
         targetMmsi: target.mmsi,
         expectedPatterns,
         forbiddenPatterns,
+        expectedAudioPatterns,
+        forbiddenAudioPatterns,
       });
       if (evaluation.observation) observations.push(evaluation.observation);
       if (evaluation.complete) break;
@@ -2472,6 +2557,8 @@ async function runTrafficMessageScenarioBite(app, {
         targetMmsi: target.mmsi,
         expectedPatterns,
         forbiddenPatterns,
+        expectedAudioPatterns,
+        forbiddenAudioPatterns,
       });
     }
   } finally {
@@ -2920,6 +3007,8 @@ function evaluateTrafficMessageScenarioSnapshot(snapshot, {
   targetMmsi,
   expectedPatterns,
   forbiddenPatterns = [],
+  expectedAudioPatterns = [],
+  forbiddenAudioPatterns = [],
 }) {
   const trafficAlert = findTrafficAlert(snapshot.traffic, targetName, targetMmsi);
   const displayEvidence = findDisplayAlertEvidence(snapshot.notifications, {
@@ -2927,19 +3016,33 @@ function evaluateTrafficMessageScenarioSnapshot(snapshot, {
     targetName,
     targetMmsi,
   });
-  const brokerEvidence = findBrokerAudioEvidence(snapshot.notificationsAudio, {
+  let brokerEvidence = findBrokerAudioEvidence(snapshot.notificationsAudio, {
     startedAtMs,
     targetName,
     targetMmsi,
   });
-  const audioEvidence = findAudioEvidence(snapshot.audio || {}, {
+  let audioEvidence = findAudioEvidence(snapshot.audio || {}, {
     startedAtMs,
     targetName,
     targetMmsi,
   });
+  if (!targetName && expectedAudioPatterns.length) {
+    brokerEvidence = brokerEvidence || findBrokerAudioEvidenceByPatterns(snapshot.notificationsAudio, {
+      startedAtMs,
+      patterns: expectedAudioPatterns,
+    });
+    audioEvidence = audioEvidence || findAudioEvidenceByPatterns(snapshot.audio || {}, {
+      startedAtMs,
+      patterns: expectedAudioPatterns,
+    });
+  }
   const text = [
     trafficAlert?.encounter?.message,
     displayEvidence?.message,
+    brokerEvidence?.message,
+    audioEvidence?.message,
+  ].filter(Boolean).join(" | ");
+  const audioText = [
     brokerEvidence?.message,
     audioEvidence?.message,
   ].filter(Boolean).join(" | ");
@@ -2959,6 +3062,24 @@ function evaluateTrafficMessageScenarioSnapshot(snapshot, {
       pattern.test(text)
         ? `Forbidden wording ${pattern} was found in: ${text}.`
         : `Forbidden wording ${pattern} was not present.`,
+    )
+  );
+  const expectedAudio = expectedAudioPatterns.map((pattern, index) =>
+    assertion(
+      `expected-audio-wording-${index + 1}`,
+      pattern.test(audioText),
+      pattern.test(audioText)
+        ? `Found expected audio wording ${pattern}.`
+        : `Expected audio wording ${pattern} was not found in: ${audioText || "no audio messages"}.`,
+    )
+  );
+  const forbiddenAudio = forbiddenAudioPatterns.map((pattern, index) =>
+    assertion(
+      `forbidden-audio-wording-${index + 1}`,
+      !pattern.test(audioText),
+      pattern.test(audioText)
+        ? `Forbidden audio wording ${pattern} was found in: ${audioText}.`
+        : `Forbidden audio wording ${pattern} was not present.`,
     )
   );
   const assertions = [
@@ -2987,6 +3108,8 @@ function evaluateTrafficMessageScenarioSnapshot(snapshot, {
     ),
     ...expected,
     ...forbidden,
+    ...expectedAudio,
+    ...forbiddenAudio,
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
   return {
@@ -2998,6 +3121,7 @@ function evaluateTrafficMessageScenarioSnapshot(snapshot, {
           ts: new Date().toISOString(),
           trafficState: trafficAlert?.encounter?.state || "",
           message: text,
+          audioMessage: audioText,
         }
       : null,
   };
@@ -3354,6 +3478,20 @@ function findBrokerAudioEvidence(value, { startedAtMs, targetName, targetMmsi, s
   ) || null;
 }
 
+function findBrokerAudioEvidenceByPatterns(value, { startedAtMs, patterns }) {
+  const candidates = flattenObjects(value);
+  const freshTimestamp = candidates.some((candidate) =>
+    freshEnough(candidateTimestamp(candidate), startedAtMs),
+  );
+  const match = candidates.find((candidate) => {
+    const message = candidate?.message || candidate?.presentation?.message || candidate?.audioMessage || "";
+    return (freshEnough(candidateTimestamp(candidate), startedAtMs) || freshTimestamp)
+      && message
+      && patterns.every((pattern) => pattern.test(message));
+  });
+  return match ? { ...match, message: match.message || match.presentation?.message || match.audioMessage || "" } : null;
+}
+
 function findDisplayAlertEvidence(value, { startedAtMs, targetName, targetMmsi, strict = false }) {
   const candidates = flattenObjects(value);
   const freshTimestamp = candidates.some((candidate) =>
@@ -3432,6 +3570,32 @@ function findAudioEvidence(audio, {
   };
 }
 
+function findAudioEvidenceByPatterns(audio, { startedAtMs, patterns }) {
+  const candidates = [];
+  if (audio?.timeline?.event) candidates.push({ ...audio.timeline.event, source: "timeline" });
+  for (const event of audio?.recentEvents || []) candidates.push({ ...event, source: "recentEvents" });
+  for (const announcement of audio?.recentAnnouncements || []) {
+    candidates.push({ ...announcement, state: "rendered", source: "recentAnnouncements" });
+  }
+  if (audio?.lastAnnouncement) {
+    candidates.push({ ...audio.lastAnnouncement, state: "lastAnnouncement", source: "lastAnnouncement" });
+  }
+  const match = candidates.find((candidate) => {
+    const ts = candidate.occurredAt || candidate.ts || candidate.renderedAt || candidate.receivedAt;
+    const message = candidate.message || "";
+    const state = String(candidate.state || candidate.event || "");
+    return freshEnough(ts, startedAtMs)
+      && /accepted|queued|audio-ready|rendered|speaker|skipped|muted|lastAnnouncement/i.test(state)
+      && patterns.every((pattern) => pattern.test(message));
+  });
+  if (!match) return null;
+  return {
+    ...match,
+    state: String(match.state || match.event || ""),
+    suppressed: /skipped|muted/i.test(String(match.state || match.event || "")),
+  };
+}
+
 function flattenObjects(value) {
   const result = [];
   visit(value);
@@ -3450,15 +3614,15 @@ function flattenObjects(value) {
 
 function messageMatches(message, targetName, targetMmsi, { allowBiteWildcard = true } = {}) {
   const text = String(message || "");
-  return text.includes(targetName)
-    || text.includes(targetMmsi)
+  return (targetName ? text.includes(targetName) : false)
+    || (targetMmsi ? text.includes(targetMmsi) : false)
     || (allowBiteWildcard && /BITE TEST/i.test(text));
 }
 
 function matchesTarget(target, targetName, targetMmsi) {
-  return String(target?.name || "").includes(targetName)
-    || String(target?.mmsi || "") === targetMmsi
-    || String(target?.id || "").includes(targetMmsi);
+  return (targetName ? String(target?.name || "").includes(targetName) : false)
+    || (targetMmsi ? String(target?.mmsi || "") === targetMmsi : false)
+    || (targetMmsi ? String(target?.id || "").includes(targetMmsi) : false);
 }
 
 function freshEnough(timestamp, startedAtMs) {

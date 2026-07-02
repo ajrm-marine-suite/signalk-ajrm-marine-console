@@ -669,6 +669,46 @@ test("Console exposes BITE status and run routes", async () => {
   const messages = [];
   const captureCommands = [];
   const trafficCommands = [];
+  function injectScenarioMessage({ mmsi, name, visualMessage, audioMessage = visualMessage, state = "warn" }) {
+    const now = new Date().toISOString();
+    values["plugins.ajrmMarineTraffic.targets"] = {
+      ...trafficProjection(state),
+      targets: [{
+        id: `vessels.urn:mrn:imo:mmsi:${mmsi}`,
+        mmsi,
+        name,
+        encounter: {
+          state,
+          silenced: false,
+          collisionCandidate: true,
+          message: visualMessage,
+        },
+      }],
+    };
+    values["plugins.ajrmMarineNotifications"] = {
+      ...values["plugins.ajrmMarineNotifications"],
+      active: [{
+        priority: { level: state },
+        timestamp: now,
+        delivery: { visual: true },
+        presentation: { message: visualMessage },
+        message: visualMessage,
+      }],
+    };
+    values["plugins.ajrmMarineNotifications.audio"] = {
+      ...values["plugins.ajrmMarineNotifications.audio"],
+      timestamp: now,
+      audioRequest: { message: audioMessage },
+    };
+    values["plugins.ajrmMarineAudio"] = {
+      ...values["plugins.ajrmMarineAudio"],
+      recentEvents: [{
+        ts: now,
+        event: "queued",
+        message: audioMessage,
+      }],
+    };
+  }
   const app = {
     ajrmMarineConsoleAvailableWebapps: packageInfo.signalk.requires.map((id) => ({
       id,
@@ -736,59 +776,41 @@ test("Console exposes BITE status and run routes", async () => {
     },
     handleMessage(id, message) {
       messages.push({ id, message });
-	      if (message?.context === "vessels.self") {
-	        const updateValues = Object.fromEntries((message.updates || [])
-	          .flatMap((update) => update.values || [])
-	          .map((item) => [item.path, item.value]));
-	        if (updateValues["plugins.ajrmMarineConsole.bite.deadReckoningExercise"]) {
+      if (message?.context === "vessels.self") {
+        const updateValues = Object.fromEntries((message.updates || [])
+          .flatMap((update) => update.values || [])
+          .map((item) => [item.path, item.value]));
+        if (updateValues["plugins.ajrmMarineConsole.bite.deadReckoningExercise"]) {
           values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = fakeDrIntegrityFromInjectedValues(
             values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"],
             updateValues,
-	          );
-	        }
-	      }
-	      if (String(message?.context || "").includes("235912347")) {
-	        const now = new Date().toISOString();
-	        const overtakingMessage = "Traffic advisory. Medium vessel BITE OVERTAKING TARGET at 12 o'clock. You are overtaking it. CPA will be ahead. 80 meters in 2 minutes.";
-	        values["plugins.ajrmMarineTraffic.targets"] = {
-	          ...trafficProjection("warn"),
-	          targets: [{
-	            id: "vessels.urn:mrn:imo:mmsi:235912347",
-	            mmsi: "235912347",
-	            name: "BITE OVERTAKING TARGET",
-	            encounter: {
-	              state: "warn",
-	              silenced: false,
-	              collisionCandidate: true,
-	              message: overtakingMessage,
-	            },
-	          }],
-	        };
-	        values["plugins.ajrmMarineNotifications"] = {
-	          ...values["plugins.ajrmMarineNotifications"],
-	          active: [{
-	            priority: { level: "warn" },
-	            timestamp: now,
-	            delivery: { visual: true },
-	            presentation: { message: overtakingMessage },
-	            message: overtakingMessage,
-	          }],
-	        };
-	        values["plugins.ajrmMarineNotifications.audio"] = {
-	          ...values["plugins.ajrmMarineNotifications.audio"],
-	          timestamp: now,
-	          audioRequest: { message: overtakingMessage },
-	        };
-	        values["plugins.ajrmMarineAudio"] = {
-	          ...values["plugins.ajrmMarineAudio"],
-	          recentEvents: [{
-	            ts: now,
-	            event: "queued",
-	            message: overtakingMessage,
-	          }],
-	        };
-	      }
-	      for (const update of message?.updates || []) {
+          );
+        }
+      }
+      if (String(message?.context || "").includes("235912347")) {
+        injectScenarioMessage({
+          mmsi: "235912347",
+          name: "BITE OVERTAKING TARGET",
+          visualMessage: "Traffic advisory. Medium vessel BITE OVERTAKING TARGET at 12 o'clock. You are overtaking it. CPA will be ahead. 80 meters in 2 minutes.",
+        });
+      }
+      if (String(message?.context || "").includes("235912348")) {
+        injectScenarioMessage({
+          mmsi: "235912348",
+          name: "BITE CLOSE TARGET",
+          visualMessage: "Collision alarm. Small craft BITE CLOSE TARGET at 12 o'clock. Close quarters. CPA 44 meters in 2 minutes.",
+          state: "alarm",
+        });
+      }
+      if (String(message?.context || "").includes("235912349")) {
+        injectScenarioMessage({
+          mmsi: "235912349",
+          name: "",
+          visualMessage: "Traffic advisory. Small craft 235912349 at 12 o'clock. CPA will be on your port side. 45 meters in 2 minutes.",
+          audioMessage: "Traffic advisory. Small craft at 12 o'clock. CPA will be on your port side. 45 meters in 2 minutes.",
+        });
+      }
+      for (const update of message?.updates || []) {
         for (const value of update.values || []) {
           if (value.path === "plugins.ajrmMarineNotifications.audio") {
             values[value.path] = value.value;
@@ -1053,24 +1075,31 @@ test("Console exposes BITE status and run routes", async () => {
 	    values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
 	  }
 
-  statusCode = 0;
-  runBody = null;
-  await routes.get("POST /ajrmMarineConsole/bite/run")(
-    { body: { testId: "traffic-overtaking-wording", timeoutSeconds: 5 } },
-    {
-      set() {},
-      status(code) {
-        statusCode = code;
+  for (const trafficWordingTestId of [
+    "traffic-overtaking-wording",
+    "traffic-close-quarters-wording",
+    "traffic-unnamed-spoken-name",
+  ]) {
+    statusCode = 0;
+    runBody = null;
+    await routes.get("POST /ajrmMarineConsole/bite/run")(
+      { body: { testId: trafficWordingTestId, timeoutSeconds: 5 } },
+      {
+        set() {},
+        status(code) {
+          statusCode = code;
+        },
+        json(value) {
+          runBody = value;
+        },
       },
-      json(value) {
-        runBody = value;
-      },
-    },
-  );
-  assert.equal(statusCode, 200);
-  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
-  assert.equal(runBody.scenario, "traffic-overtaking-wording");
-  assert.equal(runBody.assertions.find((item) => item.id === "expected-wording-1").pass, true);
+    );
+    assert.equal(statusCode, 200);
+    assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+    assert.equal(runBody.scenario, trafficWordingTestId);
+    assert.equal(runBody.assertions.find((item) => item.id === "expected-wording-1").pass, true);
+  }
+  assert.equal(runBody.assertions.find((item) => item.id === "forbidden-audio-wording-1").pass, true);
   values["plugins.ajrmMarineTraffic.targets"] = trafficProjection("alarm");
   values["plugins.ajrmMarineNotifications"].active = [{
     priority: { level: "danger" },
@@ -1182,7 +1211,7 @@ test("Console exposes BITE status and run routes", async () => {
     { muted: false },
     { muted: true },
   ]);
-  assert.equal(runBody.reports.length, 22);
+  assert.equal(runBody.reports.length, 24);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "core-projections",
@@ -1205,11 +1234,13 @@ test("Console exposes BITE status and run routes", async () => {
     "stationary-automute-policy-shape",
     "gps-explicit-no-fix-immediate",
     "traffic-overtaking-wording",
+    "traffic-close-quarters-wording",
+    "traffic-unnamed-spoken-name",
     "audio-output-summary",
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 21 tests passed/,
+    /Marine built in tests complete\. 23 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);

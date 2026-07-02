@@ -102,6 +102,8 @@ Current numbered BITE tests:
 | 18 | Stationary automute policy shape | Traffic audio policy exposes whether stationary automute is armed, allowed, and active. |
 | 19 | GPS explicit no-fix immediate | An explicit GNSS no-fix update must produce lost GPS without waiting for stale-position timeout. |
 | 20 | Traffic overtaking wording | A synthetic overtaking encounter must include overtaking and CPA-direction wording through the alert chain. |
+| 21 | Traffic close-quarters wording | A synthetic close-quarters encounter must say close quarters through the visual/audio alert chain. |
+| 22 | Traffic unnamed spoken name | An MMSI-only target must not have its MMSI read aloud as the vessel name. |
 | 90 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
 | 99 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |
 
