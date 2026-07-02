@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.62
+
+- Correct the Docked no-DR-drift BITE assertion to compare independent DR
+  movement during the docked interval, not any pre-existing offset from GPS.
+
 ## 0.5.61
 
 - Expand BITE GPS/DR coverage with active tests for GPS recovery realigning DR,

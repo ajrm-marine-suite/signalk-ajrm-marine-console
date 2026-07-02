@@ -140,7 +140,6 @@ function fakeDrIntegrityFromInjectedValues(previous, values) {
     };
   }
   if (position) {
-    const stationary = /docked-stationary/.test(phase);
     return {
       ...previous,
       timestamp: now,
@@ -187,15 +186,7 @@ function fakeDrIntegrityFromInjectedValues(previous, values) {
         ageSeconds: 0,
         lastRealignedAt: now,
       },
-      integrityDeadReckoning: stationary
-        ? {
-            ...previous.integrityDeadReckoning,
-            position,
-            source: "heading-stw",
-            ageSeconds: 0,
-            uncertaintyRadiusMeters: 10,
-          }
-        : previous.integrityDeadReckoning,
+      integrityDeadReckoning: previous.integrityDeadReckoning,
     };
   }
   const baseline = previous.lastTrustedFix.position;

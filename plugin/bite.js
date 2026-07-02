@@ -2011,16 +2011,18 @@ async function runDockedNoDrDriftBite(app, { pluginId, consoleVersion, timeoutMs
     });
   }
   const integrity = final?.integrityDeadReckoning || {};
+  const baselineIntegrity = baseline?.integrityDeadReckoning || {};
   const operational = final?.operationalDeadReckoning || final?.deadReckoning || {};
   const integrityOffset = offsetMetersBetween(baselinePosition, integrity.position);
+  const integrityMovement = offsetMetersBetween(baselineIntegrity.position, integrity.position);
   const operationalOffset = offsetMetersBetween(baselinePosition, operational.position);
   const assertions = [
     assertion("docked-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted."),
     assertion("docked-gps-remained-accepted", final?.acceptedGps === true, "Healthy stationary GPS should remain accepted."),
     assertion(
       "independent-dr-did-not-drift",
-      integrityOffset.distanceMeters < 1,
-      `Independent DR moved ${displayMeters(integrityOffset.distanceMeters)} while stationary with healthy GPS.`,
+      integrityMovement.distanceMeters < 1,
+      `Independent DR moved ${displayMeters(integrityMovement.distanceMeters)} during the docked interval; final GPS offset is ${displayMeters(integrityOffset.distanceMeters)}.`,
     ),
     assertion(
       "operational-dr-remained-gps-locked",
@@ -2038,7 +2040,7 @@ async function runDockedNoDrDriftBite(app, { pluginId, consoleVersion, timeoutMs
     startedAt,
     startedAtMs,
     assertions,
-    observations: [{ integrityOffset, operationalOffset }],
+    observations: [{ integrityOffset, integrityMovement, operationalOffset }],
     summary: result === "pass"
       ? "Healthy stationary GPS did not allow tide-only independent DR drift."
       : `Docked no-DR-drift check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
