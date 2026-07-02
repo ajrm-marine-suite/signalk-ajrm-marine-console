@@ -784,6 +784,18 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-published").pass, true);
   assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-forced").pass, true);
   assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-completed").pass, true);
+  const savedRunAllReports = fs.readdirSync(reportsDir)
+    .filter((name) => name.includes("-run-all-"))
+    .map((name) => JSON.parse(fs.readFileSync(path.join(reportsDir, name), "utf8")));
+  assert.ok(
+    savedRunAllReports.some((report) =>
+      report.phase === "before-capture-stop" &&
+      report.ok === true &&
+      report.capture.started === true &&
+      report.capture.stop === null
+    ),
+    "run-all summary is written before Capture stops so it is included in the voyage zip",
+  );
 
   values["navigation.position"] = {
     value: { latitude: 56, longitude: -5 },

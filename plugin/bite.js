@@ -325,6 +325,20 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       if (typeof recordReport === "function") await recordReport(report);
       progress({ phase: report.ok ? "passed" : "failed", currentTestId: test.id });
     }
+    if (typeof recordReport === "function" && captureStart && !captureStop) {
+      await recordReport(runAllReport({
+        consoleVersion,
+        runId,
+        startedAt,
+        reports,
+        captureStart,
+        captureStop,
+        captureError,
+        captureComment,
+        restoreError,
+        phase: "before-capture-stop",
+      }));
+    }
   } finally {
     if (capture?.stop && captureStart) {
       try {
@@ -379,6 +393,7 @@ function runAllReport({
   captureComment,
   restoreError,
   stoppedByPreflight = false,
+  phase = "complete",
 }) {
   const finishedAt = new Date().toISOString();
   const failed = reports.filter((report) => !report.ok);
@@ -391,6 +406,7 @@ function runAllReport({
     runId,
     testId: "run-all",
     scenario: "run-all",
+    phase,
     result: ok ? "pass" : "fail",
     startedAt,
     finishedAt,
@@ -468,7 +484,7 @@ function runAllSummary({ failed, captureStart, captureStop, captureError, restor
   const captureText = captureStart
     ? bundle
       ? `Capture bundle prepared: ${bundle}`
-      : "Capture started and stopped."
+      : "Capture is still running; bundle will be prepared after this report."
     : "Capture was not available.";
   if (failed.length) return `${failed.length} of ${testText} failed. ${captureText}`;
   return `${testText} passed. ${captureText}`;
