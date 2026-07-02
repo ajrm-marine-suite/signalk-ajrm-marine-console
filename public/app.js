@@ -119,6 +119,10 @@ function renderBitePanel() {
   els.biteRunAll.disabled = biteRunning || enabledTests.length === 0;
   els.biteTests.innerHTML = tests.map((test) => biteTestHtml(test)).join("")
     || '<p class="empty-note">No BITE tests are available.</p>';
+  if (biteRunning && biteStatus?.currentRunAll) {
+    els.biteLog.value = formatBiteRunAllProgress(biteStatus.currentRunAll);
+    return;
+  }
   if (!els.biteLog.value || els.biteLog.value === "BITE has not run yet.") {
     els.biteLog.value = biteStatus?.lastReport
       ? formatBiteReport(biteStatus.lastReport)
@@ -322,6 +326,52 @@ function formatBiteReport(report) {
     lines.push("", "Snapshot:", JSON.stringify(report.snapshot, null, 2));
   }
   return lines.join("\n");
+}
+
+function formatBiteRunAllProgress(progress) {
+  const lines = ["RUNNING BITE Run all"];
+  const currentTest = biteTestById(progress.currentTestId);
+  const phase = String(progress.phase || "running");
+  if (currentTest) {
+    lines.push(`${biteProgressPhrase(phase)} ${biteTestNumber(currentTest)} ${currentTest.title || currentTest.id}...`);
+  } else {
+    lines.push(biteProgressPhrase(phase));
+  }
+  if (progress.capture?.started) {
+    lines.push(`Capture: recording ${progress.capture.comment || ""}`.trim());
+  } else if (progress.capture?.error) {
+    lines.push(`Capture: ${progress.capture.error}`);
+  }
+  const completed = Array.isArray(progress.reports) ? progress.reports : [];
+  if (completed.length) {
+    lines.push("", "Completed:");
+    for (const report of completed) {
+      lines.push(`${report.ok ? "PASS" : "FAIL"} ${biteTestNumber(biteTestById(report.testId))} ${titleForBiteTest(report.testId || report.scenario)}: ${report.summary || ""}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+function biteProgressPhrase(phase) {
+  const phrases = {
+    "capture-started": "Starting capture bundle...",
+    "capture-stopped": "Stopping capture bundle...",
+    "capture-stop-failed": "Capture stop failed.",
+    "capture-unavailable": "Capture unavailable; continuing tests...",
+    failed: "Failed",
+    passed: "Passed",
+    running: "Running",
+  };
+  return phrases[phase] || phase.replace(/-/g, " ");
+}
+
+function biteTestById(testId) {
+  return biteTests().find((test) => test.id === testId) || null;
+}
+
+function titleForBiteTest(testId) {
+  const test = biteTestById(testId);
+  return test?.title || testId || "BITE";
 }
 
 function formatBiteObservation(observation) {

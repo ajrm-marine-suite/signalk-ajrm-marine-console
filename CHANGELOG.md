@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.47
+
+- Update the BITE report box while Run all is in progress so it shows the
+  current test, capture state, and completed child test results instead of
+  leaving the initial pre-test message on screen.
+
 ## 0.5.46
 
 - Move BITE `Audible summary output` to test `99` and always run it last,
