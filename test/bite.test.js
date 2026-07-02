@@ -785,8 +785,9 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-forced").pass, true);
   assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-completed").pass, true);
   const savedRunAllReports = fs.readdirSync(reportsDir)
-    .filter((name) => name.includes("-run-all-"))
-    .map((name) => JSON.parse(fs.readFileSync(path.join(reportsDir, name), "utf8")));
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => JSON.parse(fs.readFileSync(path.join(reportsDir, name), "utf8")))
+    .filter((report) => report.testId === "run-all");
   assert.ok(
     savedRunAllReports.some((report) =>
       report.phase === "before-capture-stop" &&

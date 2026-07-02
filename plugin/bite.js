@@ -33,6 +33,7 @@ const WATCH_PATHS = {
 };
 const REQUIRED_SUITE_PLUGINS = Object.freeze(packageInfo.signalk?.requires || []);
 const PREFLIGHT_TEST_ID = "preflight-safety";
+let reportFileSequence = 0;
 const TESTS = [
   {
     id: PREFLIGHT_TEST_ID,
@@ -1450,11 +1451,25 @@ async function saveReport(report) {
   const directory = reportsDirectory();
   await fs.promises.mkdir(directory, { recursive: true });
   const safeTimestamp = new Date().toISOString().replace(/[:.]/g, "");
-  const fileName = `${safeTimestamp}-${report.testId || report.scenario}-${report.result}.json`;
+  const sequence = String((reportFileSequence += 1)).padStart(4, "0");
+  const testId = safeReportFilePart(report.testId || report.scenario || "report");
+  const phase = report.phase && report.phase !== "complete"
+    ? `-${safeReportFilePart(report.phase)}`
+    : "";
+  const result = safeReportFilePart(report.result || (report.ok ? "pass" : "unknown"));
+  const runId = safeReportFilePart(String(report.runId || "").slice(0, 8));
+  const fileName = `${safeTimestamp}-${sequence}-${testId}${phase}-${result}${runId ? `-${runId}` : ""}.json`;
   await fs.promises.writeFile(
     path.join(directory, fileName),
     `${JSON.stringify(report, null, 2)}\n`,
   );
+}
+
+function safeReportFilePart(value) {
+  return String(value || "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
 }
 
 function reportsDirectory() {
