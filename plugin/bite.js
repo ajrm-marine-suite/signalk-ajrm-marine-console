@@ -8,6 +8,7 @@ const path = require("node:path");
 const DEFAULT_TIMEOUT_MS = 45000;
 const POLL_MS = 1000;
 const REFRESH_MS = 2000;
+const PREFLIGHT_LIVE_DATA_MAX_AGE_MS = 15000;
 const KNOTS_TO_MPS = 0.514444;
 const TEST_TARGET_MMSI = "235912345";
 const TEST_TARGET_NAME = "BITE TEST TARGET";
@@ -23,13 +24,38 @@ const WATCH_PATHS = {
   audio: "plugins.ajrmMarineAudio",
   display: "plugins.ajrmMarineDisplay",
 };
-const TESTS = [{
-  id: "collision-audio-chain",
-  number: 1,
-  title: "Collision visual/audio chain",
-  description: "Publishes a temporary crossing target and checks Traffic, Display, Notifications, and Audio all react.",
-  timeoutSeconds: 45,
-}];
+const PREFLIGHT_TEST_ID = "preflight-safety";
+const TESTS = [
+  {
+    id: PREFLIGHT_TEST_ID,
+    number: 0,
+    title: "Pre-test safety isolation",
+    description: "Checks that simulator output and live navigation/instrument feeds are not active before BITE injects test data.",
+    timeoutSeconds: 5,
+    blocking: true,
+  },
+  {
+    id: "collision-audio-chain",
+    number: 1,
+    title: "Collision visual/audio chain",
+    description: "Publishes a temporary crossing target and checks Traffic, Display, Notifications, and Audio all react.",
+    timeoutSeconds: 45,
+  },
+];
+const LIVE_FEED_PATHS = [
+  "navigation.position",
+  "navigation.speedOverGround",
+  "navigation.speedThroughWater",
+  "navigation.courseOverGroundTrue",
+  "navigation.headingTrue",
+  "navigation.state",
+  "environment.depth.belowTransducer",
+  "environment.wind.speedApparent",
+  "environment.wind.angleApparent",
+  "environment.current.setTrue",
+  "environment.current.drift",
+  "propulsion.main.revolutions",
+];
 const DEFAULT_REPORTS_DIRECTORY = path.join(
   os.homedir(),
   ".signalk",
@@ -48,6 +74,7 @@ function createBiteController(app, { pluginId, version }) {
   return {
     status() {
       const currentReports = reports.filter((report) => report.consoleVersion === version);
+      const latestReportsByTest = latestReportMap(currentReports);
       return {
         ok: true,
         contract: "ajrm-marine-console-bite-status",
@@ -55,6 +82,7 @@ function createBiteController(app, { pluginId, version }) {
         version,
         running,
         lastReport: currentReports.at(-1) || null,
+        latestReportsByTest,
         lastRunAllReport: lastRunAllReport?.consoleVersion === version ? lastRunAllReport : null,
         reports: reports.slice(-MAX_REPORTS),
         reportsDirectory: reportsDirectory(),
@@ -76,12 +104,14 @@ function createBiteController(app, { pluginId, version }) {
           error.statusCode = 400;
           throw error;
         }
-        const report = await runCollisionAudioBite(app, {
-          pluginId,
-          testId,
-          consoleVersion: version,
-          timeoutMs: boundedTimeout(options.timeoutSeconds),
-        });
+        const report = testId === PREFLIGHT_TEST_ID
+          ? await runPreflightBite(app, { consoleVersion: version, timeoutMs: boundedTimeout(options.timeoutSeconds) })
+          : await runCollisionAudioBite(app, {
+              pluginId,
+              testId,
+              consoleVersion: version,
+              timeoutMs: boundedTimeout(options.timeoutSeconds),
+            });
         reports = [...reports, report].slice(-MAX_REPORTS);
         await saveReport(report);
         return report;
@@ -127,6 +157,24 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
   let captureError = null;
 
   try {
+    const preflight = await runPreflightBite(app, {
+      consoleVersion,
+      timeoutMs: boundedTimeout(TESTS.find((test) => test.id === PREFLIGHT_TEST_ID)?.timeoutSeconds),
+    });
+    reports.push(preflight);
+    if (typeof recordReport === "function") await recordReport(preflight);
+    if (!preflight.ok) {
+      return runAllReport({
+        consoleVersion,
+        runId,
+        startedAt,
+        reports,
+        captureStart,
+        captureStop,
+        captureError,
+        stoppedByPreflight: true,
+      });
+    }
     if (capture?.start) {
       captureStart = await capture.start({
         comment: captureComment,
@@ -135,7 +183,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
     } else {
       captureError = "AJRM Marine Capture API is unavailable; BITE reports will still be written but no voyage bundle will be created.";
     }
-    for (const test of TESTS) {
+    for (const test of TESTS.filter((item) => item.id !== PREFLIGHT_TEST_ID)) {
       const report = await runCollisionAudioBite(app, {
         pluginId,
         testId: test.id,
@@ -155,6 +203,29 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
     }
   }
 
+  return runAllReport({
+    consoleVersion,
+    runId,
+    startedAt,
+    reports,
+    captureStart,
+    captureStop,
+    captureError,
+    captureComment,
+  });
+}
+
+function runAllReport({
+  consoleVersion,
+  runId,
+  startedAt,
+  reports,
+  captureStart,
+  captureStop,
+  captureError,
+  captureComment,
+  stoppedByPreflight = false,
+}) {
   const finishedAt = new Date().toISOString();
   const failed = reports.filter((report) => !report.ok);
   return {
@@ -170,14 +241,16 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
     finishedAt,
     durationSeconds: Math.round((Date.parse(finishedAt) - Date.parse(startedAt)) / 1000),
     capture: {
-      comment: captureComment,
+      comment: captureComment || "",
       started: Boolean(captureStart),
       start: captureStart,
       stop: captureStop,
       error: captureError,
     },
     reports,
-    summary: runAllSummary({ failed, captureStart, captureStop, captureError, count: reports.length }),
+    summary: stoppedByPreflight
+      ? `BITE run all stopped by pre-test check: ${failed.map((item) => item.summary).filter(Boolean).join(" ")}`
+      : runAllSummary({ failed, captureStart, captureStop, captureError, count: reports.length }),
   };
 }
 
@@ -196,6 +269,56 @@ function runAllSummary({ failed, captureStart, captureStop, captureError, count 
     : "Capture was not available.";
   if (failed.length) return `${failed.length} of ${testText} failed. ${captureText}`;
   return `${testText} passed. ${captureText}`;
+}
+
+async function runPreflightBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const simulatorEvidence = simulatorOutputEvidence(app);
+  const liveFeedEvidence = recentLiveFeedEvidence(app, startedAtMs);
+  const assertions = [
+    assertion(
+      "simulator-output-off",
+      !simulatorEvidence.running,
+      simulatorEvidence.running
+        ? `Simulator output appears active: ${simulatorEvidence.message}`
+        : "No active AJRM simulator output detected.",
+    ),
+    assertion(
+      "no-live-own-vessel-feed",
+      liveFeedEvidence.length === 0,
+      liveFeedEvidence.length
+        ? `Recent own-vessel feed detected on ${liveFeedEvidence.slice(0, 4).map((item) => item.path).join(", ")}. Stop live feeds or simulator output before BITE.`
+        : "No fresh own-vessel navigation or instrument feed detected.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  const finishedAt = new Date().toISOString();
+  return {
+    ok: result === "pass",
+    contract: "ajrm-marine-console-bite-report",
+    contractVersion: 1,
+    consoleVersion,
+    runId,
+    scenario: PREFLIGHT_TEST_ID,
+    testId: PREFLIGHT_TEST_ID,
+    result,
+    startedAt,
+    finishedAt,
+    durationSeconds: Math.round((Date.parse(finishedAt) - startedAtMs) / 1000),
+    assertions,
+    observations: liveFeedEvidence.slice(0, 12),
+    summary: result === "pass"
+      ? "Pre-test safety isolation passed."
+      : "Pre-test safety isolation failed. BITE run all has been blocked.",
+    snapshot: {
+      collectedAt: finishedAt,
+      simulator: simulatorEvidence,
+      liveFeed: liveFeedEvidence.slice(0, 12),
+      maxLiveDataAgeSeconds: PREFLIGHT_LIVE_DATA_MAX_AGE_MS / 1000,
+    },
+  };
 }
 
 async function runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
@@ -447,9 +570,26 @@ function collectSnapshot(app) {
   };
 }
 
+function latestReportMap(reports) {
+  const result = {};
+  for (const report of reports) {
+    const id = report.testId || report.scenario;
+    if (id && id !== "run-all") result[id] = report;
+  }
+  return result;
+}
+
 function readSelfPath(app, path) {
   try {
     return unwrapSignalKLeaf(app.getSelfPath?.(path));
+  } catch (_error) {
+    return null;
+  }
+}
+
+function readSelfLeaf(app, path) {
+  try {
+    return app.getSelfPath?.(path) || null;
   } catch (_error) {
     return null;
   }
@@ -465,6 +605,85 @@ function unwrapSignalKLeaf(value) {
     return value.value;
   }
   return value || null;
+}
+
+function simulatorOutputEvidence(app) {
+  const candidates = [
+    readSelfPath(app, "plugins.ajrmMarineSimulator"),
+    readSelfPath(app, "plugins.signalkAjrmMarineSimulator"),
+    readSelfPath(app, "plugins.signalk-ajrm-marine-simulator"),
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (candidate?.outputEnabled === true || candidate?.state?.outputEnabled === true) {
+      return { running: true, message: "outputEnabled=true", state: candidate };
+    }
+    const text = [
+      candidate?.status,
+      candidate?.state,
+      candidate?.message,
+      candidate?.pluginStatus,
+    ].filter((item) => typeof item === "string").join(" ");
+    if (/own boat|simulation output on|output enabled/i.test(text) && !/output off/i.test(text)) {
+      return { running: true, message: text, state: candidate };
+    }
+  }
+  return { running: false, message: "No simulator output status found.", state: candidates[0] || null };
+}
+
+function recentLiveFeedEvidence(app, nowMs) {
+  return LIVE_FEED_PATHS
+    .map((pathName) => liveFeedEvidenceForPath(app, pathName, nowMs))
+    .filter(Boolean);
+}
+
+function liveFeedEvidenceForPath(app, pathName, nowMs) {
+  const leaf = readSelfLeaf(app, pathName);
+  const timestamp = timestampForLeaf(leaf);
+  const timestampMs = Date.parse(timestamp || "");
+  if (!Number.isFinite(timestampMs)) return null;
+  const ageMs = nowMs - timestampMs;
+  if (ageMs < 0 || ageMs > PREFLIGHT_LIVE_DATA_MAX_AGE_MS) return null;
+  const source = sourceForLeaf(leaf);
+  if (/ajrm-marine-bite/i.test(source)) return null;
+  return {
+    ts: new Date().toISOString(),
+    path: pathName,
+    timestamp,
+    ageSeconds: Math.max(0, Math.round(ageMs / 1000)),
+    source,
+    valueSummary: valueSummary(unwrapSignalKLeaf(leaf)),
+  };
+}
+
+function timestampForLeaf(leaf) {
+  if (!leaf || typeof leaf !== "object") return "";
+  return leaf.timestamp || leaf.updated || leaf.ts || leaf.meta?.timestamp || "";
+}
+
+function sourceForLeaf(leaf) {
+  if (!leaf || typeof leaf !== "object") return "";
+  return String(
+    leaf.$source
+      || leaf.source
+      || leaf.meta?.$source
+      || leaf.meta?.source
+      || leaf.values?.[0]?.$source
+      || "",
+  );
+}
+
+function valueSummary(value) {
+  if (value == null) return "null";
+  if (typeof value === "number") return Number.isFinite(value) ? String(Number(value.toPrecision(5))) : String(value);
+  if (typeof value === "string" || typeof value === "boolean") return String(value);
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value).slice(0, 120);
+    } catch (_error) {
+      return "[object]";
+    }
+  }
+  return String(value);
 }
 
 function findTrafficAlert(traffic, targetName, targetMmsi) {

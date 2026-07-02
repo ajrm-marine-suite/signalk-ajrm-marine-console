@@ -75,6 +75,9 @@ async function start() {
 async function refreshBiteStatus() {
   try {
     biteStatus = await jsonRequest(BITE_STATUS_URL);
+    for (const [testId, report] of Object.entries(biteStatus.latestReportsByTest || {})) {
+      biteResults[testId] = report;
+    }
     if (biteStatus.lastReport) {
       biteResults[biteStatus.lastReport.testId || biteStatus.lastReport.scenario] = biteStatus.lastReport;
     }
@@ -124,13 +127,22 @@ function renderBitePanel() {
 
 function biteTests() {
   if (Array.isArray(biteStatus?.tests) && biteStatus.tests.length) return biteStatus.tests;
-  return [{
-    id: "collision-audio-chain",
-    number: 1,
-    title: "Collision visual/audio chain",
-    description: "Checks Traffic, Display, Notifications, and Audio all react to a temporary crossing target.",
-    timeoutSeconds: 45,
-  }];
+  return [
+    {
+      id: "preflight-safety",
+      number: 0,
+      title: "Pre-test safety isolation",
+      description: "Checks that simulator output and live feeds are not active before BITE injects test data.",
+      timeoutSeconds: 5,
+    },
+    {
+      id: "collision-audio-chain",
+      number: 1,
+      title: "Collision visual/audio chain",
+      description: "Checks Traffic, Display, Notifications, and Audio all react to a temporary crossing target.",
+      timeoutSeconds: 45,
+    },
+  ];
 }
 
 function biteTestHtml(test) {
@@ -154,7 +166,7 @@ function biteTestHtml(test) {
   return `<article class="bite-test ${state}">
     <div class="bite-light" aria-label="${escapeHtml(stateLabel)}"></div>
     <div class="bite-test-main">
-      <strong>${String(test.number || "").padStart(2, "0")} ${escapeHtml(test.title || test.id)}</strong>
+      <strong>${biteTestNumber(test)} ${escapeHtml(test.title || test.id)}</strong>
       <span>${escapeHtml(summary)}</span>
     </div>
     <button class="bite-run" type="button" data-bite-test="${escapeHtml(test.id)}" ${biteRunning ? "disabled" : ""}>Run</button>
@@ -169,7 +181,7 @@ function renderBiteError(error) {
 async function runBiteTest(testId) {
   const test = biteTests().find((candidate) => candidate.id === testId) || {};
   biteRunning = true;
-  els.biteLog.value = `Running BITE ${String(test.number || "").padStart(2, "0")} ${test.title || testId}...`;
+  els.biteLog.value = `Running BITE ${biteTestNumber(test)} ${test.title || testId}...`;
   renderBitePanel();
   try {
     const report = await jsonRequest(BITE_RUN_URL, {
@@ -198,7 +210,7 @@ async function runBiteTest(testId) {
 
 async function runAllBiteTests() {
   biteRunning = true;
-  els.biteLog.value = "Starting Capture and running all BITE tests...";
+  els.biteLog.value = "Running BITE pre-test checks...";
   renderBitePanel();
   try {
     const report = await jsonRequest(BITE_RUN_ALL_URL, {
@@ -227,6 +239,11 @@ async function runAllBiteTests() {
   }
 }
 
+function biteTestNumber(test) {
+  const number = Number(test?.number);
+  return Number.isFinite(number) ? String(number).padStart(2, "0") : "--";
+}
+
 function formatBiteReport(report) {
   const lines = [
     `${report.ok ? "PASS" : "FAIL"} ${report.scenario || report.testId || "BITE"}`,
@@ -243,7 +260,7 @@ function formatBiteReport(report) {
   if (Array.isArray(report.observations) && report.observations.length) {
     lines.push("", "Recent observations:");
     for (const observation of report.observations.slice(-6)) {
-      lines.push(`${observation.ts || ""} ${observation.trafficState || ""} ${observation.audioState || ""} ${observation.message || ""}`.trim());
+      lines.push(formatBiteObservation(observation));
     }
   }
   if (report.capture) {
@@ -264,6 +281,18 @@ function formatBiteReport(report) {
     lines.push("", "Snapshot:", JSON.stringify(report.snapshot, null, 2));
   }
   return lines.join("\n");
+}
+
+function formatBiteObservation(observation) {
+  if (observation.path) {
+    return [
+      observation.path,
+      observation.source ? `source ${observation.source}` : "",
+      observation.ageSeconds != null ? `${observation.ageSeconds} s old` : "",
+      observation.valueSummary || "",
+    ].filter(Boolean).join(" - ");
+  }
+  return `${observation.ts || ""} ${observation.trafficState || ""} ${observation.audioState || ""} ${observation.message || ""}`.trim();
 }
 
 function moduleCardHtml(module) {

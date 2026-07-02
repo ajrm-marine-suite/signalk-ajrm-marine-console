@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.30
+
+- Add BITE test `00 Pre-test safety isolation`, which checks for active
+  simulator output or fresh live own-vessel navigation/instrument data before
+  test data is injected.
+- Make Run all execute test 00 before starting Capture; if it fails, Run all is
+  blocked and no synthetic encounter test is run.
+- Remember the latest current-version report for each BITE test so the
+  dashboard keeps green/red test status across page refreshes until the next
+  software update resets tests to amber.
+
 ## 0.5.29
 
 - Move the BITE dashboard from the Overview screen into its own native Console

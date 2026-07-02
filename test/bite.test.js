@@ -211,12 +211,30 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.ok, true);
   assert.equal(statusBody.running, false);
   assert.equal(Array.isArray(statusBody.tests), true);
-  assert.equal(statusBody.tests[0].number, 1);
+  assert.equal(statusBody.tests[0].number, 0);
 
   let statusCode = 0;
   let runBody;
   await routes.get("POST /ajrmMarineConsole/bite/run")(
-    { body: { timeoutSeconds: 5 } },
+    { body: { testId: "preflight-safety", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, true);
+  assert.equal(runBody.scenario, "preflight-safety");
+
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "collision-audio-chain", timeoutSeconds: 5 } },
     {
       set() {},
       status(code) {
@@ -245,7 +263,7 @@ test("Console exposes BITE status and run routes", async () => {
   statusCode = 0;
   runBody = null;
   await routes.get("POST /ajrmMarineConsole/bite/run")(
-    { body: { timeoutSeconds: 5 } },
+    { body: { testId: "collision-audio-chain", timeoutSeconds: 5 } },
     {
       set() {},
       status(code) {
@@ -288,7 +306,33 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.contract, "ajrm-marine-console-bite-run-all-report");
   assert.equal(runBody.capture.started, true);
   assert.equal(runBody.capture.stop.fileName, "voyage-bite.zip");
+  assert.equal(runBody.reports.length, 2);
+
+  values["navigation.position"] = {
+    value: { latitude: 56, longitude: -5 },
+    timestamp: new Date().toISOString(),
+    $source: "live-gps",
+  };
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run-all")(
+    { body: { timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, false);
+  assert.equal(runBody.capture.started, false);
   assert.equal(runBody.reports.length, 1);
+  assert.equal(runBody.reports[0].testId, "preflight-safety");
+  assert.match(runBody.summary, /stopped by pre-test check/);
 
   delete process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR;
   fs.rmSync(reportsDir, { recursive: true, force: true });
