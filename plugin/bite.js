@@ -140,7 +140,6 @@ function createBiteController(app, { pluginId, version }) {
   return {
     status() {
       const currentReports = reports.filter((report) => report.consoleVersion === version);
-      const latestReportsByTest = latestReportMap(currentReports);
       return {
         ok: true,
         contract: "ajrm-marine-console-bite-status",
@@ -149,7 +148,6 @@ function createBiteController(app, { pluginId, version }) {
         running,
         currentRunAll,
         lastReport: currentReports.at(-1) || null,
-        latestReportsByTest,
         lastRunAllReport: lastRunAllReport?.consoleVersion === version ? lastRunAllReport : null,
         reports: reports.slice(-MAX_REPORTS),
         reportsDirectory: reportsDirectory(),
@@ -1607,15 +1605,6 @@ function collectSnapshot(app) {
     audio: readSelfPath(app, WATCH_PATHS.audio),
     display: readSelfPath(app, WATCH_PATHS.display),
   };
-}
-
-function latestReportMap(reports) {
-  const result = {};
-  for (const report of reports) {
-    const id = report.testId || report.scenario;
-    if (id && id !== "run-all") result[id] = report;
-  }
-  return result;
 }
 
 function readSelfPath(app, path) {

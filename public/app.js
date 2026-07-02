@@ -78,14 +78,8 @@ async function start() {
 async function refreshBiteStatus() {
   try {
     biteStatus = await jsonRequest(BITE_STATUS_URL);
-    for (const [testId, report] of Object.entries(biteStatus.latestReportsByTest || {})) {
-      biteResults[testId] = report;
-    }
     for (const report of biteStatus.currentRunAll?.reports || []) {
       biteResults[report.testId || report.scenario] = report;
-    }
-    if (biteStatus.lastReport) {
-      biteResults[biteStatus.lastReport.testId || biteStatus.lastReport.scenario] = biteStatus.lastReport;
     }
     renderBitePanel();
   } catch (error) {

@@ -96,6 +96,8 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /function startBiteStatusPolling\(\)/);
   assert.match(script, /function stopBiteStatusPolling\(\)/);
   assert.match(script, /biteStatus\.currentRunAll\?\.reports/);
+  assert.doesNotMatch(script, /latestReportsByTest/);
+  assert.doesNotMatch(script, /biteResults\[biteStatus\.lastReport/);
   assert.match(script, /biteStatus\?\.currentRunAll\?\.currentTestId \|\| biteRunningTestId/);
   assert.match(script, /const summary = state === "disabled"/);
   assert.match(script, /test\.enabled !== false/);

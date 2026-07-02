@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.45
+
+- Reset BITE traffic lights to amber on a fresh page load or server restart
+  instead of restoring old pass/fail lamps from stored reports.
+- Keep previous BITE reports available as text/evidence without using them as
+  current test results.
+
 ## 0.5.44
 
 - Enhance the optional Harbour Editor BITE check to verify the Harbour Editor

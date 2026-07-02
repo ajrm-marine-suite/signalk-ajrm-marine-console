@@ -523,6 +523,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.at(-1).id, "harbour-editor-availability");
   assert.equal(statusBody.tests.at(-1).enabled, false);
   assert.match(statusBody.tests.at(-1).disabledReason, /signalk-ajrm-marine-harbour-editor/);
+  assert.equal(statusBody.latestReportsByTest, undefined);
 
   app.ajrmMarineConsoleAvailableWebapps.push({
     id: "signalk-ajrm-marine-harbour-editor",
