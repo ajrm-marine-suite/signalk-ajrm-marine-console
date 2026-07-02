@@ -180,8 +180,13 @@ async function runBiteTest(testId) {
     biteResults[testId] = report;
     els.biteLog.value = formatBiteReport(report);
   } catch (error) {
-    biteResults[testId] = { ok: false, summary: error.message };
-    els.biteLog.value = `BITE ${testId} failed to run: ${error.message}`;
+    if (error.body?.contract === "ajrm-marine-console-bite-report") {
+      biteResults[testId] = error.body;
+      els.biteLog.value = formatBiteReport(error.body);
+    } else {
+      biteResults[testId] = { ok: false, summary: error.message };
+      els.biteLog.value = `BITE ${testId} failed to run: ${error.message}`;
+    }
   } finally {
     biteRunning = false;
     await refreshBiteStatus();
@@ -324,6 +329,7 @@ async function jsonRequest(path, options = {}) {
   if (!response.ok) {
     const error = new Error(body.error || body.message || `${response.status} ${response.statusText}`);
     error.status = response.status;
+    error.body = body;
     throw error;
   }
   return body;

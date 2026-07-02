@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.25
+
+- Return completed BITE failures as normal JSON reports instead of HTTP 500
+  transport errors, so the Console dashboard can show a red test with the real
+  assertion details. The browser also preserves report bodies from older
+  servers that still returned failed reports with non-200 status codes.
+
 ## 0.5.24
 
 - Add a BITE dashboard to the Console overview with numbered tests, amber

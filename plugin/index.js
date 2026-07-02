@@ -70,7 +70,7 @@ module.exports = function ajrmMarineConsole(app) {
         try {
           const report = await bite.run(req.body || {});
           res.set?.("Cache-Control", "no-store");
-          res.status?.(report.ok ? 200 : 500);
+          res.status?.(200);
           res.json(report);
         } catch (error) {
           res.status?.(error.statusCode || 500);

@@ -224,6 +224,34 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.scenario, "collision-audio-chain");
   assert.equal(runBody.consoleVersion, require("../package.json").version);
   assert.ok(fs.readdirSync(reportsDir).some((name) => name.endsWith(".json")));
+
+  values["plugins.ajrmMarineTraffic.audioPolicy"] = { muted: true };
+  values["plugins.ajrmMarineAudio"] = {
+    muted: true,
+    recentEvents: [{
+      ts: new Date().toISOString(),
+      event: "accepted",
+      message: `Collision alarm. ${TEST_TARGET_NAME}.`,
+    }],
+  };
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, false);
+  assert.match(runBody.summary, /mute-explicit/);
+
   delete process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR;
   fs.rmSync(reportsDir, { recursive: true, force: true });
 });
