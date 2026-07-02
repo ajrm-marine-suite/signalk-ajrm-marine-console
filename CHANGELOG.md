@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.17
+
+- Fix the first BITE collision scenario to use a collision-capable vessel MMSI
+  instead of the reserved AIS AtoN `99...` range, and include watched-path
+  presence in failed BITE reports.
+
 ## 0.5.16
 
 - Add first Console BITE routes: `GET /bite/status` and `POST /bite/run`.

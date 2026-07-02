@@ -6,7 +6,7 @@ const DEFAULT_TIMEOUT_MS = 45000;
 const POLL_MS = 1000;
 const REFRESH_MS = 2000;
 const KNOTS_TO_MPS = 0.514444;
-const TEST_TARGET_MMSI = "999123456";
+const TEST_TARGET_MMSI = "235912345";
 const TEST_TARGET_NAME = "BITE TEST TARGET";
 const OWN_POSITION = { latitude: 56.21122, longitude: -5.55756 };
 const TARGET_POSITION = { latitude: 56.21122, longitude: -5.54756 };
@@ -337,6 +337,13 @@ function summarizeSnapshot(snapshot) {
     : [];
   return {
     collectedAt: snapshot.collectedAt,
+    pathsPresent: {
+      traffic: Boolean(snapshot.traffic),
+      trafficAudioPolicy: Boolean(snapshot.trafficAudioPolicy),
+      notifications: Boolean(snapshot.notifications),
+      notificationsAudio: Boolean(snapshot.notificationsAudio),
+      audio: Boolean(snapshot.audio),
+    },
     trafficProfile: snapshot.traffic?.profile || "",
     trafficTargets: targets.length,
     trafficAlertStates: targets

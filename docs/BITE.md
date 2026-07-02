@@ -45,7 +45,7 @@ curl -sk -X POST https://localhost:3443/plugins/signalk-ajrm-marine-console/bite
 ```
 
 It publishes a short synthetic crossing encounter using the temporary AIS target
-`BITE TEST TARGET` / MMSI `999123456`, then watches Traffic, Notifications, and
+`BITE TEST TARGET` / MMSI `235912345`, then watches Traffic, Notifications, and
 Audio status paths. At the end of the run it publishes a quiet cleanup sample so
 the synthetic encounter clears from Traffic.
 

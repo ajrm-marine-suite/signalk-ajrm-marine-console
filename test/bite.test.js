@@ -55,6 +55,12 @@ test("BITE evaluation passes when Traffic, Notifications, and Audio align", () =
   assert.equal(result.assertions.every((item) => item.pass), true);
 });
 
+test("BITE target MMSI is a collision-capable vessel, not an AtoN or base station", () => {
+  assert.doesNotMatch(TEST_TARGET_MMSI, /^99\d{7}$/);
+  assert.doesNotMatch(TEST_TARGET_MMSI, /^00\d{7}$/);
+  assert.match(TEST_TARGET_MMSI, /^\d{9}$/);
+});
+
 test("BITE evaluation fails when Traffic alerts but Audio has no matching event", () => {
   const startedAtMs = Date.now() - 1000;
   const result = evaluateCollisionAudioSnapshot({
