@@ -38,6 +38,63 @@ function trafficProjection(state = "alarm") {
   };
 }
 
+function gpsIntegrityProjectionFor(startedAtMs) {
+  return {
+    ok: true,
+    timestamp: new Date(startedAtMs).toISOString(),
+    trust: "normal",
+    notificationState: "normal",
+    acceptedGps: true,
+    reasons: [],
+    counters: {
+      evaluations: 12,
+      acceptedFixes: 12,
+      rejectedFixes: 0,
+      positionJumps: 0,
+      lostFixes: 0,
+      degradedSignals: 0,
+      drDiscrepancies: 0,
+    },
+    gps: {
+      position: { latitude: 56.21122, longitude: -5.55756 },
+      fixValid: true,
+      positionTimestamp: new Date(startedAtMs).toISOString(),
+      lastReceivedPositionTimestamp: new Date(startedAtMs).toISOString(),
+      positionAgeSeconds: 0,
+      hdop: 0.8,
+      satellites: 12,
+      speedOverGround: 2.5,
+      courseOverGroundTrue: 1.2,
+      headingTrue: 1.1,
+    },
+    lastTrustedFix: {
+      position: { latitude: 56.21122, longitude: -5.55756 },
+      timestamp: new Date(startedAtMs).toISOString(),
+      source: "navigation.position",
+    },
+    operationalDeadReckoning: {
+      position: { latitude: 56.21122, longitude: -5.55756 },
+      uncertaintyRadiusMeters: 8,
+      ageSeconds: 0,
+      source: "gps-locked",
+      lastRealignedAt: new Date(startedAtMs).toISOString(),
+    },
+    integrityDeadReckoning: {
+      position: { latitude: 56.2112, longitude: -5.5575 },
+      uncertaintyRadiusMeters: 12,
+      ageSeconds: 15,
+      source: "heading-stw-current",
+      lastRealignedAt: new Date(startedAtMs - 15_000).toISOString(),
+      realignIntervalSeconds: 300,
+    },
+    vectors: {
+      headingThroughWater: { available: true, role: "single", label: "heading/STW" },
+      courseOverGround: { available: true, role: "double", label: "COG/SOG" },
+      tide: { available: true, role: "triple", label: "tide/current" },
+    },
+  };
+}
+
 test("BITE evaluation passes when Traffic, Notifications, and Audio align", () => {
   const startedAtMs = Date.now() - 1000;
   const snapshot = {
@@ -388,6 +445,7 @@ test("Console exposes BITE status and run routes", async () => {
   const reportsDir = fs.mkdtempSync(path.join(os.tmpdir(), "ajrm-console-bite-"));
   process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR = reportsDir;
   const startedAtMs = Date.now();
+  const gpsIntegrityProjection = gpsIntegrityProjectionFor(startedAtMs);
   const trafficAudioPolicy = {
     contract: "ajrm-marine-traffic-audio-policy",
     contractVersion: 1,
@@ -465,6 +523,7 @@ test("Console exposes BITE status and run routes", async () => {
         message: `Collision alarm. ${TEST_TARGET_NAME}.`,
       }],
     },
+    "plugins.ajrmMarineGpsIntegrity.navigationIntegrity": gpsIntegrityProjection,
   };
   const messages = [];
   const captureCommands = [];
@@ -477,7 +536,14 @@ test("Console exposes BITE status and run routes", async () => {
       kind: "webapp",
       url: `/${id}/`,
       version: "0.5.0",
-    })),
+    })).concat([{
+      id: "signalk-ajrm-marine-gps-integrity",
+      packageName: "signalk-ajrm-marine-gps-integrity",
+      title: "AJRM Marine GPS Integrity",
+      kind: "webapp",
+      url: "/signalk-ajrm-marine-gps-integrity/",
+      version: "0.5.15",
+    }]),
     ajrmMarineCaptureApi: {
       async status() {
         return { enabled: true };
@@ -513,6 +579,17 @@ test("Console exposes BITE status and run routes", async () => {
       }
       if (path === "plugins.ajrmMarineAudio") {
         values[path].recentEvents[0].ts = new Date().toISOString();
+      }
+      if (path === "plugins.ajrmMarineGpsIntegrity.navigationIntegrity") {
+        const now = new Date();
+        values[path].timestamp = now.toISOString();
+        if (values[path].trust !== "lost") {
+          values[path].gps.positionTimestamp = now.toISOString();
+          values[path].gps.lastReceivedPositionTimestamp = now.toISOString();
+          values[path].gps.positionAgeSeconds = 0;
+          values[path].lastTrustedFix.timestamp = now.toISOString();
+          values[path].operationalDeadReckoning.lastRealignedAt = now.toISOString();
+        }
       }
       return values[path] || null;
     },
@@ -573,6 +650,9 @@ test("Console exposes BITE status and run routes", async () => {
   const harbourStatusTest = statusBody.tests.find((item) => item.id === "harbour-editor-availability");
   assert.equal(harbourStatusTest.enabled, false);
   assert.match(harbourStatusTest.disabledReason, /signalk-ajrm-marine-harbour-editor/);
+  assert.equal(statusBody.tests.find((item) => item.id === "gps-integrity-health").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "gps-lost-age-consistency").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "dead-reckoning-projection").enabled, true);
   assert.equal(statusBody.latestReportsByTest, undefined);
 
   app.ajrmMarineConsoleAvailableWebapps.push({
@@ -663,6 +743,63 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusCode, 200);
   assert.equal(runBody.ok, true);
   assert.equal(runBody.scenario, "core-projections");
+
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "gps-integrity-health", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.scenario, "gps-integrity-health");
+  assert.equal(runBody.snapshot.trust, "normal");
+
+  const healthyGpsIntegrityProjection = values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"];
+  values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = {
+    ...healthyGpsIntegrityProjection,
+    trust: "lost",
+    notificationState: "warn",
+    acceptedGps: false,
+    reasons: ["GPS position is stale (4177 seconds old)."],
+    gps: {
+      ...healthyGpsIntegrityProjection.gps,
+      fixValid: false,
+      positionTimestamp: new Date(startedAtMs - 4_177_000).toISOString(),
+      lastReceivedPositionTimestamp: "",
+      positionAgeSeconds: 4177,
+    },
+    lastTrustedFix: {
+      ...healthyGpsIntegrityProjection.lastTrustedFix,
+      timestamp: new Date(startedAtMs - 20_000).toISOString(),
+    },
+  };
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "gps-lost-age-consistency", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, false);
+  assert.equal(runBody.assertions.find((item) => item.id === "gps-lost-age-not-stale-cache").pass, false);
+  values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
 
   statusCode = 0;
   runBody = null;
@@ -761,7 +898,7 @@ test("Console exposes BITE status and run routes", async () => {
     { muted: false },
     { muted: true },
   ]);
-  assert.equal(runBody.reports.length, 9);
+  assert.equal(runBody.reports.length, 12);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "core-projections",
@@ -771,11 +908,14 @@ test("Console exposes BITE status and run routes", async () => {
     "notifications-broker-health",
     "collision-audio-chain",
     "quiet-target-no-alert",
+    "gps-integrity-health",
+    "gps-lost-age-consistency",
+    "dead-reckoning-projection",
     "audio-output-summary",
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 8 tests passed/,
+    /Marine built in tests complete\. 11 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);

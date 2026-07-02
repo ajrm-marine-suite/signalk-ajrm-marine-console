@@ -18,6 +18,7 @@ const QUIET_TEST_TARGET_MMSI = "235912346";
 const QUIET_TEST_TARGET_NAME = "BITE QUIET TARGET";
 const AUDIO_SUMMARY_PRIORITY = 150;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
+const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
 const OWN_POSITION = { latitude: 56.21122, longitude: -5.55756 };
 const TARGET_POSITION = { latitude: 56.21122, longitude: -5.54756 };
 const QUIET_TARGET_POSITION = { latitude: 56.24122, longitude: -5.49756 };
@@ -30,6 +31,8 @@ const WATCH_PATHS = {
   audio: "plugins.ajrmMarineAudio",
   display: "plugins.ajrmMarineDisplay",
   harbourEditor: "plugins.ajrmMarineHarbourEditor",
+  gpsIntegrity: "plugins.ajrmMarineGpsIntegrity.navigationIntegrity",
+  gpsIntegrityNotification: "notifications.navigation.gnss.integrity",
 };
 const REQUIRED_SUITE_PLUGINS = Object.freeze(packageInfo.signalk?.requires || []);
 const PREFLIGHT_TEST_ID = "preflight-safety";
@@ -93,6 +96,33 @@ const TESTS = [
     timeoutSeconds: 15,
   },
   {
+    id: "gps-integrity-health",
+    number: 8,
+    title: "GPS Integrity health",
+    description: "Optional check that GPS Integrity is publishing trust, fix, counter, and timestamp state in a coherent form.",
+    timeoutSeconds: 5,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "gps-lost-age-consistency",
+    number: 9,
+    title: "GPS lost age consistency",
+    description: "Optional check that GPS-lost wording and timestamps do not come from a stale cached source when a fresher loss is known.",
+    timeoutSeconds: 5,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "dead-reckoning-projection",
+    number: 10,
+    title: "Dead reckoning projection",
+    description: "Optional check that operational and independent DR projections expose positions, ages, uncertainty, and vector roles coherently.",
+    timeoutSeconds: 5,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
     id: "audio-output-summary",
     number: 99,
     title: "Audible summary output",
@@ -101,7 +131,7 @@ const TESTS = [
   },
   {
     id: "harbour-editor-availability",
-    number: 9,
+    number: 90,
     title: "Harbour Editor availability",
     description: "Optional check that AJRM Marine Harbour Editor is installed, enabled, and visible to Console.",
     timeoutSeconds: 5,
@@ -507,6 +537,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "quiet-target-no-alert") {
     return runQuietTargetNoAlertBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
+  if (testId === "gps-integrity-health") return runGpsIntegrityHealthBite(app, { consoleVersion });
+  if (testId === "gps-lost-age-consistency") return runGpsLostAgeConsistencyBite(app, { consoleVersion });
+  if (testId === "dead-reckoning-projection") return runDeadReckoningProjectionBite(app, { consoleVersion });
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
 
@@ -645,6 +678,9 @@ function optionalPluginEvidence(app, pluginId) {
 function optionalPluginStatus(app, pluginId) {
   if (pluginId === HARBOUR_EDITOR_PLUGIN_ID) {
     return readSelfPath(app, WATCH_PATHS.harbourEditor);
+  }
+  if (pluginId === GPS_INTEGRITY_PLUGIN_ID) {
+    return readSelfPath(app, WATCH_PATHS.gpsIntegrity);
   }
   return null;
 }
@@ -1264,6 +1300,198 @@ async function runNotificationsBrokerHealthBite(app, { consoleVersion }) {
   });
 }
 
+async function runGpsIntegrityHealthBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const gpsIntegrity = snapshot.gpsIntegrity || {};
+  const counters = gpsIntegrity.counters || {};
+  const gps = gpsIntegrity.gps || {};
+  const trust = String(gpsIntegrity.trust || "");
+  const timestampAgeSeconds = ageSeconds(gpsIntegrity.timestamp, startedAtMs);
+  const validTrust = ["normal", "degraded", "suspect", "lost"].includes(trust);
+  const assertions = [
+    assertion(
+      "gps-integrity-contract",
+      gpsIntegrity.ok === true && Boolean(gpsIntegrity.timestamp),
+      gpsIntegrity.ok === true
+        ? "GPS Integrity projection is present."
+        : "GPS Integrity projection is missing or not reporting ok=true.",
+    ),
+    assertion(
+      "gps-trust-state",
+      validTrust,
+      validTrust
+        ? `GPS trust state is ${trust}.`
+        : `GPS trust state is missing or unexpected: ${trust || "none"}.`,
+    ),
+    assertion(
+      "gps-fix-state-explicit",
+      typeof gps.fixValid === "boolean" && typeof gpsIntegrity.acceptedGps === "boolean",
+      "GPS Integrity should expose explicit fixValid and acceptedGps booleans.",
+    ),
+    assertion(
+      "gps-counters-numeric",
+      ["evaluations", "acceptedFixes", "rejectedFixes", "positionJumps", "lostFixes", "degradedSignals", "drDiscrepancies"]
+        .every((key) => Number.isFinite(Number(counters[key]))),
+      "GPS Integrity counters should all be numeric.",
+    ),
+    assertion(
+      "gps-state-fresh-enough",
+      timestampAgeSeconds === null || timestampAgeSeconds <= 60,
+      timestampAgeSeconds === null
+        ? "GPS Integrity timestamp age is not available; accepting because projection may be freshly initialising."
+        : `GPS Integrity projection is ${Math.round(timestampAgeSeconds)} seconds old.`,
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-integrity-health",
+    testId: "gps-integrity-health",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: gpsIntegrityObservations(gpsIntegrity),
+    summary: result === "pass"
+      ? "GPS Integrity health projection is coherent."
+      : `GPS Integrity health check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: gpsIntegritySummary(gpsIntegrity),
+  });
+}
+
+async function runGpsLostAgeConsistencyBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const gpsIntegrity = snapshot.gpsIntegrity || {};
+  const notification = snapshot.gpsIntegrityNotification || {};
+  const evidence = gpsLostAgeEvidence(gpsIntegrity, notification, startedAtMs);
+  const assertions = [
+    assertion(
+      "gps-lost-age-source-known",
+      evidence.applicable === false || Boolean(evidence.ageSourceTimestamp),
+      evidence.applicable === false
+        ? "GPS is not currently lost; lost-age consistency is not applicable."
+        : "GPS-lost age has a known source timestamp.",
+    ),
+    assertion(
+      "gps-lost-age-not-stale-cache",
+      evidence.staleCachedSource !== true,
+      evidence.staleCachedSource === true
+        ? `GPS-lost age appears to use stale position data (${evidence.reportedAgeSeconds}s) although a newer trusted fix exists.`
+        : evidence.applicable === false
+          ? "GPS is not currently lost."
+          : "GPS-lost age is consistent with the available timestamps.",
+    ),
+    assertion(
+      "gps-lost-notification-wording-consistent",
+      evidence.messageAgeSeconds === null || evidence.reportedAgeSeconds === null || Math.abs(evidence.messageAgeSeconds - evidence.reportedAgeSeconds) <= 5,
+      evidence.messageAgeSeconds === null
+        ? "No explicit stale-age wording is active; accepting outside a spoken GPS-lost event."
+        : `GPS-lost wording age ${evidence.messageAgeSeconds}s matches projection age ${evidence.reportedAgeSeconds ?? "unknown"}s.`,
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-lost-age-consistency",
+    testId: "gps-lost-age-consistency",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [evidence],
+    summary: result === "pass"
+      ? "GPS-lost age reporting is consistent."
+      : `GPS-lost age consistency check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      gpsIntegrity: gpsIntegritySummary(gpsIntegrity),
+      notification: notificationSummary(notification),
+      evidence,
+    },
+  });
+}
+
+async function runDeadReckoningProjectionBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const gpsIntegrity = snapshot.gpsIntegrity || {};
+  const operational = gpsIntegrity.operationalDeadReckoning || gpsIntegrity.deadReckoning || {};
+  const integrity = gpsIntegrity.integrityDeadReckoning || {};
+  const vectors = gpsIntegrity.vectors || {};
+  const assertions = [
+    assertion(
+      "operational-dr-position",
+      gpsIntegrity.trust !== "lost" || validPosition(operational.position),
+      gpsIntegrity.trust === "lost"
+        ? "Lost GPS should leave an operational DR position available."
+        : "GPS is not lost; operational DR position is advisory.",
+    ),
+    assertion(
+      "operational-dr-uncertainty",
+      finiteNonNegative(operational.uncertaintyRadiusMeters ?? 0),
+      `Operational DR uncertainty is ${operational.uncertaintyRadiusMeters ?? 0} meters.`,
+    ),
+    assertion(
+      "integrity-dr-shape",
+      !integrity.position || (
+        validPosition(integrity.position) &&
+        finiteNonNegative(integrity.uncertaintyRadiusMeters ?? 0) &&
+        (integrity.ageSeconds == null || finiteNonNegative(integrity.ageSeconds))
+      ),
+      integrity.position
+        ? "Independent DR position, age, and uncertainty are coherent."
+        : "Independent DR is not yet established; accepting while GPS Integrity is initialising.",
+    ),
+    assertion(
+      "dr-sources-named",
+      !operational.position || typeof operational.source === "string",
+      operational.source
+        ? `Operational DR source is ${operational.source}.`
+        : "Operational DR source is missing.",
+    ),
+    assertion(
+      "navigation-vector-roles",
+      vectorRolesCoherent(vectors),
+      "DR vectors should identify course/heading/tide roles when available.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "dead-reckoning-projection",
+    testId: "dead-reckoning-projection",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{
+      trust: gpsIntegrity.trust || "",
+      operationalSource: operational.source || "",
+      integritySource: integrity.source || "",
+      vectorKeys: Object.keys(vectors),
+    }],
+    summary: result === "pass"
+      ? "Dead-reckoning projections are coherent."
+      : `Dead-reckoning projection check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      gpsIntegrity: gpsIntegritySummary(gpsIntegrity),
+      operational,
+      integrity,
+      vectors,
+    },
+  });
+}
+
 async function runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -1731,6 +1959,8 @@ function collectSnapshot(app) {
     notificationsAudio: readSelfPath(app, WATCH_PATHS.notificationsAudio),
     audio: readSelfPath(app, WATCH_PATHS.audio),
     display: readSelfPath(app, WATCH_PATHS.display),
+    gpsIntegrity: readSelfPath(app, WATCH_PATHS.gpsIntegrity),
+    gpsIntegrityNotification: readSelfPath(app, WATCH_PATHS.gpsIntegrityNotification),
   };
 }
 
@@ -1997,6 +2227,8 @@ function summarizeSnapshot(snapshot) {
       notificationsAudio: Boolean(snapshot.notificationsAudio),
       audio: Boolean(snapshot.audio),
       display: Boolean(snapshot.display),
+      gpsIntegrity: Boolean(snapshot.gpsIntegrity),
+      gpsIntegrityNotification: Boolean(snapshot.gpsIntegrityNotification),
     },
     trafficProfile: snapshot.traffic?.profile || "",
     trafficTargets: targets.length,
@@ -2008,7 +2240,166 @@ function summarizeSnapshot(snapshot) {
     trafficAudioMuted: snapshot.trafficAudioPolicy?.muted === true,
     audioTimelineState: snapshot.audio?.timeline?.event?.state || "",
     audioQueueLength: snapshot.audio?.queueLength ?? null,
+    gpsTrust: snapshot.gpsIntegrity?.trust || "",
+    gpsFixValid: snapshot.gpsIntegrity?.gps?.fixValid ?? null,
+    gpsAccepted: snapshot.gpsIntegrity?.acceptedGps ?? null,
+    gpsLostFixes: snapshot.gpsIntegrity?.counters?.lostFixes ?? null,
   };
+}
+
+function gpsIntegritySummary(state = {}) {
+  const gps = state.gps || {};
+  const operational = state.operationalDeadReckoning || state.deadReckoning || {};
+  const integrity = state.integrityDeadReckoning || {};
+  return {
+    ok: state.ok,
+    timestamp: state.timestamp,
+    trust: state.trust,
+    notificationState: state.notificationState,
+    acceptedGps: state.acceptedGps,
+    acceptedManualFix: state.acceptedManualFix,
+    reasons: Array.isArray(state.reasons) ? state.reasons.slice(0, 8) : [],
+    counters: state.counters || {},
+    gps: {
+      fixValid: gps.fixValid,
+      positionPresent: validPosition(gps.position),
+      positionTimestamp: gps.positionTimestamp || "",
+      lastReceivedPositionTimestamp: gps.lastReceivedPositionTimestamp || "",
+      positionAgeSeconds: gps.positionAgeSeconds ?? null,
+      hdop: gps.hdop ?? null,
+      satellites: gps.satellites ?? null,
+      speedOverGround: gps.speedOverGround ?? null,
+      courseOverGroundTrue: gps.courseOverGroundTrue ?? null,
+      headingTrue: gps.headingTrue ?? null,
+    },
+    lastTrustedFix: {
+      positionPresent: validPosition(state.lastTrustedFix?.position),
+      timestamp: state.lastTrustedFix?.timestamp || "",
+      source: state.lastTrustedFix?.source || "",
+    },
+    operationalDeadReckoning: drSummary(operational),
+    integrityDeadReckoning: drSummary(integrity),
+    vectorKeys: Object.keys(state.vectors || {}),
+  };
+}
+
+function drSummary(track = {}) {
+  return {
+    positionPresent: validPosition(track.position),
+    uncertaintyRadiusMeters: track.uncertaintyRadiusMeters ?? null,
+    ageSeconds: track.ageSeconds ?? null,
+    source: track.source || "",
+    lastRealignedAt: track.lastRealignedAt || "",
+    realignIntervalSeconds: track.realignIntervalSeconds ?? null,
+  };
+}
+
+function gpsIntegrityObservations(state = {}) {
+  return [{
+    ts: new Date().toISOString(),
+    trust: state.trust || "",
+    acceptedGps: state.acceptedGps ?? null,
+    fixValid: state.gps?.fixValid ?? null,
+    counters: state.counters || {},
+    reasons: Array.isArray(state.reasons) ? state.reasons.slice(0, 4) : [],
+  }];
+}
+
+function gpsLostAgeEvidence(state = {}, notification = {}, nowMs = Date.now()) {
+  const trust = String(state.trust || "").toLowerCase();
+  const gps = state.gps || {};
+  const reasons = Array.isArray(state.reasons) ? state.reasons : [];
+  const message = notificationMessage(notification);
+  const applicable = trust === "lost" || gps.fixValid === false || /gps position is (missing|stale)|gps lost/i.test(message);
+  const lastReceivedMs = Date.parse(gps.lastReceivedPositionTimestamp || "");
+  const positionTimestampMs = Date.parse(gps.positionTimestamp || "");
+  const trustedMs = Date.parse(state.lastTrustedFix?.timestamp || "");
+  const ageSourceMs = Number.isFinite(lastReceivedMs)
+    ? lastReceivedMs
+    : Number.isFinite(positionTimestampMs)
+      ? positionTimestampMs
+      : Number.isFinite(trustedMs)
+        ? trustedMs
+        : NaN;
+  const reportedAgeSeconds = Number.isFinite(Number(gps.positionAgeSeconds))
+    ? Math.round(Number(gps.positionAgeSeconds))
+    : Number.isFinite(ageSourceMs)
+      ? Math.max(0, Math.round((nowMs - ageSourceMs) / 1000))
+      : null;
+  const messageAgeSeconds = staleAgeFromText([message, ...reasons].join(" "));
+  const staleCachedSource = applicable
+    && Number.isFinite(positionTimestampMs)
+    && Number.isFinite(trustedMs)
+    && trustedMs - positionTimestampMs > 30_000
+    && (messageAgeSeconds == null || messageAgeSeconds > Math.round((nowMs - trustedMs) / 1000) + 30);
+  return {
+    applicable,
+    trust,
+    fixValid: gps.fixValid ?? null,
+    ageSourceTimestamp: Number.isFinite(ageSourceMs) ? new Date(ageSourceMs).toISOString() : "",
+    positionTimestamp: Number.isFinite(positionTimestampMs) ? new Date(positionTimestampMs).toISOString() : "",
+    lastReceivedPositionTimestamp: Number.isFinite(lastReceivedMs) ? new Date(lastReceivedMs).toISOString() : "",
+    lastTrustedFixTimestamp: Number.isFinite(trustedMs) ? new Date(trustedMs).toISOString() : "",
+    reportedAgeSeconds,
+    messageAgeSeconds,
+    staleCachedSource,
+    message,
+    reasons: reasons.slice(0, 8),
+  };
+}
+
+function notificationSummary(notification = {}) {
+  return {
+    state: notification.state || "",
+    message: notificationMessage(notification),
+    method: notification.method || [],
+    timestamp: notification.timestamp || notification.value?.timestamp || "",
+  };
+}
+
+function notificationMessage(notification = {}) {
+  if (typeof notification === "string") return notification;
+  return String(
+    notification.message
+      || notification.value?.message
+      || notification.data?.message
+      || notification.data?.notificationsPlus?.presentation?.message
+      || notification.presentation?.message
+      || "",
+  );
+}
+
+function staleAgeFromText(text) {
+  const match = String(text || "").match(/(?:stale|old|received|fix is)\D{0,40}(\d+)\s*seconds?/i);
+  return match ? Number(match[1]) : null;
+}
+
+function validPosition(position) {
+  return Number.isFinite(Number(position?.latitude))
+    && Number.isFinite(Number(position?.longitude))
+    && Math.abs(Number(position.latitude)) <= 90
+    && Math.abs(Number(position.longitude)) <= 180;
+}
+
+function finiteNonNegative(value) {
+  return Number.isFinite(Number(value)) && Number(value) >= 0;
+}
+
+function ageSeconds(timestamp, nowMs = Date.now()) {
+  const timestampMs = Date.parse(timestamp || "");
+  if (!Number.isFinite(timestampMs)) return null;
+  return Math.max(0, (nowMs - timestampMs) / 1000);
+}
+
+function vectorRolesCoherent(vectors = {}) {
+  const keys = Object.keys(vectors || {});
+  if (!keys.length) return true;
+  const text = JSON.stringify(vectors).toLowerCase();
+  return (
+    /heading|throughwater|stw|single/.test(text) ||
+    /course|ground|cog|double/.test(text) ||
+    /tide|current|drift|triple/.test(text)
+  );
 }
 
 function trafficPolicySummary(policy = {}) {
