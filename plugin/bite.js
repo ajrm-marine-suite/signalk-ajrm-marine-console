@@ -167,9 +167,11 @@ function evaluateCollisionAudioSnapshot(snapshot, { startedAtMs, targetName, tar
   ));
   assertions.push(assertion(
     "notifications-audio",
-    Boolean(brokerEvidence),
+    Boolean(brokerEvidence || audioEvidence),
     brokerEvidence
       ? `Notifications published audio delivery: ${brokerEvidence.message}`
+      : audioEvidence
+        ? `Notifications audio delivery inferred from Audio ${audioEvidence.state}: ${audioEvidence.message}`
       : "Notifications has not published matching audio delivery for the BITE target.",
   ));
   assertions.push(assertion(
@@ -317,10 +319,21 @@ function findDisplayAlertEvidence(value, { startedAtMs, targetName, targetMmsi }
     const message = candidate?.message || candidate?.presentation?.message || "";
     const visualEnabled = candidate?.delivery?.visual !== false;
     return visualEnabled
-      && ["warn", "alarm", "emergency"].includes(state)
+      && isAlertState(state)
       && (freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs) || freshTimestamp)
       && messageMatches(message, targetName, targetMmsi);
   }) || null;
+}
+
+function isAlertState(state) {
+  return [
+    "warn",
+    "warning",
+    "alarm",
+    "emergency",
+    "danger",
+    "critical",
+  ].includes(String(state || "").toLowerCase());
 }
 
 function findAudioEvidence(audio, { startedAtMs, targetName, targetMmsi }) {

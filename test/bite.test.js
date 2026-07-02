@@ -36,7 +36,7 @@ test("BITE evaluation passes when Traffic, Notifications, and Audio align", () =
     },
     notifications: {
       active: [{
-        state: "alarm",
+        priority: { level: "danger" },
         timestamp: new Date().toISOString(),
         delivery: { visual: true },
         presentation: {
@@ -94,7 +94,7 @@ test("BITE evaluation fails when Traffic alerts but Audio has no matching event"
     },
     notifications: {
       active: [{
-        state: "alarm",
+        priority: { level: "danger" },
         timestamp: new Date().toISOString(),
         delivery: { visual: true },
         presentation: {
@@ -149,7 +149,7 @@ test("Console exposes BITE status and run routes", async () => {
     },
     "plugins.ajrmMarineNotifications": {
       active: [{
-        state: "alarm",
+        priority: { level: "danger" },
         timestamp: new Date(startedAtMs).toISOString(),
         delivery: { visual: true },
         presentation: { message: `Collision alarm. ${TEST_TARGET_NAME}.` },

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.22
+
+- Make the Display-facing BITE assertion recognise Notifications priority
+  levels such as `danger`, and avoid false failures when the current audio
+  delivery projection has already advanced but Audio has recorded matching
+  accepted/rendered evidence.
+
 ## 0.5.21
 
 - Extend Console BITE to verify the Display-facing visual alert path as well
