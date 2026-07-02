@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.32
+
+- Fix BITE collision audio evaluation when audio is muted: Audio can briefly
+  publish an `accepted` timeline event before the queue records the real
+  `skipped: Muted...` evidence. BITE now prefers skipped/muted evidence when
+  mute policy is active.
+- Wait for synthetic collision target cleanup to propagate before ending the
+  BITE collision test, reducing misleading post-test `BITE TEST TARGET QUIET`
+  alert residue in Capture bundles.
+
 ## 0.5.31
 
 - Add BITE test `01 Core status projections` to confirm Traffic, Display,

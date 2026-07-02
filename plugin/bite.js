@@ -437,7 +437,7 @@ async function runCollisionAudioBite(app, { pluginId, testId, consoleVersion, ti
       assertions.push(...evaluation.assertions);
     }
   } finally {
-    publishSyntheticEncounter(app, { pluginId, runId, quiet: true });
+    await clearSyntheticEncounter(app, { pluginId, runId });
   }
 
   const finishedAt = new Date().toISOString();
@@ -605,14 +605,18 @@ function evaluateCollisionAudioSnapshot(snapshot, { startedAtMs, targetName, tar
     targetName,
     targetMmsi,
   });
-  const audioEvidence = findAudioEvidence(audio, { startedAtMs, targetName, targetMmsi });
+  const muted = audioPolicy.muted === true || audio.muted === true;
+  const audioEvidence = findAudioEvidence(audio, {
+    startedAtMs,
+    targetName,
+    targetMmsi,
+    preferSuppressed: muted,
+  });
   const brokerEvidence = findBrokerAudioEvidence(notificationsAudio, {
     startedAtMs,
     targetName,
     targetMmsi,
   });
-  const muted = audioPolicy.muted === true || audio.muted === true;
-
   assertions.push(assertion(
     "traffic-alert",
     Boolean(trafficAlert),
@@ -782,6 +786,13 @@ function publishSyntheticEncounter(app, { pluginId, runId, quiet }) {
       ],
     }],
   });
+}
+
+async function clearSyntheticEncounter(app, { pluginId, runId }) {
+  for (let index = 0; index < 3; index += 1) {
+    publishSyntheticEncounter(app, { pluginId, runId, quiet: true });
+    await delay(REFRESH_MS);
+  }
 }
 
 function publishSyntheticQuietTarget(app, { pluginId, runId }) {
@@ -1012,7 +1023,13 @@ function isAlertState(state) {
   ].includes(String(state || "").toLowerCase());
 }
 
-function findAudioEvidence(audio, { startedAtMs, targetName, targetMmsi, strict = false }) {
+function findAudioEvidence(audio, {
+  startedAtMs,
+  targetName,
+  targetMmsi,
+  strict = false,
+  preferSuppressed = false,
+}) {
   const candidates = [];
   if (audio?.timeline?.event) candidates.push({ ...audio.timeline.event, source: "timeline" });
   for (const event of audio?.recentEvents || []) candidates.push({ ...event, source: "recentEvents" });
@@ -1022,7 +1039,7 @@ function findAudioEvidence(audio, { startedAtMs, targetName, targetMmsi, strict 
   if (audio?.lastAnnouncement) {
     candidates.push({ ...audio.lastAnnouncement, state: "lastAnnouncement", source: "lastAnnouncement" });
   }
-  const match = candidates.find((candidate) => {
+  const matches = candidates.filter((candidate) => {
     const ts = candidate.occurredAt || candidate.ts || candidate.renderedAt || candidate.receivedAt;
     const message = candidate.message || "";
     const state = String(candidate.state || candidate.event || "");
@@ -1030,6 +1047,9 @@ function findAudioEvidence(audio, { startedAtMs, targetName, targetMmsi, strict 
       && messageMatches(message, targetName, targetMmsi, { allowBiteWildcard: !strict })
       && /accepted|queued|audio-ready|rendered|speaker|skipped|muted|lastAnnouncement/i.test(state);
   });
+  const match = preferSuppressed
+    ? matches.find((candidate) => /skipped|muted/i.test(String(candidate.state || candidate.event || ""))) || matches[0]
+    : matches[0];
   if (!match) return null;
   const state = String(match.state || match.event || "");
   return {

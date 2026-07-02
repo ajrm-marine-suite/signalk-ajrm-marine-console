@@ -118,6 +118,56 @@ test("BITE evaluation fails when Traffic alerts but Audio has no matching event"
   assert.equal(result.assertions.find((item) => item.id === "audio-accepted").pass, false);
 });
 
+test("BITE evaluation accepts muted audio when skipped evidence follows accepted timeline", () => {
+  const startedAtMs = Date.now() - 1000;
+  const result = evaluateCollisionAudioSnapshot({
+    traffic: trafficProjection("alarm"),
+    trafficAudioPolicy: { muted: true },
+    display: {
+      contract: "ajrm-marine-display-status",
+      enabled: true,
+    },
+    notifications: {
+      active: [{
+        priority: { level: "danger" },
+        timestamp: new Date().toISOString(),
+        delivery: { visual: true },
+        presentation: {
+          message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+        },
+      }],
+    },
+    notificationsAudio: {
+      timestamp: new Date().toISOString(),
+      audioRequest: {
+        message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+      },
+    },
+    audio: {
+      muted: true,
+      timeline: {
+        event: {
+          occurredAt: new Date().toISOString(),
+          state: "accepted",
+          message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+        },
+      },
+      recentEvents: [{
+        ts: new Date().toISOString(),
+        event: "skipped",
+        message: `Muted: Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+      }],
+    },
+  }, {
+    startedAtMs,
+    targetName: TEST_TARGET_NAME,
+    targetMmsi: TEST_TARGET_MMSI,
+  });
+
+  assert.equal(result.result, "pass");
+  assert.equal(result.assertions.find((item) => item.id === "mute-explicit").pass, true);
+});
+
 test("BITE publishes synthetic own-vessel and target deltas", () => {
   const messages = [];
   const app = {
