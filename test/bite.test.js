@@ -807,6 +807,9 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "gps-jump-rejection").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-intermittent-outage-count").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "docked-no-dr-drift").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "gps-recovery-fresh-fix").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "lost-gps-retained-current-source").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "stationary-automute-policy-shape").enabled, undefined);
   assert.equal(statusBody.latestReportsByTest, undefined);
 
   app.ajrmMarineConsoleAvailableWebapps.push({
@@ -980,6 +983,9 @@ test("Console exposes BITE status and run routes", async () => {
     "gps-jump-rejection",
     "gps-intermittent-outage-count",
     "docked-no-dr-drift",
+    "gps-recovery-fresh-fix",
+    "lost-gps-retained-current-source",
+    "stationary-automute-policy-shape",
   ]) {
     statusCode = 0;
     runBody = null;
@@ -1098,7 +1104,7 @@ test("Console exposes BITE status and run routes", async () => {
     { muted: false },
     { muted: true },
   ]);
-  assert.equal(runBody.reports.length, 17);
+  assert.equal(runBody.reports.length, 20);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "core-projections",
@@ -1116,11 +1122,14 @@ test("Console exposes BITE status and run routes", async () => {
     "gps-jump-rejection",
     "gps-intermittent-outage-count",
     "docked-no-dr-drift",
+    "gps-recovery-fresh-fix",
+    "lost-gps-retained-current-source",
+    "stationary-automute-policy-shape",
     "audio-output-summary",
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 16 tests passed/,
+    /Marine built in tests complete\. 19 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);

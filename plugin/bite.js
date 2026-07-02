@@ -170,6 +170,31 @@ const TESTS = [
     pluginId: GPS_INTEGRITY_PLUGIN_ID,
   },
   {
+    id: "gps-recovery-fresh-fix",
+    number: 16,
+    title: "GPS recovery fresh fix",
+    description: "Optional active test that loses GPS, restores it, and checks the restored GPS fix timestamp is fresh rather than inherited from an old cache.",
+    timeoutSeconds: 25,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "lost-gps-retained-current-source",
+    number: 17,
+    title: "Lost-GPS retained current source",
+    description: "Optional active test that removes GPS and live current together and checks DR explicitly uses the last trusted current vector.",
+    timeoutSeconds: 25,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "stationary-automute-policy-shape",
+    number: 18,
+    title: "Stationary automute policy shape",
+    description: "Checks that Traffic's shared audio policy exposes enough state to prove whether stationary automute is armed, allowed, and active.",
+    timeoutSeconds: 5,
+  },
+  {
     id: "audio-output-summary",
     number: 99,
     title: "Audible summary output",
@@ -596,6 +621,11 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
     return runGpsIntermittentOutageCountBite(app, { pluginId, consoleVersion, timeoutMs });
   }
   if (testId === "docked-no-dr-drift") return runDockedNoDrDriftBite(app, { pluginId, consoleVersion, timeoutMs });
+  if (testId === "gps-recovery-fresh-fix") return runGpsRecoveryFreshFixBite(app, { pluginId, consoleVersion, timeoutMs });
+  if (testId === "lost-gps-retained-current-source") {
+    return runLostGpsRetainedCurrentSourceBite(app, { pluginId, consoleVersion, timeoutMs });
+  }
+  if (testId === "stationary-automute-policy-shape") return runStationaryAutomutePolicyShapeBite(app, { consoleVersion });
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
 
@@ -2045,6 +2075,252 @@ async function runDockedNoDrDriftBite(app, { pluginId, consoleVersion, timeoutMs
       ? "Healthy stationary GPS did not allow tide-only independent DR drift."
       : `Docked no-DR-drift check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: { baseline: gpsIntegritySummary(baseline || {}), final: gpsIntegritySummary(final || {}) },
+  });
+}
+
+async function runGpsRecoveryFreshFixBite(app, { pluginId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const baselinePosition = { ...OWN_POSITION };
+  let baseline = null;
+  let lost = null;
+  let recovered = null;
+  let restoreStartedAtMs = 0;
+  try {
+    baseline = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "fresh-fix-baseline",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      timeoutMs: Math.min(7000, timeoutMs / 3),
+      predicate: (state) => state.acceptedGps === true,
+    });
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "fresh-fix-gps-lost",
+      position: baselinePosition,
+      includeGps: false,
+      includeCurrent: false,
+    });
+    lost = await waitForGpsIntegrity(app, {
+      timeoutMs: Math.min(7000, timeoutMs / 3),
+      predicate: (state) => state.trust === "lost" && state.gps?.fixValid === false,
+    });
+    restoreStartedAtMs = Date.now();
+    recovered = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "fresh-fix-gps-restored",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      currentDriftMps: 0,
+      timeoutMs: Math.max(5000, timeoutMs - (Date.now() - startedAtMs)),
+      predicate: (state) => state.acceptedGps === true && state.gps?.fixValid === true,
+    });
+  } finally {
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "restore-gps",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      currentDriftMps: 0,
+    });
+  }
+  const lastTrustedMs = Date.parse(recovered?.lastTrustedFix?.timestamp || "");
+  const receivedMs = Date.parse(recovered?.gps?.lastReceivedPositionTimestamp || recovered?.gps?.positionTimestamp || "");
+  const trustedFresh = Number.isFinite(lastTrustedMs) && lastTrustedMs >= restoreStartedAtMs - 1000;
+  const receivedFresh = Number.isFinite(receivedMs) && receivedMs >= restoreStartedAtMs - 1000;
+  const assertions = [
+    assertion("fresh-fix-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted."),
+    assertion("fresh-fix-lost-observed", Boolean(lost), "GPS lost state should be observed before recovery."),
+    assertion("fresh-fix-recovered", recovered?.acceptedGps === true && recovered?.gps?.fixValid === true, "Restored GPS should be accepted."),
+    assertion(
+      "fresh-fix-trusted-timestamp",
+      trustedFresh,
+      trustedFresh
+        ? "Last trusted fix timestamp was refreshed when GPS returned."
+        : `Last trusted fix timestamp ${recovered?.lastTrustedFix?.timestamp || "missing"} was not refreshed after recovery.`,
+    ),
+    assertion(
+      "fresh-fix-received-timestamp",
+      receivedFresh,
+      receivedFresh
+        ? "Last received GPS timestamp was refreshed when GPS returned."
+        : `Last received GPS timestamp ${recovered?.gps?.lastReceivedPositionTimestamp || recovered?.gps?.positionTimestamp || "missing"} was not refreshed after recovery.`,
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-recovery-fresh-fix",
+    testId: "gps-recovery-fresh-fix",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{
+      restoreStartedAt: new Date(restoreStartedAtMs || startedAtMs).toISOString(),
+      lastTrustedFixTimestamp: recovered?.lastTrustedFix?.timestamp || "",
+      lastReceivedPositionTimestamp: recovered?.gps?.lastReceivedPositionTimestamp || "",
+      positionTimestamp: recovered?.gps?.positionTimestamp || "",
+    }],
+    summary: result === "pass"
+      ? "GPS recovery created a fresh trusted fix timestamp."
+      : `GPS recovery fresh-fix check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { baseline: gpsIntegritySummary(baseline || {}), lost: gpsIntegritySummary(lost || {}), recovered: gpsIntegritySummary(recovered || {}) },
+  });
+}
+
+async function runLostGpsRetainedCurrentSourceBite(app, { pluginId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const baselinePosition = { ...OWN_POSITION };
+  let baseline = null;
+  let lost = null;
+  try {
+    baseline = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "retained-current-baseline",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      timeoutMs: Math.min(7000, timeoutMs / 2),
+      predicate: (state) => state.acceptedGps === true && currentAvailable(state.current || state.lastTrustedCurrent),
+    });
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "retained-current-gps-lost",
+      position: baselinePosition,
+      includeGps: false,
+      includeCurrent: false,
+    });
+    lost = await waitForGpsIntegrity(app, {
+      timeoutMs: Math.max(5000, timeoutMs - (Date.now() - startedAtMs)),
+      predicate: (state) => {
+        const evidence = deadReckoningLossExerciseEvidence(state, baselinePosition);
+        return state.trust === "lost" && evidence.retainedCurrent;
+      },
+    });
+  } finally {
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "restore-gps",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      currentDriftMps: 0,
+    });
+  }
+  const current = lost?.current || {};
+  const lastTrustedCurrent = lost?.lastTrustedCurrent || {};
+  const retainedSource = ["last-trusted-current", "retained-current"].includes(String(current.source || ""));
+  const assertions = [
+    assertion("retained-current-baseline-accepted", Boolean(baseline), "Trusted GPS/current baseline should be accepted."),
+    assertion("retained-current-gps-lost", lost?.trust === "lost" && lost?.gps?.fixValid === false, "GPS should be lost after GPS and live current are removed."),
+    assertion(
+      "retained-current-source-explicit",
+      retainedSource,
+      retainedSource
+        ? `Current source is explicitly ${current.source}.`
+        : `Current source should be retained-current/last-trusted-current, got ${current.source || "missing"}.`,
+    ),
+    assertion(
+      "last-trusted-current-still-available",
+      currentAvailable(lastTrustedCurrent),
+      currentAvailable(lastTrustedCurrent)
+        ? "Last trusted current remains available for DR."
+        : "Last trusted current is missing after GPS loss.",
+    ),
+    assertion(
+      "live-current-not-trusted-after-gps-loss",
+      String(current.source || "") !== "live",
+      `Current source after GPS loss is ${current.source || "missing"}.`,
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "lost-gps-retained-current-source",
+    testId: "lost-gps-retained-current-source",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ current: currentSummary(current), lastTrustedCurrent: currentSummary(lastTrustedCurrent) }],
+    summary: result === "pass"
+      ? "Lost-GPS DR is explicitly using retained current rather than live GPS-derived current."
+      : `Lost-GPS retained-current source check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { baseline: gpsIntegritySummary(baseline || {}), lost: gpsIntegritySummary(lost || {}) },
+  });
+}
+
+async function runStationaryAutomutePolicyShapeBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const policy = snapshot.trafficAudioPolicy || {};
+  const audio = snapshot.audio || {};
+  const stationaryMode = policy.automaticMuteActive === true || /stationary|muted|harbou?r|anchor/i.test(String(policy.status || ""));
+  const assertions = [
+    assertion(
+      "stationary-automute-config-visible",
+      typeof policy.automuteStationary === "boolean" && typeof policy.automuteAllowed === "boolean",
+      "Traffic audio policy should expose automuteStationary and automuteAllowed booleans.",
+    ),
+    assertion(
+      "stationary-automute-active-visible",
+      typeof policy.automaticMuteActive === "boolean",
+      "Traffic audio policy should expose whether stationary automute is currently active.",
+    ),
+    assertion(
+      "stationary-automute-status-visible",
+      typeof policy.status === "string" && policy.status.length > 0,
+      policy.status ? `Traffic audio policy status is: ${policy.status}` : "Traffic audio policy status text is missing.",
+    ),
+    assertion(
+      "audio-follows-traffic-policy",
+      policy.muted !== true || audio.engineMuted === true || audio.muted === true,
+      policy.muted === true
+        ? `Traffic muted=${policy.muted}; Audio engineMuted=${audio.engineMuted}; Audio muted=${audio.muted}.`
+        : "Traffic policy is not muted; no stationary mute propagation is expected.",
+    ),
+    assertion(
+      "stationary-mute-explained-when-active",
+      !stationaryMode || policy.muted === true || policy.automuteAllowed === false,
+      stationaryMode
+        ? `Stationary status is visible; muted=${policy.muted}, automuteAllowed=${policy.automuteAllowed}.`
+        : "Traffic is not currently reporting a stationary/harbour/anchor mute state.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "stationary-automute-policy-shape",
+    testId: "stationary-automute-policy-shape",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ trafficAudioPolicy: trafficPolicySummary(policy), audio: audioPolicySummary(audio) }],
+    summary: result === "pass"
+      ? "Stationary automute policy shape is explicit and visible to Audio."
+      : `Stationary automute policy shape check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { trafficAudioPolicy: trafficPolicySummary(policy), audio: audioPolicySummary(audio) },
   });
 }
 
