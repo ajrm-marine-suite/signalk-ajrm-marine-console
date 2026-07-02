@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.51
+
+- Give the final BITE audible summary longer to render before marking the
+  output test red.
+- Include Audio's current timeline state and queue length in the BITE report
+  when the audible summary has not yet completed.
+
 ## 0.5.50
 
 - Keep the BITE report textarea scrolled to the latest message while tests are

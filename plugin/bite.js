@@ -96,7 +96,7 @@ const TESTS = [
     number: 99,
     title: "Audible summary output",
     description: "Publishes a final spoken BITE summary so the skipper can confirm the selected audio output was actually heard.",
-    timeoutSeconds: 30,
+    timeoutSeconds: 75,
   },
   {
     id: "harbour-editor-availability",
@@ -638,6 +638,7 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
       startedAtMs,
       timeoutMs,
     });
+  const finalAudio = readSelfPath(app, WATCH_PATHS.audio) || audio;
   const assertions = [
     assertion(
       "summary-audio-forced",
@@ -658,7 +659,7 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
       Boolean(deliveryEvidence),
       deliveryEvidence
         ? `Audio reports the BITE summary reached ${deliveryEvidence.state}.`
-        : "Audio has not yet reported the BITE summary as rendered or completed.",
+        : `Audio has not yet reported the BITE summary as rendered or completed. ${audioProgressSummary(finalAudio)}`,
     ),
     assertion(
       "human-hearing-check-required",
@@ -682,13 +683,14 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
       precedingTests: reportsToSummarize.length,
       precedingFailures: failed.length,
       audioEvidence: deliveryEvidence,
+      audioProgress: audioProgressSummary(finalAudio),
     }],
     summary: result === "pass"
       ? "Spoken BITE summary was requested. Confirm it was heard on the selected audio output."
       : `Spoken BITE summary check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: {
       message,
-      audio: audioPolicySummary(audio),
+      audio: audioPolicySummary(finalAudio),
       audioDeliveryEvidence: deliveryEvidence,
       precedingTests: reportsToSummarize.map((report) => ({
         testId: report.testId,
@@ -1924,6 +1926,16 @@ function audioPolicySummary(audio = {}) {
     queueLength: audio.queueLength,
     timelineState: audio.timeline?.event?.state || "",
   };
+}
+
+function audioProgressSummary(audio = {}) {
+  const state = audio.timeline?.event?.state || audio.timelineState || "unknown";
+  const queue = audio.queueLength ?? "unknown";
+  const activeMessage = audio.active?.message || audio.preparing?.message || audio.lastAnnouncement?.message || "";
+  const suffix = activeMessage
+    ? ` Last audio message: ${String(activeMessage).slice(0, 120)}`
+    : "";
+  return `Audio state: ${state}; queue length: ${queue}.${suffix}`;
 }
 
 function summaryFor(result, assertions) {

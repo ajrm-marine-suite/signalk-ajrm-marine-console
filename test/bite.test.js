@@ -522,6 +522,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests[1].id, "core-projections");
   assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
   assert.equal(statusBody.tests.at(-1).number, 99);
+  assert.equal(statusBody.tests.at(-1).timeoutSeconds, 75);
   const harbourStatusTest = statusBody.tests.find((item) => item.id === "harbour-editor-availability");
   assert.equal(harbourStatusTest.enabled, false);
   assert.match(harbourStatusTest.disabledReason, /signalk-ajrm-marine-harbour-editor/);
