@@ -17,11 +17,12 @@ dependencies installs the mandatory suite apps declared in `signalk.requires`:
 - AJRM Marine Traffic
 - AJRM Marine Notifications
 - AJRM Marine Audio
+- AJRM Marine Capture
 
 Optional suite apps are declared in `signalk.recommends`. Install them only when
 you want those features:
 
-- Voyage diagnostics: AJRM Marine Capture, Snapshot, Logger, and Voyage Viewer
+- Voyage diagnostics: AJRM Marine Snapshot, Logger, and Voyage Viewer
 - Navigation integrity: AJRM Marine GPS Integrity and DR Plotter
 - Instruments: AJRM Marine Instruments and Instrument Alerts
 - AJRM Marine Vessel Database
@@ -35,12 +36,13 @@ out, while installed apps appear normally. Every installed AJRM Marine suite
 webapp is selected for the tab bar by default; untick apps in the Console plugin
 settings if you want a shorter operational toolbar.
 
-Vessel Database is optional: the suite works without it, but known names and
-dimensions improve display popups and spoken traffic wording. Instrument Alerts
-is also optional and standalone because it reads standard Signal K instrument
-paths, so it can be used with other instrument displays. DR Plotter depends on
-GPS Integrity because GPS Integrity publishes the operational and independent
-dead-reckoning state that DR Plotter renders.
+Capture is required because BITE and support diagnostics use it to create
+evidence bundles. Vessel Database is optional: the suite works without it, but
+known names and dimensions improve display popups and spoken traffic wording.
+Instrument Alerts is also optional and standalone because it reads standard
+Signal K instrument paths, so it can be used with other instrument displays. DR
+Plotter depends on GPS Integrity because GPS Integrity publishes the operational
+and independent dead-reckoning state that DR Plotter renders.
 
 Version `0.5.4` shortens AJRM Marine suite app titles in the Console tab bar
 while leaving third-party webapp names unchanged.

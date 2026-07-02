@@ -1,6 +1,6 @@
 {
   "name": "signalk-ajrm-marine-console",
-  "version": "0.5.33",
+  "version": "0.5.34",
   "description": "Suite entry point, navigation shell, and shared help for AJRM Marine applications.",
   "main": "plugin/index.js",
   "scripts": {
@@ -50,11 +50,11 @@
       "signalk-ajrm-marine-display",
       "signalk-ajrm-marine-traffic",
       "signalk-ajrm-marine-notifications",
-      "signalk-ajrm-marine-audio"
+      "signalk-ajrm-marine-audio",
+      "signalk-ajrm-marine-capture"
     ],
     "recommends": [
       "signalk-ajrm-marine-vessel-database",
-      "signalk-ajrm-marine-capture",
       "signalk-ajrm-marine-snapshot",
       "signalk-ajrm-marine-logger",
       "signalk-ajrm-marine-voyage-viewer",

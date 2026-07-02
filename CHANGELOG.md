@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.34
+
+- Make AJRM Marine Capture a required suite dependency because BITE and support
+  diagnostics rely on it to create evidence bundles.
+- Show Capture as a Core suite app in the Console catalogue.
+
 ## 0.5.33
 
 - Make BITE Run all preflight failures explain the concrete blocker, for

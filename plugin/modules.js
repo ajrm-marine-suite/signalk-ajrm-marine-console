@@ -37,11 +37,11 @@ const CORE_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-traffic",
   "signalk-ajrm-marine-notifications",
   "signalk-ajrm-marine-audio",
+  "signalk-ajrm-marine-capture",
 ];
 
 const OPTIONAL_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-vessel-database",
-  "signalk-ajrm-marine-capture",
   "signalk-ajrm-marine-snapshot",
   "signalk-ajrm-marine-logger",
   "signalk-ajrm-marine-voyage-viewer",
@@ -85,8 +85,8 @@ const SUITE_APP_INFO = {
   },
   "signalk-ajrm-marine-capture": {
     title: "Capture",
-    description: "Voyage/debug bundles for replay and diagnosis.",
-    groupLabel: "Voyage diagnostics",
+    description: "Voyage/debug bundles and BITE evidence capture.",
+    groupLabel: "Core",
   },
   "signalk-ajrm-marine-snapshot": {
     title: "Snapshot",
