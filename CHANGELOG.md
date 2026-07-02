@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.40
+
+- Poll BITE run progress while `Run all tests` is active so each traffic light
+  updates as its test completes instead of waiting for the final response.
+- Keep the final BITE audio test running until Audio reports the spoken summary
+  has rendered/completed, so its light does not go green merely because the
+  request was queued.
+- Raise the final BITE spoken summary above routine system announcements while
+  keeping it non-preempting, so it plays promptly after any active safety alarm
+  finishes.
+
 ## 0.5.39
 
 - Make the Console workspace and BITE dashboard use bounded internal scrolling

@@ -11,6 +11,7 @@ const BROWSER_OUTPUT_MODE_STORAGE_KEY = "ajrmMarineAudio.browserOutputMode";
 const BROWSER_OUTPUT_STORAGE_KEY = "ajrmMarineAudio.browserOutput";
 const BROWSER_AUDIO_REFRESH_MS = 2000;
 const BROWSER_AUDIO_AUTH_RETRY_MS = 60000;
+const BITE_STATUS_REFRESH_MS = 1000;
 const SILENT_AUDIO_DATA_URL =
   "data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 let activeFrame = null;
@@ -27,6 +28,7 @@ let nextBrowserAudioRefreshAt = 0;
 let biteStatus = null;
 let biteResults = {};
 let biteRunning = false;
+let biteStatusPollTimer = null;
 
 const els = {
   version: document.getElementById("version"),
@@ -77,6 +79,9 @@ async function refreshBiteStatus() {
     biteStatus = await jsonRequest(BITE_STATUS_URL);
     for (const [testId, report] of Object.entries(biteStatus.latestReportsByTest || {})) {
       biteResults[testId] = report;
+    }
+    for (const report of biteStatus.currentRunAll?.reports || []) {
+      biteResults[report.testId || report.scenario] = report;
     }
     if (biteStatus.lastReport) {
       biteResults[biteStatus.lastReport.testId || biteStatus.lastReport.scenario] = biteStatus.lastReport;
@@ -147,12 +152,13 @@ function biteTests() {
 
 function biteTestHtml(test) {
   const result = biteResults[test.id] || null;
-  const state = biteRunning
-    ? "running"
-    : result
-      ? result.ok
-        ? "pass"
-        : "fail"
+  const currentTestId = biteStatus?.currentRunAll?.currentTestId || null;
+  const state = result
+    ? result.ok
+      ? "pass"
+      : "fail"
+    : biteRunning && currentTestId === test.id
+      ? "running"
       : "pending";
   const stateLabel = {
     pending: "Not run",
@@ -210,8 +216,10 @@ async function runBiteTest(testId) {
 
 async function runAllBiteTests() {
   biteRunning = true;
+  biteResults = {};
   els.biteLog.value = "Running BITE pre-test checks...";
   renderBitePanel();
+  startBiteStatusPolling();
   try {
     const report = await jsonRequest(BITE_RUN_ALL_URL, {
       method: "POST",
@@ -234,9 +242,23 @@ async function runAllBiteTests() {
     }
   } finally {
     biteRunning = false;
+    stopBiteStatusPolling();
     await refreshBiteStatus();
     renderBitePanel();
   }
+}
+
+function startBiteStatusPolling() {
+  stopBiteStatusPolling();
+  biteStatusPollTimer = window.setInterval(() => {
+    refreshBiteStatus();
+  }, BITE_STATUS_REFRESH_MS);
+}
+
+function stopBiteStatusPolling() {
+  if (!biteStatusPollTimer) return;
+  window.clearInterval(biteStatusPollTimer);
+  biteStatusPollTimer = null;
 }
 
 function biteTestNumber(test) {

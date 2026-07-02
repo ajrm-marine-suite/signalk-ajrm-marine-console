@@ -90,6 +90,11 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /BITE_RUN_ALL_URL/);
   assert.match(script, /function runBiteTest\(testId\)/);
   assert.match(script, /function runAllBiteTests\(\)/);
+  assert.match(script, /BITE_STATUS_REFRESH_MS/);
+  assert.match(script, /function startBiteStatusPolling\(\)/);
+  assert.match(script, /function stopBiteStatusPolling\(\)/);
+  assert.match(script, /biteStatus\.currentRunAll\?\.reports/);
+  assert.match(script, /biteStatus\?\.currentRunAll\?\.currentTestId/);
   assert.match(script, /Running BITE pre-test checks/);
   assert.match(script, /data-bite-test/);
   assert.match(script, /formatBiteReport/);

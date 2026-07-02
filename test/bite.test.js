@@ -475,6 +475,20 @@ test("Console exposes BITE status and run routes", async () => {
         for (const value of update.values || []) {
           if (value.path === "plugins.ajrmMarineNotifications.audio") {
             values[value.path] = value.value;
+            if (/Marine built in tests/.test(value.value?.audioRequest?.message || "")) {
+              values["plugins.ajrmMarineAudio"] = {
+                ...values["plugins.ajrmMarineAudio"],
+                recentEvents: [{
+                  ts: new Date().toISOString(),
+                  event: "rendered",
+                  message: value.value.audioRequest.message,
+                }],
+                recentAnnouncements: [{
+                  renderedAt: new Date().toISOString(),
+                  message: value.value.audioRequest.message,
+                }],
+              };
+            }
           }
         }
       }
@@ -648,7 +662,10 @@ test("Console exposes BITE status and run routes", async () => {
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
     /Marine built in tests complete\. 8 tests passed/,
   );
+  assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 700);
+  assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);
   assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-published").pass, true);
+  assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-completed").pass, true);
 
   values["navigation.position"] = {
     value: { latitude: 56, longitude: -5 },
