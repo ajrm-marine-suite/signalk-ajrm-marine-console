@@ -536,6 +536,7 @@ function optionalPluginEvidence(app, pluginId) {
   const module = availableWebapps.find((candidate) =>
     candidate?.id === pluginId || candidate?.packageName === pluginId
   );
+  const status = optionalPluginStatus(app, pluginId);
   return {
     pluginId,
     installed: Boolean(module),
@@ -543,7 +544,15 @@ function optionalPluginEvidence(app, pluginId) {
     version: module?.version || "",
     url: module?.url || "",
     kind: module?.kind || "",
+    status,
   };
+}
+
+function optionalPluginStatus(app, pluginId) {
+  if (pluginId === HARBOUR_EDITOR_PLUGIN_ID) {
+    return app.ajrmMarineHarbourEditorStatus || null;
+  }
+  return null;
 }
 
 async function runCoreProjectionBite(app, { consoleVersion }) {
@@ -1057,6 +1066,13 @@ async function runHarbourEditorAvailabilityBite(app, { consoleVersion }) {
       evidence.url
         ? `Harbour Editor webapp route is ${evidence.url}.`
         : "Harbour Editor webapp route is missing.",
+    ),
+    assertion(
+      "harbour-editor-status",
+      evidence.status?.contract === "ajrm-marine-harbour-editor-status" && evidence.status?.enabled === true,
+      evidence.status?.contract === "ajrm-marine-harbour-editor-status"
+        ? `Harbour Editor status reports ${evidence.status.harbourCount ?? "unknown"} harbour region(s).`
+        : "Harbour Editor status projection is missing; update or enable Harbour Editor.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";

@@ -532,6 +532,16 @@ test("Console exposes BITE status and run routes", async () => {
     url: "/signalk-ajrm-marine-harbour-editor/",
     version: "0.5.3",
   });
+  app.ajrmMarineHarbourEditorStatus = {
+    contract: "ajrm-marine-harbour-editor-status",
+    contractVersion: 1,
+    plugin: "signalk-ajrm-marine-harbour-editor",
+    version: "0.5.4",
+    enabled: true,
+    harbourCount: 572,
+    defaultHarbourCount: 572,
+    seedState: "seeded-defaults",
+  };
   routes.get("GET /ajrmMarineConsole/bite/status")({}, {
     set() {},
     json(value) {
@@ -559,9 +569,12 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.ok, true);
   assert.equal(runBody.scenario, "harbour-editor-availability");
   assert.equal(runBody.snapshot.url, "/signalk-ajrm-marine-harbour-editor/");
+  assert.equal(runBody.snapshot.status.contract, "ajrm-marine-harbour-editor-status");
+  assert.equal(runBody.assertions.find((item) => item.id === "harbour-editor-status").pass, true);
   app.ajrmMarineConsoleAvailableWebapps = app.ajrmMarineConsoleAvailableWebapps.filter(
     (module) => module.id !== "signalk-ajrm-marine-harbour-editor",
   );
+  delete app.ajrmMarineHarbourEditorStatus;
 
   statusCode = 0;
   runBody = null;

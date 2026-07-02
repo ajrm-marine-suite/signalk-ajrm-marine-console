@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.44
+
+- Enhance the optional Harbour Editor BITE check to verify the Harbour Editor
+  status contract when the optional plugin is installed.
+
 ## 0.5.43
 
 - Add optional BITE test support: optional checks remain visible in the
