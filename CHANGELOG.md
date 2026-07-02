@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.20
+
+- Correct BITE report wording so the Traffic assertion and observations show
+  the target encounter state, such as `alarm`, rather than `undefined`.
+
 ## 0.5.19
 
 - Unwrap Signal K leaf values when BITE reads watched paths with `getSelfPath`,

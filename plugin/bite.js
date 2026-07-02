@@ -141,7 +141,7 @@ function evaluateCollisionAudioSnapshot(snapshot, { startedAtMs, targetName, tar
     "traffic-alert",
     Boolean(trafficAlert),
     trafficAlert
-      ? `Traffic published ${trafficAlert.state} for ${trafficAlert.name}.`
+      ? `Traffic published ${trafficAlert.encounter?.state} for ${trafficAlert.name}.`
       : "Traffic has not published a warn/alarm/emergency for the BITE target.",
   ));
   assertions.push(assertion(
@@ -176,7 +176,7 @@ function evaluateCollisionAudioSnapshot(snapshot, { startedAtMs, targetName, tar
     observation: trafficAlert || audioEvidence
       ? {
           ts: new Date().toISOString(),
-          trafficState: trafficAlert?.state || "",
+          trafficState: trafficAlert?.encounter?.state || "",
           audioState: audioEvidence?.state || "",
           message: audioEvidence?.message || brokerEvidence?.message || "",
         }
