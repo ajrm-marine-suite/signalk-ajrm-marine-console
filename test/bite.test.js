@@ -439,6 +439,7 @@ test("Console exposes BITE status and run routes", async () => {
       }],
     },
   };
+  const messages = [];
   const app = {
     ajrmMarineConsoleAvailableWebapps: packageInfo.signalk.requires.map((id) => ({
       id,
@@ -468,7 +469,16 @@ test("Console exposes BITE status and run routes", async () => {
       }
       return values[path] || null;
     },
-    handleMessage() {},
+    handleMessage(id, message) {
+      messages.push({ id, message });
+      for (const update of message?.updates || []) {
+        for (const value of update.values || []) {
+          if (value.path === "plugins.ajrmMarineNotifications.audio") {
+            values[value.path] = value.value;
+          }
+        }
+      }
+    },
     setPluginStatus() {},
   };
   const plugin = createPlugin(app);
@@ -496,7 +506,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(Array.isArray(statusBody.tests), true);
   assert.equal(statusBody.tests[0].number, 0);
   assert.equal(statusBody.tests[1].id, "core-projections");
-  assert.equal(statusBody.tests.at(-1).id, "quiet-target-no-alert");
+  assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
 
   let statusCode = 0;
   let runBody;
@@ -622,7 +632,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.contract, "ajrm-marine-console-bite-run-all-report");
   assert.equal(runBody.capture.started, true);
   assert.equal(runBody.capture.stop.fileName, "voyage-bite.zip");
-  assert.equal(runBody.reports.length, 8);
+  assert.equal(runBody.reports.length, 9);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "core-projections",
@@ -632,7 +642,13 @@ test("Console exposes BITE status and run routes", async () => {
     "notifications-broker-health",
     "collision-audio-chain",
     "quiet-target-no-alert",
+    "audio-output-summary",
   ]);
+  assert.match(
+    values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
+    /AJRM Marine BITE complete\. 8 tests passed/,
+  );
+  assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-published").pass, true);
 
   values["navigation.position"] = {
     value: { latitude: 56, longitude: -5 },

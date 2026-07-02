@@ -74,6 +74,8 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
 - Notifications publishing matching audio delivery.
 - Audio accepting, queueing, rendering, skipping, or muting matching BITE audio.
 - Any mute condition being explicit rather than silent.
+- A final spoken BITE summary being requested so the skipper can confirm the
+  selected physical/browser/player output was actually heard.
 
 Current numbered BITE tests:
 
@@ -87,6 +89,7 @@ Current numbered BITE tests:
 | 05 | Notifications broker health | Broker active/history/audio sequence state is visible and bounded. |
 | 06 | Collision visual/audio chain | Synthetic collision reaches Traffic, Display-facing visual alerts, Notifications audio delivery, and Audio acceptance. |
 | 07 | Quiet target no-alert | Stopped/far-away synthetic target does not create a fresh visual or audible alert. |
+| 08 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |
 
 Portable evaluator regression tests also cover stale audio evidence, broker-only
 delivery before Audio catches up, missing Display-facing visual evidence, and

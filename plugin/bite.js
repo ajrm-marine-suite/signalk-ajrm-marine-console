@@ -88,6 +88,13 @@ const TESTS = [
     description: "Publishes a stopped/far-away target and checks the suite does not create a fresh visual or audible alert for it.",
     timeoutSeconds: 15,
   },
+  {
+    id: "audio-output-summary",
+    number: 8,
+    title: "Audible summary output",
+    description: "Publishes a final spoken BITE summary so the skipper can confirm the selected audio output was actually heard.",
+    timeoutSeconds: 5,
+  },
 ];
 const LIVE_FEED_PATHS = [
   "navigation.position",
@@ -156,6 +163,7 @@ function createBiteController(app, { pluginId, version }) {
           testId,
           consoleVersion: version,
           timeoutMs: boundedTimeout(options.timeoutSeconds),
+          priorReports: reports.filter((report) => report.consoleVersion === version),
         });
         reports = [...reports, report].slice(-MAX_REPORTS);
         await saveReport(report);
@@ -234,6 +242,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
         testId: test.id,
         consoleVersion,
         timeoutMs: boundedTimeout(timeoutSeconds || test.timeoutSeconds),
+        priorReports: reports,
       });
       reports.push(report);
       if (typeof recordReport === "function") await recordReport(report);
@@ -322,13 +331,16 @@ function runAllSummary({ failed, captureStart, captureStop, captureError, count 
   return `${testText} passed. ${captureText}`;
 }
 
-async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutMs, priorReports = [] }) {
   if (testId === PREFLIGHT_TEST_ID) return runPreflightBite(app, { consoleVersion });
   if (testId === "core-projections") return runCoreProjectionBite(app, { consoleVersion });
   if (testId === "projection-contracts") return runProjectionContractsBite(app, { consoleVersion });
   if (testId === "audio-policy-consistency") return runAudioPolicyConsistencyBite(app, { consoleVersion });
   if (testId === "audio-renderer-readiness") return runAudioRendererReadinessBite(app, { consoleVersion });
   if (testId === "notifications-broker-health") return runNotificationsBrokerHealthBite(app, { consoleVersion });
+  if (testId === "audio-output-summary") {
+    return runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorReports });
+  }
   if (testId === "quiet-target-no-alert") {
     return runQuietTargetNoAlertBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
@@ -496,6 +508,170 @@ async function runCoreProjectionBite(app, { consoleVersion }) {
       ? "Core status projections are present."
       : `Core status projection check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: summarizeSnapshot(snapshot),
+  });
+}
+
+async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorReports = [] }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const audio = snapshot.audio || {};
+  const reportsToSummarize = priorReports
+    .filter((report) => report?.testId && report.testId !== "audio-output-summary" && report.testId !== "run-all");
+  const failed = reportsToSummarize.filter((report) => !report.ok);
+  const message = biteSummaryAudioMessage(reportsToSummarize);
+  let publishError = "";
+  try {
+    publishBiteAudioSummary(app, { pluginId, runId, message });
+  } catch (error) {
+    publishError = error.message || String(error);
+  }
+  const assertions = [
+    assertion(
+      "audio-not-muted",
+      audio.muted !== true,
+      audio.muted === true
+        ? "Audio is muted, so the spoken BITE summary is not expected to be heard."
+        : "Audio is not muted for the spoken BITE summary.",
+    ),
+    assertion(
+      "summary-audio-published",
+      !publishError,
+      publishError
+        ? `Could not publish spoken BITE summary: ${publishError}`
+        : "Spoken BITE summary was published to the Notifications audio projection.",
+    ),
+    assertion(
+      "human-hearing-check-required",
+      true,
+      "This test verifies the software requested audio. The skipper confirms the physical output by listening for the summary.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "audio-output-summary",
+    testId: "audio-output-summary",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{
+      ts: new Date().toISOString(),
+      message,
+      precedingTests: reportsToSummarize.length,
+      precedingFailures: failed.length,
+    }],
+    summary: result === "pass"
+      ? "Spoken BITE summary was requested. Confirm it was heard on the selected audio output."
+      : `Spoken BITE summary check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      message,
+      audio: audioPolicySummary(audio),
+      precedingTests: reportsToSummarize.map((report) => ({
+        testId: report.testId,
+        result: report.result,
+        summary: report.summary,
+      })),
+    },
+  });
+}
+
+function biteSummaryAudioMessage(reports) {
+  const tested = reports.filter((report) => report?.testId && report.testId !== "run-all");
+  const failed = tested.filter((report) => !report.ok);
+  if (!tested.length) {
+    return "AJRM Marine BITE audio output test. If you can hear this, the selected audio output is working.";
+  }
+  if (!failed.length) {
+    return `AJRM Marine BITE complete. ${tested.length} tests passed. If you can hear this, the selected audio output is working.`;
+  }
+  const failedNames = failed
+    .slice(0, 4)
+    .map((report) => titleForTest(report.testId))
+    .join(", ");
+  return `AJRM Marine BITE warning. ${failed.length} of ${tested.length} tests failed: ${failedNames}. If you can hear this, the selected audio output is working.`;
+}
+
+function titleForTest(testId) {
+  return TESTS.find((test) => test.id === testId)?.title || String(testId || "unknown");
+}
+
+function publishBiteAudioSummary(app, { pluginId, runId, message }) {
+  const timestamp = new Date().toISOString();
+  const sequence = Date.now();
+  const eventId = `ajrm-marine-bite-audio-summary-${runId}`;
+  const subjectKey = "ajrm-marine-bite-audio-summary";
+  const envelope = {
+    contract: "ajrm-marine-notification-envelope",
+    contractVersion: 1,
+    eventId,
+    subjectKey,
+    source: pluginId,
+    lifecycle: "event",
+    timestamp,
+    priority: {
+      level: "information",
+      score: 100,
+    },
+    presentation: {
+      title: "BITE Audio Summary",
+      category: "system",
+      message,
+      audioMessage: message,
+    },
+    delivery: {
+      visual: false,
+      audio: true,
+      preempt: false,
+      localPlayback: true,
+      streamOutput: true,
+      expiresSeconds: 60,
+    },
+    history: {
+      policy: "always",
+    },
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    audioExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+  };
+  app.handleMessage(pluginId, {
+    context: "vessels.self",
+    updates: [{
+      $source: "ajrm-marine-bite",
+      timestamp,
+      values: [{
+        path: WATCH_PATHS.notificationsAudio,
+        value: {
+          contract: "notifications-plus-audio-delivery",
+          contractVersion: 1,
+          sessionId: `ajrm-marine-bite-${runId}`,
+          sequence,
+          audioSequence: sequence,
+          serverTime: timestamp,
+          updatedAt: timestamp,
+          audioRequest: {
+            sequence,
+            requestId: `${eventId}:${sequence}`,
+            correlationId: eventId,
+            subjectKey,
+            eventId,
+            message,
+            priorityScore: 100,
+            preempt: false,
+            expiresAt: envelope.audioExpiresAt,
+            outputs: {
+              localSpeaker: true,
+              companion: true,
+              stream: true,
+            },
+          },
+          event: envelope,
+          lastAudioEvent: envelope,
+        },
+      }],
+    }],
   });
 }
 

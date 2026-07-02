@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.37
+
+- Add final BITE test `08 Audible summary output`, which publishes a spoken
+  pass/fail summary so the skipper can confirm the selected physical audio
+  output was actually heard.
+- Mark the audible summary check as software-published plus human-hearing
+  verification, and fail it if Audio is muted.
+
 ## 0.5.36
 
 - Expand Console BITE Run all from four to eight visible tests, adding
