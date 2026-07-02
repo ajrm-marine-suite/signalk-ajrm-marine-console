@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.60
+
+- Add an active BITE dead-reckoning GPS-loss exercise that injects a trusted
+  GPS/current baseline, removes GPS and live current, and checks operational DR
+  moves using the retained current vector.
+
 ## 0.5.53
 
 - During BITE Run all, pause Capture automatic recording, manually start the

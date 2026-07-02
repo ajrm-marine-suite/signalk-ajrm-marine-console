@@ -22,6 +22,8 @@ const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
 const OWN_POSITION = { latitude: 56.21122, longitude: -5.55756 };
 const TARGET_POSITION = { latitude: 56.21122, longitude: -5.54756 };
 const QUIET_TARGET_POSITION = { latitude: 56.24122, longitude: -5.49756 };
+const DR_EXERCISE_CURRENT_SET_RAD = Math.PI / 2;
+const DR_EXERCISE_CURRENT_DRIFT_MPS = 1 * KNOTS_TO_MPS;
 
 const WATCH_PATHS = {
   traffic: "plugins.ajrmMarineTraffic.targets",
@@ -119,6 +121,15 @@ const TESTS = [
     title: "Dead reckoning projection",
     description: "Optional check that operational and independent DR projections expose positions, ages, uncertainty, and vector roles coherently.",
     timeoutSeconds: 5,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "dead-reckoning-loss-exercise",
+    number: 11,
+    title: "DR GPS-loss exercise",
+    description: "Optional active test that injects a trusted GPS/current baseline, removes GPS and current, and checks operational DR moves using the retained current vector.",
+    timeoutSeconds: 25,
     optional: true,
     pluginId: GPS_INTEGRITY_PLUGIN_ID,
   },
@@ -540,6 +551,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "gps-integrity-health") return runGpsIntegrityHealthBite(app, { consoleVersion });
   if (testId === "gps-lost-age-consistency") return runGpsLostAgeConsistencyBite(app, { consoleVersion });
   if (testId === "dead-reckoning-projection") return runDeadReckoningProjectionBite(app, { consoleVersion });
+  if (testId === "dead-reckoning-loss-exercise") {
+    return runDeadReckoningLossExerciseBite(app, { pluginId, consoleVersion, timeoutMs });
+  }
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
 
@@ -852,6 +866,16 @@ async function waitForBiteAudioSummary(app, { message, startedAtMs, timeoutMs })
       startedAtMs,
     });
     if (evidence) return evidence;
+    await delay(Math.min(POLL_MS, Math.max(0, deadline - Date.now())));
+  } while (Date.now() < deadline);
+  return null;
+}
+
+async function waitForSnapshot(app, { timeoutMs, predicate }) {
+  const deadline = Date.now() + Math.max(1000, Number(timeoutMs) || 5000);
+  do {
+    const snapshot = collectSnapshot(app);
+    if (predicate(snapshot)) return snapshot;
     await delay(Math.min(POLL_MS, Math.max(0, deadline - Date.now())));
   } while (Date.now() < deadline);
   return null;
@@ -1492,6 +1516,119 @@ async function runDeadReckoningProjectionBite(app, { consoleVersion }) {
   });
 }
 
+async function runDeadReckoningLossExerciseBite(app, { pluginId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const baselinePosition = { ...OWN_POSITION };
+  const observations = [];
+  let acceptedBaseline = null;
+  let finalSnapshot = null;
+
+  try {
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "trusted-baseline",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+    });
+    acceptedBaseline = await waitForSnapshot(app, {
+      timeoutMs: Math.min(8000, Math.max(5000, timeoutMs / 3)),
+      predicate: (snapshot) => {
+        const state = snapshot.gpsIntegrity || {};
+        return state.acceptedGps === true &&
+          validPosition(state.lastTrustedFix?.position) &&
+          currentAvailable(state.current || state.lastTrustedCurrent);
+      },
+    });
+    observations.push({
+      phase: "trusted-baseline",
+      accepted: Boolean(acceptedBaseline),
+      gpsIntegrity: gpsIntegritySummary(acceptedBaseline?.gpsIntegrity || {}),
+    });
+
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "gps-lost-current-unavailable",
+      position: baselinePosition,
+      includeGps: false,
+      includeCurrent: false,
+    });
+    finalSnapshot = await waitForSnapshot(app, {
+      timeoutMs: Math.max(5000, timeoutMs - (Date.now() - startedAtMs)),
+      predicate: (snapshot) => deadReckoningLossExerciseEvidence(snapshot.gpsIntegrity || {}, baselinePosition).complete,
+    }) || collectSnapshot(app);
+  } finally {
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "restore-gps",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      currentDriftMps: 0,
+    });
+  }
+
+  const gpsIntegrity = finalSnapshot?.gpsIntegrity || {};
+  const evidence = deadReckoningLossExerciseEvidence(gpsIntegrity, baselinePosition);
+  const assertions = [
+    assertion(
+      "dr-baseline-accepted",
+      Boolean(acceptedBaseline),
+      acceptedBaseline
+        ? "GPS Integrity accepted the injected trusted GPS/current baseline."
+        : "GPS Integrity did not accept the injected trusted GPS/current baseline before timeout.",
+    ),
+    assertion(
+      "dr-gps-lost",
+      gpsIntegrity.trust === "lost" && gpsIntegrity.gps?.fixValid === false,
+      gpsIntegrity.trust === "lost"
+        ? "GPS Integrity entered lost-GPS state after GPS was removed."
+        : `GPS Integrity did not enter lost-GPS state; trust=${gpsIntegrity.trust || "unknown"}.`,
+    ),
+    assertion(
+      "dr-retained-current",
+      evidence.retainedCurrent,
+      evidence.retainedCurrent
+        ? "GPS Integrity is using a retained current vector after GPS loss."
+        : "GPS Integrity did not report a retained current vector after GPS loss.",
+    ),
+    assertion(
+      "dr-position-moved",
+      evidence.distanceMeters >= 1,
+      `Operational DR moved ${displayMeters(evidence.distanceMeters)} from the trusted GPS baseline.`,
+    ),
+    assertion(
+      "dr-moved-with-current-set",
+      evidence.eastMeters >= 0.5 && Math.abs(evidence.northMeters) <= Math.max(2, evidence.distanceMeters * 0.6),
+      `Operational DR movement east=${displayMeters(evidence.eastMeters)}, north=${displayMeters(evidence.northMeters)}.`,
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "dead-reckoning-loss-exercise",
+    testId: "dead-reckoning-loss-exercise",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [...observations, evidence],
+    summary: result === "pass"
+      ? "Dead reckoning moved using retained current after GPS and live current were removed."
+      : `Dead reckoning GPS-loss exercise failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      gpsIntegrity: gpsIntegritySummary(gpsIntegrity),
+      evidence,
+    },
+  });
+}
+
 async function runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -1899,6 +2036,43 @@ function publishSyntheticEncounter(app, { pluginId, runId, quiet }) {
   });
 }
 
+function publishDeadReckoningExerciseSample(app, {
+  pluginId,
+  runId,
+  phase,
+  position,
+  includeGps,
+  includeCurrent,
+  currentDriftMps = DR_EXERCISE_CURRENT_DRIFT_MPS,
+}) {
+  const timestamp = new Date().toISOString();
+  const currentSetValue = includeCurrent ? DR_EXERCISE_CURRENT_SET_RAD : null;
+  const currentDriftValue = includeCurrent ? currentDriftMps : null;
+  const gpsPosition = includeGps ? position : null;
+  app.handleMessage?.(pluginId, {
+    context: "vessels.self",
+    updates: [{
+      $source: `ajrm-marine-bite-dr-${runId}`,
+      timestamp,
+      values: [
+        { path: "navigation.position", value: gpsPosition },
+        { path: "navigation.speedOverGround", value: includeGps ? 0 : null },
+        { path: "navigation.courseOverGroundTrue", value: includeGps ? 0 : null },
+        { path: "navigation.speedThroughWater", value: 0 },
+        { path: "navigation.headingTrue", value: 0 },
+        { path: "navigation.gnss.methodQuality", value: includeGps ? "GNSS fix" : "no GPS" },
+        { path: "navigation.gnss.horizontalDilution", value: includeGps ? 0.8 : null },
+        { path: "navigation.gnss.satellites", value: includeGps ? 12 : 0 },
+        { path: "environment.current.setTrue", value: currentSetValue },
+        { path: "environment.current.drift", value: currentDriftValue },
+        { path: "environment.tide.setTrue", value: currentSetValue },
+        { path: "environment.tide.drift", value: currentDriftValue },
+        { path: "plugins.ajrmMarineConsole.bite.deadReckoningExercise", value: { runId, phase, timestamp } },
+      ],
+    }],
+  });
+}
+
 async function clearSyntheticEncounter(app, { pluginId, runId }) {
   for (let index = 0; index < 3; index += 1) {
     publishSyntheticEncounter(app, { pluginId, runId, quiet: true });
@@ -2277,9 +2451,22 @@ function gpsIntegritySummary(state = {}) {
       timestamp: state.lastTrustedFix?.timestamp || "",
       source: state.lastTrustedFix?.source || "",
     },
+    current: currentSummary(state.current || {}),
+    lastTrustedCurrent: currentSummary(state.lastTrustedCurrent || {}),
     operationalDeadReckoning: drSummary(operational),
     integrityDeadReckoning: drSummary(integrity),
     vectorKeys: Object.keys(state.vectors || {}),
+  };
+}
+
+function currentSummary(current = {}) {
+  return {
+    available: current.available ?? currentAvailable(current),
+    source: current.source || "",
+    setTrueDegrees: current.setTrueDegrees ?? null,
+    driftKnots: current.driftKnots ?? null,
+    timestamp: current.timestamp || "",
+    ageSeconds: current.ageSeconds ?? null,
   };
 }
 
@@ -2379,6 +2566,62 @@ function validPosition(position) {
     && Number.isFinite(Number(position?.longitude))
     && Math.abs(Number(position.latitude)) <= 90
     && Math.abs(Number(position.longitude)) <= 180;
+}
+
+function deadReckoningLossExerciseEvidence(state = {}, baselinePosition = OWN_POSITION) {
+  const operational = state.operationalDeadReckoning || state.deadReckoning || {};
+  const position = operational.position;
+  const offsets = validPosition(position)
+    ? offsetMetersBetween(baselinePosition, position)
+    : { eastMeters: 0, northMeters: 0, distanceMeters: 0 };
+  const retainedCurrent =
+    state.current?.source === "last-trusted-current" ||
+    state.current?.source === "retained-current" ||
+    state.vectors?.tide?.source === "last-trusted-current" ||
+    (state.trust === "lost" && state.lastTrustedCurrent && currentAvailable(state.lastTrustedCurrent));
+  return {
+    complete: state.trust === "lost" &&
+      state.gps?.fixValid === false &&
+      retainedCurrent &&
+      validPosition(position) &&
+      offsets.distanceMeters >= 1,
+    trust: state.trust || "",
+    fixValid: state.gps?.fixValid ?? null,
+    operationalSource: operational.source || "",
+    currentSource: state.current?.source || "",
+    retainedCurrent,
+    positionPresent: validPosition(position),
+    eastMeters: offsets.eastMeters,
+    northMeters: offsets.northMeters,
+    distanceMeters: offsets.distanceMeters,
+    current: state.current || null,
+    lastTrustedCurrent: state.lastTrustedCurrent || null,
+  };
+}
+
+function offsetMetersBetween(from, to) {
+  if (!validPosition(from) || !validPosition(to)) {
+    return { eastMeters: 0, northMeters: 0, distanceMeters: 0 };
+  }
+  const meanLatRad = ((Number(from.latitude) + Number(to.latitude)) / 2) * Math.PI / 180;
+  const northMeters = (Number(to.latitude) - Number(from.latitude)) * 111_320;
+  const eastMeters = (Number(to.longitude) - Number(from.longitude)) * 111_320 * Math.cos(meanLatRad);
+  return {
+    eastMeters,
+    northMeters,
+    distanceMeters: Math.sqrt(eastMeters ** 2 + northMeters ** 2),
+  };
+}
+
+function currentAvailable(value = {}) {
+  return value?.available === true ||
+    (Number.isFinite(Number(value.setTrue)) && Number.isFinite(Number(value.drift)));
+}
+
+function displayMeters(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "unknown";
+  return `${number.toFixed(number < 10 ? 1 : 0)} m`;
 }
 
 function finiteNonNegative(value) {
