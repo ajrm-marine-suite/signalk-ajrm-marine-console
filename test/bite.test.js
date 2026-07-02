@@ -11,12 +11,20 @@ const {
   TEST_TARGET_MMSI,
   TEST_TARGET_NAME,
   evaluateCollisionAudioSnapshot,
+  evaluateQuietTargetSnapshot,
   publishSyntheticEncounter,
   unwrapSignalKLeaf,
 } = require("../plugin/bite");
 
 function trafficProjection(state = "alarm") {
   return {
+    contract: "ajrm-marine-traffic-targets",
+    contractVersion: 1,
+    sessionId: "traffic-session",
+    sequence: 1,
+    mode: "traffic",
+    authoritative: true,
+    profile: "coastal",
     targets: [{
       id: `vessels.urn:mrn:imo:mmsi:${TEST_TARGET_MMSI}`,
       mmsi: TEST_TARGET_MMSI,
@@ -169,6 +177,163 @@ test("BITE evaluation accepts muted audio when skipped evidence follows accepted
   assert.equal(result.assertions.find((item) => item.id === "mute-explicit").pass, true);
 });
 
+test("BITE evaluation rejects stale audio evidence for a fresh collision", () => {
+  const startedAtMs = Date.now();
+  const stale = new Date(startedAtMs - 60_000).toISOString();
+  const fresh = new Date(startedAtMs + 10).toISOString();
+  const result = evaluateCollisionAudioSnapshot({
+    traffic: trafficProjection("alarm"),
+    trafficAudioPolicy: { muted: false },
+    display: {
+      contract: "ajrm-marine-display-status",
+      enabled: true,
+    },
+    notifications: {
+      active: [{
+        priority: { level: "danger" },
+        timestamp: fresh,
+        delivery: { visual: true },
+        presentation: {
+          message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+        },
+      }],
+    },
+    notificationsAudio: {
+      timestamp: stale,
+      audioRequest: {
+        message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+      },
+    },
+    audio: {
+      muted: false,
+      recentEvents: [{
+        ts: stale,
+        event: "queued",
+        message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+      }],
+    },
+  }, {
+    startedAtMs,
+    targetName: TEST_TARGET_NAME,
+    targetMmsi: TEST_TARGET_MMSI,
+  });
+
+  assert.equal(result.result, "fail");
+  assert.equal(result.assertions.find((item) => item.id === "traffic-alert").pass, true);
+  assert.equal(result.assertions.find((item) => item.id === "display-alert").pass, true);
+  assert.equal(result.assertions.find((item) => item.id === "audio-accepted").pass, false);
+});
+
+test("BITE evaluation accepts broker-only audio delivery while renderer is catching up", () => {
+  const startedAtMs = Date.now() - 1000;
+  const result = evaluateCollisionAudioSnapshot({
+    traffic: trafficProjection("alarm"),
+    trafficAudioPolicy: { muted: false },
+    display: {
+      contract: "ajrm-marine-display-status",
+      enabled: true,
+    },
+    notifications: {
+      active: [{
+        priority: { level: "danger" },
+        timestamp: new Date().toISOString(),
+        delivery: { visual: true },
+        presentation: {
+          message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+        },
+      }],
+    },
+    notificationsAudio: {
+      contract: "notifications-plus-audio-delivery",
+      updatedAt: new Date().toISOString(),
+      audioRequest: {
+        message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+      },
+    },
+    audio: {
+      muted: false,
+      recentEvents: [],
+    },
+  }, {
+    startedAtMs,
+    targetName: TEST_TARGET_NAME,
+    targetMmsi: TEST_TARGET_MMSI,
+  });
+
+  assert.equal(result.assertions.find((item) => item.id === "notifications-audio").pass, true);
+  assert.equal(result.assertions.find((item) => item.id === "audio-accepted").pass, false);
+  assert.equal(result.result, "fail");
+});
+
+test("BITE evaluation fails when display-facing alert evidence is missing", () => {
+  const startedAtMs = Date.now() - 1000;
+  const result = evaluateCollisionAudioSnapshot({
+    traffic: trafficProjection("alarm"),
+    trafficAudioPolicy: { muted: false },
+    display: {
+      contract: "ajrm-marine-display-status",
+      enabled: true,
+    },
+    notifications: { active: [] },
+    notificationsAudio: {
+      timestamp: new Date().toISOString(),
+      audioRequest: {
+        message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+      },
+    },
+    audio: {
+      muted: false,
+      recentEvents: [{
+        ts: new Date().toISOString(),
+        event: "queued",
+        message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
+      }],
+    },
+  }, {
+    startedAtMs,
+    targetName: TEST_TARGET_NAME,
+    targetMmsi: TEST_TARGET_MMSI,
+  });
+
+  assert.equal(result.result, "fail");
+  assert.equal(result.assertions.find((item) => item.id === "display-alert").pass, false);
+});
+
+test("BITE quiet target evaluation detects false visual or audio leakage", () => {
+  const startedAtMs = Date.now() - 1000;
+  const result = evaluateQuietTargetSnapshot({
+    traffic: {
+      targets: [],
+    },
+    notifications: {
+      active: [{
+        priority: { level: "danger" },
+        timestamp: new Date().toISOString(),
+        delivery: { visual: true },
+        presentation: {
+          message: "Collision alarm. BITE QUIET TARGET.",
+        },
+      }],
+    },
+    notificationsAudio: null,
+    audio: {
+      recentEvents: [{
+        ts: new Date().toISOString(),
+        event: "queued",
+        message: "Collision alarm. BITE QUIET TARGET.",
+      }],
+    },
+  }, {
+    startedAtMs,
+    targetName: "BITE QUIET TARGET",
+    targetMmsi: "235912346",
+  });
+
+  assert.equal(result.result, "fail");
+  assert.equal(result.assertions.find((item) => item.id === "no-display-alert").pass, false);
+  assert.equal(result.assertions.find((item) => item.id === "no-audio-alert").pass, false);
+});
+
 test("BITE publishes synthetic own-vessel and target deltas", () => {
   const messages = [];
   const app = {
@@ -196,14 +361,40 @@ test("Console exposes BITE status and run routes", async () => {
   const reportsDir = fs.mkdtempSync(path.join(os.tmpdir(), "ajrm-console-bite-"));
   process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR = reportsDir;
   const startedAtMs = Date.now();
+  const trafficAudioPolicy = {
+    contract: "ajrm-marine-traffic-audio-policy",
+    contractVersion: 1,
+    sessionId: "traffic-session",
+    sequence: 7,
+    correlationId: "traffic-policy-1",
+    mode: "traffic",
+    authoritative: true,
+    muted: false,
+    automuteStationary: true,
+    automuteAllowed: false,
+    automaticMuteActive: false,
+    manualOverride: false,
+    profile: "coastal",
+    status: "Sound enabled.",
+  };
   const values = {
     "plugins.ajrmMarineTraffic.targets": trafficProjection("alarm"),
-    "plugins.ajrmMarineTraffic.audioPolicy": { muted: false },
+    "plugins.ajrmMarineTraffic.audioPolicy": trafficAudioPolicy,
     "plugins.ajrmMarineDisplay": {
       contract: "ajrm-marine-display-status",
+      contractVersion: 1,
+      sessionId: "display-session",
+      sequence: 1,
       enabled: true,
     },
     "plugins.ajrmMarineNotifications": {
+      contract: "notifications-plus-projection",
+      contractVersion: 1,
+      sessionId: "notifications-session",
+      sequence: 1,
+      history: [],
+      recentActivity: [],
+      audioSequence: 1,
       active: [{
         priority: { level: "danger" },
         timestamp: new Date(startedAtMs).toISOString(),
@@ -212,11 +403,35 @@ test("Console exposes BITE status and run routes", async () => {
       }],
     },
     "plugins.ajrmMarineNotifications.audio": {
+      contract: "notifications-plus-audio-delivery",
+      contractVersion: 1,
+      sessionId: "notifications-session",
+      sequence: 1,
+      audioSequence: 1,
       timestamp: new Date(startedAtMs).toISOString(),
       audioRequest: { message: `Collision alarm. ${TEST_TARGET_NAME}.` },
     },
     "plugins.ajrmMarineAudio": {
+      contract: "ajrm-marine-audio-status",
+      contractVersion: 1,
+      sessionId: "audio-session",
+      enabled: true,
       muted: false,
+      pluginMuted: false,
+      engineMuted: false,
+      engineAudioPolicy: trafficAudioPolicy,
+      engineAudioPolicySequence: 7,
+      localPlayback: false,
+      localPlaybackAvailable: false,
+      localPlaybackUnavailableReason: "Server speaker output disabled.",
+      liveStream: true,
+      publicHttpStream: true,
+      queueLength: 0,
+      dependencies: {
+        ok: true,
+        summary: "Piper speech engine ready",
+        piperPlaybackAvailable: true,
+      },
       recentEvents: [{
         ts: new Date(startedAtMs).toISOString(),
         event: "queued",
@@ -281,6 +496,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(Array.isArray(statusBody.tests), true);
   assert.equal(statusBody.tests[0].number, 0);
   assert.equal(statusBody.tests[1].id, "core-projections");
+  assert.equal(statusBody.tests.at(-1).id, "quiet-target-no-alert");
 
   let statusCode = 0;
   let runBody;
@@ -339,9 +555,17 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.consoleVersion, require("../package.json").version);
   assert.ok(fs.readdirSync(reportsDir).some((name) => name.endsWith(".json")));
 
-  values["plugins.ajrmMarineTraffic.audioPolicy"] = { muted: true };
-  values["plugins.ajrmMarineAudio"] = {
+  values["plugins.ajrmMarineTraffic.audioPolicy"] = {
+    ...trafficAudioPolicy,
+    sequence: 8,
     muted: true,
+  };
+  values["plugins.ajrmMarineAudio"] = {
+    ...values["plugins.ajrmMarineAudio"],
+    muted: true,
+    engineMuted: true,
+    engineAudioPolicy: values["plugins.ajrmMarineTraffic.audioPolicy"],
+    engineAudioPolicySequence: 8,
     recentEvents: [{
       ts: new Date().toISOString(),
       event: "accepted",
@@ -366,9 +590,13 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.ok, false);
   assert.match(runBody.summary, /mute-explicit/);
 
-  values["plugins.ajrmMarineTraffic.audioPolicy"] = { muted: false };
+  values["plugins.ajrmMarineTraffic.audioPolicy"] = trafficAudioPolicy;
   values["plugins.ajrmMarineAudio"] = {
+    ...values["plugins.ajrmMarineAudio"],
     muted: false,
+    engineMuted: false,
+    engineAudioPolicy: trafficAudioPolicy,
+    engineAudioPolicySequence: 7,
     recentEvents: [{
       ts: new Date().toISOString(),
       event: "queued",
@@ -394,10 +622,14 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.contract, "ajrm-marine-console-bite-run-all-report");
   assert.equal(runBody.capture.started, true);
   assert.equal(runBody.capture.stop.fileName, "voyage-bite.zip");
-  assert.equal(runBody.reports.length, 4);
+  assert.equal(runBody.reports.length, 8);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "core-projections",
+    "projection-contracts",
+    "audio-policy-consistency",
+    "audio-renderer-readiness",
+    "notifications-broker-health",
     "collision-audio-chain",
     "quiet-target-no-alert",
   ]);

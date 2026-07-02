@@ -47,15 +47,43 @@ const TESTS = [
     timeoutSeconds: 10,
   },
   {
-    id: "collision-audio-chain",
+    id: "projection-contracts",
     number: 2,
+    title: "Projection contracts",
+    description: "Checks that core projections carry the expected contract names, versions, sessions, and sequence fields.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "audio-policy-consistency",
+    number: 3,
+    title: "Audio policy consistency",
+    description: "Checks that Traffic's authoritative mute policy is visible to Audio without disagreement.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "audio-renderer-readiness",
+    number: 4,
+    title: "Audio renderer readiness",
+    description: "Checks that Audio is enabled and its Piper/FFmpeg/rendering dependencies are either ready or explicitly reported unavailable.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "notifications-broker-health",
+    number: 5,
+    title: "Notifications broker health",
+    description: "Checks that Notifications exposes broker state, audio sequence state, and bounded history/active arrays.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "collision-audio-chain",
+    number: 6,
     title: "Collision visual/audio chain",
     description: "Publishes a temporary crossing target and checks Traffic, Display, Notifications, and Audio all react.",
     timeoutSeconds: 45,
   },
   {
     id: "quiet-target-no-alert",
-    number: 3,
+    number: 7,
     title: "Quiet target no-alert",
     description: "Publishes a stopped/far-away target and checks the suite does not create a fresh visual or audible alert for it.",
     timeoutSeconds: 15,
@@ -297,6 +325,10 @@ function runAllSummary({ failed, captureStart, captureStop, captureError, count 
 async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutMs }) {
   if (testId === PREFLIGHT_TEST_ID) return runPreflightBite(app, { consoleVersion });
   if (testId === "core-projections") return runCoreProjectionBite(app, { consoleVersion });
+  if (testId === "projection-contracts") return runProjectionContractsBite(app, { consoleVersion });
+  if (testId === "audio-policy-consistency") return runAudioPolicyConsistencyBite(app, { consoleVersion });
+  if (testId === "audio-renderer-readiness") return runAudioRendererReadinessBite(app, { consoleVersion });
+  if (testId === "notifications-broker-health") return runNotificationsBrokerHealthBite(app, { consoleVersion });
   if (testId === "quiet-target-no-alert") {
     return runQuietTargetNoAlertBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
@@ -464,6 +496,254 @@ async function runCoreProjectionBite(app, { consoleVersion }) {
       ? "Core status projections are present."
       : `Core status projection check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: summarizeSnapshot(snapshot),
+  });
+}
+
+async function runProjectionContractsBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const assertions = [
+    assertion(
+      "traffic-contract",
+      snapshot.traffic?.contract === "ajrm-marine-traffic-targets" && snapshot.traffic?.contractVersion === 1,
+      snapshot.traffic?.contract === "ajrm-marine-traffic-targets"
+        ? "Traffic targets contract is recognised."
+        : "Traffic targets contract is missing or unexpected.",
+    ),
+    assertion(
+      "traffic-authoritative",
+      snapshot.traffic?.authoritative === true && snapshot.traffic?.mode === "traffic",
+      snapshot.traffic?.authoritative === true
+        ? "Traffic projection is authoritative."
+        : "Traffic projection is not marked authoritative.",
+    ),
+    assertion(
+      "display-contract",
+      snapshot.display?.contract === "ajrm-marine-display-status" && snapshot.display?.contractVersion === 1,
+      snapshot.display?.contract === "ajrm-marine-display-status"
+        ? "Display status contract is recognised."
+        : "Display status contract is missing or unexpected.",
+    ),
+    assertion(
+      "notifications-contract",
+      snapshot.notifications?.contract === "notifications-plus-projection" && snapshot.notifications?.contractVersion === 1,
+      snapshot.notifications?.contract === "notifications-plus-projection"
+        ? "Notifications broker contract is recognised."
+        : "Notifications broker contract is missing or unexpected.",
+    ),
+    assertion(
+      "audio-contract",
+      snapshot.audio?.contract === "ajrm-marine-audio-status" && snapshot.audio?.contractVersion === 1,
+      snapshot.audio?.contract === "ajrm-marine-audio-status"
+        ? "Audio status contract is recognised."
+        : "Audio status contract is missing or unexpected.",
+    ),
+    assertion(
+      "session-sequence-present",
+      Boolean(snapshot.traffic?.sessionId && snapshot.traffic?.sequence && snapshot.notifications?.sessionId && snapshot.audio?.sessionId),
+      "Core projections should expose session and sequence identifiers for debugging.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "projection-contracts",
+    testId: "projection-contracts",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [],
+    summary: result === "pass"
+      ? "Core projection contracts are recognised."
+      : `Projection contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: summarizeSnapshot(snapshot),
+  });
+}
+
+async function runAudioPolicyConsistencyBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const trafficPolicy = snapshot.trafficAudioPolicy || {};
+  const audio = snapshot.audio || {};
+  const enginePolicy = audio.engineAudioPolicy || {};
+  const assertions = [
+    assertion(
+      "traffic-policy-authoritative",
+      trafficPolicy.contract === "ajrm-marine-traffic-audio-policy" && trafficPolicy.authoritative === true,
+      trafficPolicy.contract === "ajrm-marine-traffic-audio-policy"
+        ? "Traffic audio policy is authoritative."
+        : "Traffic audio policy projection is missing or unexpected.",
+    ),
+    assertion(
+      "audio-consumes-traffic-policy",
+      Boolean(audio.engineAudioPolicy) && (audio.engineAudioPolicySequence === trafficPolicy.sequence || enginePolicy.sequence === trafficPolicy.sequence),
+      Boolean(audio.engineAudioPolicy)
+        ? "Audio has consumed Traffic's audio policy projection."
+        : "Audio has not exposed an engine audio policy.",
+    ),
+    assertion(
+      "mute-state-consistent",
+      trafficPolicy.muted === audio.engineMuted && audio.muted === (audio.engineMuted === true || audio.pluginMuted === true),
+      `Traffic muted=${trafficPolicy.muted}; Audio engineMuted=${audio.engineMuted}; Audio muted=${audio.muted}.`,
+    ),
+    assertion(
+      "automute-state-explicit",
+      typeof trafficPolicy.automuteStationary === "boolean"
+        && typeof trafficPolicy.automuteAllowed === "boolean"
+        && typeof trafficPolicy.status === "string",
+      "Traffic audio policy should expose automute settings and a human-readable status.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "audio-policy-consistency",
+    testId: "audio-policy-consistency",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [],
+    summary: result === "pass"
+      ? "Traffic and Audio mute policy projections are consistent."
+      : `Audio policy consistency check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      trafficAudioPolicy: trafficPolicySummary(trafficPolicy),
+      audio: audioPolicySummary(audio),
+    },
+  });
+}
+
+async function runAudioRendererReadinessBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const audio = snapshot.audio || {};
+  const dependencies = audio.dependencies || {};
+  const piperReady = dependencies.ok === true || dependencies.piperPlaybackAvailable === true;
+  const explicitUnavailable = dependencies.ok === false && typeof dependencies.summary === "string" && dependencies.summary.length > 0;
+  const outputSelected = audio.localPlayback === true || audio.liveStream === true || audio.publicHttpStream === true;
+  const assertions = [
+    assertion(
+      "audio-enabled",
+      audio.enabled === true,
+      audio.enabled === true ? "Audio plugin is enabled." : "Audio plugin is disabled.",
+    ),
+    assertion(
+      "renderer-dependencies-known",
+      piperReady || explicitUnavailable,
+      piperReady
+        ? "Piper/FFmpeg rendering chain is ready."
+        : explicitUnavailable
+          ? `Renderer dependency state is explicitly reported: ${dependencies.summary}`
+          : "Renderer dependency state is missing.",
+    ),
+    assertion(
+      "output-state-explicit",
+      outputSelected || audio.localPlaybackAvailable === false || dependencies.piperPlaybackAvailable === false,
+      outputSelected
+        ? "At least one Audio output path is selected."
+        : "No output is selected, but Audio explicitly reports why playback is unavailable.",
+    ),
+    assertion(
+      "queue-state-visible",
+      Number.isFinite(Number(audio.queueLength)),
+      "Audio queue length should be visible.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "audio-renderer-readiness",
+    testId: "audio-renderer-readiness",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [],
+    summary: result === "pass"
+      ? "Audio renderer readiness is explicit."
+      : `Audio renderer readiness check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      enabled: audio.enabled,
+      muted: audio.muted,
+      localPlayback: audio.localPlayback,
+      localPlaybackAvailable: audio.localPlaybackAvailable,
+      localPlaybackUnavailableReason: audio.localPlaybackUnavailableReason,
+      liveStream: audio.liveStream,
+      publicHttpStream: audio.publicHttpStream,
+      queueLength: audio.queueLength,
+      dependencies,
+    },
+  });
+}
+
+async function runNotificationsBrokerHealthBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const notifications = snapshot.notifications || {};
+  const audioDelivery = snapshot.notificationsAudio || {};
+  const assertions = [
+    assertion(
+      "broker-contract",
+      notifications.contract === "notifications-plus-projection",
+      notifications.contract === "notifications-plus-projection"
+        ? "Notifications broker projection is present."
+        : "Notifications broker projection is missing.",
+    ),
+    assertion(
+      "broker-arrays",
+      Array.isArray(notifications.active) && Array.isArray(notifications.history || notifications.recentActivity),
+      "Notifications broker should expose active and history/recentActivity arrays.",
+    ),
+    assertion(
+      "broker-audio-sequence",
+      Number.isFinite(Number(notifications.audioSequence)),
+      "Notifications broker should expose audioSequence.",
+    ),
+    assertion(
+      "audio-delivery-shape",
+      !audioDelivery.contract || audioDelivery.contract === "notifications-plus-audio-delivery",
+      audioDelivery.contract
+        ? "Latest Notifications audio delivery contract is recognised."
+        : "No current Notifications audio delivery event is present; this is acceptable outside an active alert.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "notifications-broker-health",
+    testId: "notifications-broker-health",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [],
+    summary: result === "pass"
+      ? "Notifications broker health projection is coherent."
+      : `Notifications broker health check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      contract: notifications.contract,
+      sessionId: notifications.sessionId,
+      sequence: notifications.sequence,
+      activeCount: Array.isArray(notifications.active) ? notifications.active.length : null,
+      historyCount: Array.isArray(notifications.history) ? notifications.history.length : null,
+      recentActivityCount: Array.isArray(notifications.recentActivity) ? notifications.recentActivity.length : null,
+      audioSequence: notifications.audioSequence,
+      latestAudioDeliveryContract: audioDelivery.contract || "",
+    },
   });
 }
 
@@ -1056,10 +1336,10 @@ function findTrafficAlert(traffic, targetName, targetMmsi) {
 function findBrokerAudioEvidence(value, { startedAtMs, targetName, targetMmsi, strict = false }) {
   const candidates = flattenObjects(value);
   const freshTimestamp = candidates.some((candidate) =>
-    freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs),
+    freshEnough(candidateTimestamp(candidate), startedAtMs),
   );
   return candidates.find((candidate) =>
-    (freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs) || freshTimestamp)
+    (freshEnough(candidateTimestamp(candidate), startedAtMs) || freshTimestamp)
     && messageMatches(candidate?.message || candidate?.presentation?.message || candidate?.audioMessage, targetName, targetMmsi, {
       allowBiteWildcard: !strict,
     })
@@ -1069,7 +1349,7 @@ function findBrokerAudioEvidence(value, { startedAtMs, targetName, targetMmsi, s
 function findDisplayAlertEvidence(value, { startedAtMs, targetName, targetMmsi, strict = false }) {
   const candidates = flattenObjects(value);
   const freshTimestamp = candidates.some((candidate) =>
-    freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs),
+    freshEnough(candidateTimestamp(candidate), startedAtMs),
   );
   const match = candidates.find((candidate) => {
     const state = String(candidate?.state || candidate?.priority?.level || "").toLowerCase();
@@ -1077,7 +1357,7 @@ function findDisplayAlertEvidence(value, { startedAtMs, targetName, targetMmsi, 
     const visualEnabled = candidate?.delivery?.visual !== false;
     return visualEnabled
       && isAlertState(state)
-      && (freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs) || freshTimestamp)
+      && (freshEnough(candidateTimestamp(candidate), startedAtMs) || freshTimestamp)
       && messageMatches(message, targetName, targetMmsi, { allowBiteWildcard: !strict });
   });
   if (!match) return null;
@@ -1086,6 +1366,15 @@ function findDisplayAlertEvidence(value, { startedAtMs, targetName, targetMmsi, 
     state: String(match?.state || match?.priority?.level || "").toLowerCase(),
     message: match?.message || match?.presentation?.message || "",
   };
+}
+
+function candidateTimestamp(candidate) {
+  return candidate?.timestamp
+    || candidate?.updatedAt
+    || candidate?.serverTime
+    || candidate?.ts
+    || candidate?.createdAt
+    || "";
 }
 
 function isAlertState(state) {
@@ -1200,6 +1489,37 @@ function summarizeSnapshot(snapshot) {
   };
 }
 
+function trafficPolicySummary(policy = {}) {
+  return {
+    contract: policy.contract,
+    sequence: policy.sequence,
+    correlationId: policy.correlationId,
+    authoritative: policy.authoritative,
+    muted: policy.muted,
+    automuteStationary: policy.automuteStationary,
+    automuteAllowed: policy.automuteAllowed,
+    automaticMuteActive: policy.automaticMuteActive,
+    manualOverride: policy.manualOverride,
+    profile: policy.profile,
+    status: policy.status,
+  };
+}
+
+function audioPolicySummary(audio = {}) {
+  return {
+    contract: audio.contract,
+    enabled: audio.enabled,
+    muted: audio.muted,
+    pluginMuted: audio.pluginMuted,
+    engineMuted: audio.engineMuted,
+    engineSessionId: audio.engineSessionId,
+    engineAudioPolicySequence: audio.engineAudioPolicySequence,
+    engineAudioPolicy: trafficPolicySummary(audio.engineAudioPolicy || {}),
+    queueLength: audio.queueLength,
+    timelineState: audio.timeline?.event?.state || "",
+  };
+}
+
 function summaryFor(result, assertions) {
   const failed = assertions.filter((item) => !item.pass);
   if (result === "pass") return "BITE collision audio chain passed.";
@@ -1222,6 +1542,7 @@ module.exports = {
   WATCH_PATHS,
   createBiteController,
   evaluateCollisionAudioSnapshot,
+  evaluateQuietTargetSnapshot,
   publishSyntheticEncounter,
   unwrapSignalKLeaf,
 };

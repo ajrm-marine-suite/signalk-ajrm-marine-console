@@ -61,12 +61,36 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
 - Required plugins being installed and publishing/available.
 - Simulator output being stopped before the test.
 - No fresh live own-vessel navigation or instrument feed being present.
+- Core projection contract names, versions, sessions, sequence counters, and
+  authority flags being recognisable.
+- Traffic's authoritative mute/automute policy being visible to Audio without
+  disagreement.
+- Audio renderer dependencies and selected output paths being ready or
+  explicitly reported unavailable.
+- Notifications broker active/history/audio-sequence state being coherent.
 - Traffic publishing a `warn`, `alarm`, or `emergency` for the BITE target.
 - Display publishing its status projection, and the Display-facing visual alert
   projection containing the BITE target.
 - Notifications publishing matching audio delivery.
 - Audio accepting, queueing, rendering, skipping, or muting matching BITE audio.
 - Any mute condition being explicit rather than silent.
+
+Current numbered BITE tests:
+
+| No. | Test | Requirement covered |
+| --- | --- | --- |
+| 00 | Required plugins and safety isolation | Required suite plugins installed/enabled; no live feed or simulator contamination before synthetic data. |
+| 01 | Core status projections | Traffic, Display, Notifications, and Audio publish the observable state BITE needs. |
+| 02 | Projection contracts | Core projections retain expected contracts, versioning, sessions, sequence counters, and authority markers. |
+| 03 | Audio policy consistency | Traffic owns mute/automute policy and Audio consumes that policy without disagreement. |
+| 04 | Audio renderer readiness | Piper/FFmpeg/rendering dependencies and output availability are explicit. |
+| 05 | Notifications broker health | Broker active/history/audio sequence state is visible and bounded. |
+| 06 | Collision visual/audio chain | Synthetic collision reaches Traffic, Display-facing visual alerts, Notifications audio delivery, and Audio acceptance. |
+| 07 | Quiet target no-alert | Stopped/far-away synthetic target does not create a fresh visual or audible alert. |
+
+Portable evaluator regression tests also cover stale audio evidence, broker-only
+delivery before Audio catches up, missing Display-facing visual evidence, and
+quiet-target false visual/audio leakage.
 
 The next Pi BITE runner should use Simulator's GPX route-following mode for a
 longer realistic voyage. It should:

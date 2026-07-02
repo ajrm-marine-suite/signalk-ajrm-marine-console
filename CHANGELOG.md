@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.36
+
+- Expand Console BITE Run all from four to eight visible tests, adding
+  projection-contract, audio-policy, renderer-readiness, and Notifications
+  broker-health checks before the synthetic collision tests.
+- Add CI regression checks for stale audio evidence, broker-only delivery,
+  missing Display-facing visual evidence, and quiet-target false alert leakage.
+- Document the BITE requirements coverage matrix so future tests can be mapped
+  back to safety requirements.
+
 ## 0.5.35
 
 - Extend BITE test `00` to verify required AJRM Marine Suite plugins are
