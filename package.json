@@ -1,11 +1,11 @@
 {
   "name": "signalk-ajrm-marine-console",
-  "version": "0.5.57",
+  "version": "0.5.58",
   "description": "Suite entry point, navigation shell, and shared help for AJRM Marine applications.",
   "main": "plugin/index.js",
   "scripts": {
     "build:help": "node scripts/extract-help.js",
-    "test": "node --test \"test/**/*.test.js\" && node --check plugin/index.js && node --check public/app.js",
+    "test": "node --test test/*.test.js && node --check plugin/index.js && node --check public/app.js",
     "prepublishOnly": "npm run build:help && npm test"
   },
   "keywords": [
