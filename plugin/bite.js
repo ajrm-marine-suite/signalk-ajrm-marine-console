@@ -16,6 +16,8 @@ const TEST_TARGET_MMSI = "235912345";
 const TEST_TARGET_NAME = "BITE TEST TARGET";
 const QUIET_TEST_TARGET_MMSI = "235912346";
 const QUIET_TEST_TARGET_NAME = "BITE QUIET TARGET";
+const OVERTAKING_TEST_TARGET_MMSI = "235912347";
+const OVERTAKING_TEST_TARGET_NAME = "BITE OVERTAKING TARGET";
 const AUDIO_SUMMARY_PRIORITY = 150;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
 const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
@@ -193,6 +195,22 @@ const TESTS = [
     title: "Stationary automute policy shape",
     description: "Checks that Traffic's shared audio policy exposes enough state to prove whether stationary automute is armed, allowed, and active.",
     timeoutSeconds: 5,
+  },
+  {
+    id: "gps-explicit-no-fix-immediate",
+    number: 19,
+    title: "GPS explicit no-fix immediate",
+    description: "Optional active test that injects an explicit GNSS no-fix update and checks GPS Integrity reports lost without waiting for a stale-position timeout.",
+    timeoutSeconds: 15,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "traffic-overtaking-wording",
+    number: 20,
+    title: "Traffic overtaking wording",
+    description: "Publishes an overtaking encounter and checks the visual/audio wording includes the overtaking phrase and CPA direction.",
+    timeoutSeconds: 30,
   },
   {
     id: "audio-output-summary",
@@ -626,6 +644,12 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
     return runLostGpsRetainedCurrentSourceBite(app, { pluginId, consoleVersion, timeoutMs });
   }
   if (testId === "stationary-automute-policy-shape") return runStationaryAutomutePolicyShapeBite(app, { consoleVersion });
+  if (testId === "gps-explicit-no-fix-immediate") {
+    return runGpsExplicitNoFixImmediateBite(app, { pluginId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-overtaking-wording") {
+    return runTrafficOvertakingWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
 
@@ -2284,6 +2308,197 @@ async function runLostGpsRetainedCurrentSourceBite(app, { pluginId, consoleVersi
   });
 }
 
+async function runGpsExplicitNoFixImmediateBite(app, { pluginId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const baselinePosition = { ...OWN_POSITION };
+  let baseline = null;
+  let lost = null;
+  let noFixStartedAtMs = 0;
+  try {
+    baseline = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "explicit-no-fix-baseline",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      timeoutMs: Math.min(6000, timeoutMs / 2),
+      predicate: (state) => state.acceptedGps === true && state.gps?.fixValid === true,
+    });
+    noFixStartedAtMs = Date.now();
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "explicit-no-fix",
+      position: baselinePosition,
+      includeGps: false,
+      includeCurrent: false,
+    });
+    lost = await waitForGpsIntegrity(app, {
+      timeoutMs: Math.max(5000, timeoutMs - (Date.now() - startedAtMs)),
+      predicate: (state) =>
+        state.trust === "lost" &&
+        state.gps?.fixValid === false &&
+        (state.gps?.explicitGpsUnavailable === true || /no fix|no gps|missing|invalid/i.test((state.reasons || []).join(" "))),
+    });
+  } finally {
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "restore-gps",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      currentDriftMps: 0,
+    });
+  }
+  const observedAtMs = Date.parse(lost?.timestamp || "");
+  const lossDelaySeconds = Number.isFinite(observedAtMs) && noFixStartedAtMs
+    ? Math.max(0, (observedAtMs - noFixStartedAtMs) / 1000)
+    : null;
+  const assertions = [
+    assertion("explicit-no-fix-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted before the no-fix sample."),
+    assertion("explicit-no-fix-lost", lost?.trust === "lost" && lost?.gps?.fixValid === false, "Explicit GNSS no-fix should make GPS Integrity report lost."),
+    assertion(
+      "explicit-no-fix-flag-visible",
+      lost?.gps?.explicitGpsUnavailable === true || /no fix|no gps/i.test((lost?.reasons || []).join(" ")),
+      lost?.gps?.explicitGpsUnavailable === true
+        ? "GPS Integrity exposes explicitGpsUnavailable=true."
+        : `GPS Integrity reasons: ${(lost?.reasons || []).join("; ") || "missing"}.`,
+    ),
+    assertion(
+      "explicit-no-fix-not-stale-timeout",
+      lossDelaySeconds !== null && lossDelaySeconds <= 8,
+      lossDelaySeconds === null
+        ? "No explicit loss timestamp was observed."
+        : `GPS lost was observed ${lossDelaySeconds.toFixed(1)} seconds after explicit no-fix injection.`,
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-explicit-no-fix-immediate",
+    testId: "gps-explicit-no-fix-immediate",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{
+      noFixStartedAt: noFixStartedAtMs ? new Date(noFixStartedAtMs).toISOString() : "",
+      observedLossDelaySeconds: lossDelaySeconds,
+      reasons: lost?.reasons || [],
+    }],
+    summary: result === "pass"
+      ? "Explicit GNSS no-fix was treated as lost GPS immediately."
+      : `Explicit no-fix GPS check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { baseline: gpsIntegritySummary(baseline || {}), lost: gpsIntegritySummary(lost || {}) },
+  });
+}
+
+async function runTrafficOvertakingWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  return runTrafficMessageScenarioBite(app, {
+    pluginId,
+    testId,
+    consoleVersion,
+    timeoutMs,
+    target: {
+      mmsi: OVERTAKING_TEST_TARGET_MMSI,
+      name: OVERTAKING_TEST_TARGET_NAME,
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 240 }),
+      speedMps: 3 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+      lengthMeters: 18,
+      beamMeters: 5,
+      aisClass: "B",
+    },
+    own: {
+      position: OWN_POSITION,
+      speedMps: 6 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+    },
+    expectedPatterns: [/You are overtaking it/i, /CPA will be ahead/i],
+    forbiddenPatterns: [/CPA will be ahead\. CPA /i],
+    passSummary: "Overtaking encounter wording was present in the Traffic alert chain.",
+    failSummary: "Traffic overtaking wording check failed",
+  });
+}
+
+async function runTrafficMessageScenarioBite(app, {
+  pluginId,
+  testId,
+  consoleVersion,
+  timeoutMs,
+  target,
+  own,
+  expectedPatterns,
+  forbiddenPatterns = [],
+  passSummary,
+  failSummary,
+}) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const observations = [];
+  let lastRefreshAt = 0;
+  let finalSnapshot = null;
+  let evaluation = null;
+  try {
+    publishSyntheticTrafficScenario(app, { pluginId, runId, target, own });
+    while (Date.now() - startedAtMs <= timeoutMs) {
+      if (Date.now() - lastRefreshAt >= REFRESH_MS) {
+        publishSyntheticTrafficScenario(app, { pluginId, runId, target, own });
+        lastRefreshAt = Date.now();
+      }
+      finalSnapshot = collectSnapshot(app);
+      evaluation = evaluateTrafficMessageScenarioSnapshot(finalSnapshot, {
+        startedAtMs,
+        targetName: target.name,
+        targetMmsi: target.mmsi,
+        expectedPatterns,
+        forbiddenPatterns,
+      });
+      if (evaluation.observation) observations.push(evaluation.observation);
+      if (evaluation.complete) break;
+      await delay(POLL_MS);
+    }
+    if (!evaluation) {
+      finalSnapshot = collectSnapshot(app);
+      evaluation = evaluateTrafficMessageScenarioSnapshot(finalSnapshot, {
+        startedAtMs,
+        targetName: target.name,
+        targetMmsi: target.mmsi,
+        expectedPatterns,
+        forbiddenPatterns,
+      });
+    }
+  } finally {
+    await clearSyntheticScenarioTarget(app, { pluginId, runId, target });
+  }
+  const result = evaluation?.result || "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: testId,
+    testId,
+    result,
+    startedAt,
+    startedAtMs,
+    target: {
+      mmsi: target.mmsi,
+      name: target.name,
+    },
+    assertions: evaluation?.assertions || [],
+    observations: observations.slice(-12),
+    summary: result === "pass"
+      ? passSummary
+      : `${failSummary}: ${(evaluation?.assertions || []).filter((item) => !item.pass).map((item) => item.id).join(", ") || "unknown"}.`,
+    snapshot: finalSnapshot ? summarizeSnapshot(finalSnapshot) : null,
+  });
+}
+
 async function runStationaryAutomutePolicyShapeBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -2699,6 +2914,95 @@ function evaluateQuietTargetSnapshot(snapshot, { startedAtMs, targetName, target
   };
 }
 
+function evaluateTrafficMessageScenarioSnapshot(snapshot, {
+  startedAtMs,
+  targetName,
+  targetMmsi,
+  expectedPatterns,
+  forbiddenPatterns = [],
+}) {
+  const trafficAlert = findTrafficAlert(snapshot.traffic, targetName, targetMmsi);
+  const displayEvidence = findDisplayAlertEvidence(snapshot.notifications, {
+    startedAtMs,
+    targetName,
+    targetMmsi,
+  });
+  const brokerEvidence = findBrokerAudioEvidence(snapshot.notificationsAudio, {
+    startedAtMs,
+    targetName,
+    targetMmsi,
+  });
+  const audioEvidence = findAudioEvidence(snapshot.audio || {}, {
+    startedAtMs,
+    targetName,
+    targetMmsi,
+  });
+  const text = [
+    trafficAlert?.encounter?.message,
+    displayEvidence?.message,
+    brokerEvidence?.message,
+    audioEvidence?.message,
+  ].filter(Boolean).join(" | ");
+  const expected = expectedPatterns.map((pattern, index) =>
+    assertion(
+      `expected-wording-${index + 1}`,
+      pattern.test(text),
+      pattern.test(text)
+        ? `Found expected wording ${pattern}.`
+        : `Expected wording ${pattern} was not found in: ${text || "no messages"}.`,
+    )
+  );
+  const forbidden = forbiddenPatterns.map((pattern, index) =>
+    assertion(
+      `forbidden-wording-${index + 1}`,
+      !pattern.test(text),
+      pattern.test(text)
+        ? `Forbidden wording ${pattern} was found in: ${text}.`
+        : `Forbidden wording ${pattern} was not present.`,
+    )
+  );
+  const assertions = [
+    assertion(
+      "traffic-alert",
+      Boolean(trafficAlert),
+      trafficAlert
+        ? `Traffic published ${trafficAlert.encounter?.state} for ${trafficAlert.name}.`
+        : "Traffic has not published a warn/alarm/emergency for the scenario target.",
+    ),
+    assertion(
+      "display-message",
+      Boolean(displayEvidence),
+      displayEvidence
+        ? `Display-facing message found: ${displayEvidence.message}`
+        : "Display-facing alert message was not found for the scenario target.",
+    ),
+    assertion(
+      "audio-path-message",
+      Boolean(brokerEvidence || audioEvidence),
+      brokerEvidence
+        ? `Notifications audio message found: ${brokerEvidence.message}`
+        : audioEvidence
+          ? `Audio renderer message found: ${audioEvidence.message}`
+          : "Audio path message was not found for the scenario target.",
+    ),
+    ...expected,
+    ...forbidden,
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return {
+    complete: result === "pass" || Date.now() - startedAtMs >= DEFAULT_TIMEOUT_MS,
+    result,
+    assertions,
+    observation: trafficAlert || displayEvidence || brokerEvidence || audioEvidence
+      ? {
+          ts: new Date().toISOString(),
+          trafficState: trafficAlert?.encounter?.state || "",
+          message: text,
+        }
+      : null,
+  };
+}
+
 function publishSyntheticEncounter(app, { pluginId, runId, quiet }) {
   const timestamp = new Date().toISOString();
   const targetPosition = quiet ? QUIET_TARGET_POSITION : TARGET_POSITION;
@@ -2785,9 +3089,75 @@ function publishDeadReckoningExerciseSample(app, {
   });
 }
 
+function publishSyntheticTrafficScenario(app, { pluginId, runId, target, own }) {
+  const timestamp = new Date().toISOString();
+  const sourceName = `ajrm-marine-bite-${runId}`;
+  const ownCourse = Number.isFinite(Number(own?.courseRad)) ? Number(own.courseRad) : 0;
+  const ownSpeed = Number.isFinite(Number(own?.speedMps)) ? Number(own.speedMps) : 0;
+  const targetCourse = Number.isFinite(Number(target?.courseRad)) ? Number(target.courseRad) : 0;
+  const targetSpeed = Number.isFinite(Number(target?.speedMps)) ? Number(target.speedMps) : 0;
+
+  app.handleMessage(pluginId, {
+    context: "vessels.self",
+    updates: [{
+      $source: sourceName,
+      timestamp,
+      values: [
+        { path: "navigation.position", value: own?.position || OWN_POSITION },
+        { path: "navigation.speedOverGround", value: ownSpeed },
+        { path: "navigation.speedThroughWater", value: ownSpeed },
+        { path: "navigation.courseOverGroundTrue", value: ownCourse },
+        { path: "navigation.headingTrue", value: ownCourse },
+        { path: "navigation.state", value: ownSpeed > 0.2 ? "underWay" : "stopped" },
+      ],
+    }],
+  });
+  app.handleMessage(pluginId, {
+    context: `vessels.urn:mrn:imo:mmsi:${target.mmsi}`,
+    updates: [{
+      $source: sourceName,
+      timestamp,
+      values: [
+        {
+          path: "",
+          value: {
+            mmsi: target.mmsi,
+            name: target.name,
+          },
+        },
+        { path: "navigation.position", value: target.position },
+        { path: "navigation.speedOverGround", value: targetSpeed },
+        { path: "navigation.courseOverGroundTrue", value: targetCourse },
+        { path: "navigation.state", value: targetSpeed > 0.2 ? "underWay" : "stopped" },
+        { path: "design.length", value: { overall: target.lengthMeters || 18 } },
+        { path: "design.beam", value: target.beamMeters || 5 },
+        { path: "sensors.ais.class", value: target.aisClass || "B" },
+      ],
+    }],
+  });
+}
+
 async function clearSyntheticEncounter(app, { pluginId, runId }) {
   for (let index = 0; index < 3; index += 1) {
     publishSyntheticEncounter(app, { pluginId, runId, quiet: true });
+    await delay(REFRESH_MS);
+  }
+}
+
+async function clearSyntheticScenarioTarget(app, { pluginId, runId, target }) {
+  const quietTarget = {
+    ...target,
+    position: offsetPositionMeters(OWN_POSITION, { eastMeters: 8000, northMeters: 8000 }),
+    speedMps: 0,
+    courseRad: 0,
+  };
+  const own = {
+    position: OWN_POSITION,
+    speedMps: 0,
+    courseRad: 0,
+  };
+  for (let index = 0; index < 3; index += 1) {
+    publishSyntheticTrafficScenario(app, { pluginId, runId, target: quietTarget, own });
     await delay(REFRESH_MS);
   }
 }

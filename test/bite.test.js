@@ -189,26 +189,29 @@ function fakeDrIntegrityFromInjectedValues(previous, values) {
       integrityDeadReckoning: previous.integrityDeadReckoning,
     };
   }
-  const baseline = previous.lastTrustedFix.position;
-  const moved = { latitude: baseline.latitude, longitude: baseline.longitude + 0.00006 };
-  const previousLost = previous.trust === "lost" || previous.gps?.fixValid === false;
-  const previousLostFixes = Number(previous.counters?.lostFixes || 0);
-  return {
-    ...previous,
-    timestamp: now,
-    trust: "lost",
-    acceptedGps: false,
-    reasons: ["GPS position is missing or invalid."],
+	  const baseline = previous.lastTrustedFix.position;
+	  const moved = { latitude: baseline.latitude, longitude: baseline.longitude + 0.00006 };
+	  const previousLost = previous.trust === "lost" || previous.gps?.fixValid === false;
+	  const previousLostFixes = Number(previous.counters?.lostFixes || 0);
+	  const explicitNoFix = /no\s*(gps|gnss|fix)|invalid|unavailable|none|lost/i.test(String(values["navigation.gnss.methodQuality"] || "")) ||
+	    Number(values["navigation.gnss.satellites"]) <= 0;
+	  return {
+	    ...previous,
+	    timestamp: now,
+	    trust: "lost",
+	    acceptedGps: false,
+	    reasons: [explicitNoFix ? "GPS source reports no fix." : "GPS position is missing or invalid."],
     counters: {
       ...previous.counters,
       evaluations: Number(previous.counters?.evaluations || 0) + 1,
       lostFixes: previousLost ? previousLostFixes : previousLostFixes + 1,
     },
     gps: {
-      ...previous.gps,
-      position: null,
-      fixValid: false,
-      positionTimestamp: now,
+	      ...previous.gps,
+	      position: null,
+	      fixValid: false,
+	      explicitGpsUnavailable: explicitNoFix,
+	      positionTimestamp: now,
       positionAgeSeconds: null,
       speedOverGround: null,
       courseOverGroundTrue: null,
@@ -733,18 +736,59 @@ test("Console exposes BITE status and run routes", async () => {
     },
     handleMessage(id, message) {
       messages.push({ id, message });
-      if (message?.context === "vessels.self") {
-        const updateValues = Object.fromEntries((message.updates || [])
-          .flatMap((update) => update.values || [])
-          .map((item) => [item.path, item.value]));
-        if (updateValues["plugins.ajrmMarineConsole.bite.deadReckoningExercise"]) {
+	      if (message?.context === "vessels.self") {
+	        const updateValues = Object.fromEntries((message.updates || [])
+	          .flatMap((update) => update.values || [])
+	          .map((item) => [item.path, item.value]));
+	        if (updateValues["plugins.ajrmMarineConsole.bite.deadReckoningExercise"]) {
           values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = fakeDrIntegrityFromInjectedValues(
             values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"],
             updateValues,
-          );
-        }
-      }
-      for (const update of message?.updates || []) {
+	          );
+	        }
+	      }
+	      if (String(message?.context || "").includes("235912347")) {
+	        const now = new Date().toISOString();
+	        const overtakingMessage = "Traffic advisory. Medium vessel BITE OVERTAKING TARGET at 12 o'clock. You are overtaking it. CPA will be ahead. 80 meters in 2 minutes.";
+	        values["plugins.ajrmMarineTraffic.targets"] = {
+	          ...trafficProjection("warn"),
+	          targets: [{
+	            id: "vessels.urn:mrn:imo:mmsi:235912347",
+	            mmsi: "235912347",
+	            name: "BITE OVERTAKING TARGET",
+	            encounter: {
+	              state: "warn",
+	              silenced: false,
+	              collisionCandidate: true,
+	              message: overtakingMessage,
+	            },
+	          }],
+	        };
+	        values["plugins.ajrmMarineNotifications"] = {
+	          ...values["plugins.ajrmMarineNotifications"],
+	          active: [{
+	            priority: { level: "warn" },
+	            timestamp: now,
+	            delivery: { visual: true },
+	            presentation: { message: overtakingMessage },
+	            message: overtakingMessage,
+	          }],
+	        };
+	        values["plugins.ajrmMarineNotifications.audio"] = {
+	          ...values["plugins.ajrmMarineNotifications.audio"],
+	          timestamp: now,
+	          audioRequest: { message: overtakingMessage },
+	        };
+	        values["plugins.ajrmMarineAudio"] = {
+	          ...values["plugins.ajrmMarineAudio"],
+	          recentEvents: [{
+	            ts: now,
+	            event: "queued",
+	            message: overtakingMessage,
+	          }],
+	        };
+	      }
+	      for (const update of message?.updates || []) {
         for (const value of update.values || []) {
           if (value.path === "plugins.ajrmMarineNotifications.audio") {
             values[value.path] = value.value;
@@ -809,6 +853,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "docked-no-dr-drift").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-recovery-fresh-fix").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "lost-gps-retained-current-source").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "gps-explicit-no-fix-immediate").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "stationary-automute-policy-shape").enabled, undefined);
   assert.equal(statusBody.latestReportsByTest, undefined);
 
@@ -978,15 +1023,16 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.assertions.find((item) => item.id === "dr-position-moved").pass, true);
   values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
 
-  for (const testId of [
-    "gps-recovery-realigns-dr",
-    "gps-jump-rejection",
-    "gps-intermittent-outage-count",
-    "docked-no-dr-drift",
-    "gps-recovery-fresh-fix",
-    "lost-gps-retained-current-source",
-    "stationary-automute-policy-shape",
-  ]) {
+	  for (const testId of [
+	    "gps-recovery-realigns-dr",
+	    "gps-jump-rejection",
+	    "gps-intermittent-outage-count",
+	    "docked-no-dr-drift",
+	    "gps-recovery-fresh-fix",
+	    "lost-gps-retained-current-source",
+	    "stationary-automute-policy-shape",
+	    "gps-explicit-no-fix-immediate",
+	  ]) {
     statusCode = 0;
     runBody = null;
     await routes.get("POST /ajrmMarineConsole/bite/run")(
@@ -1001,11 +1047,43 @@ test("Console exposes BITE status and run routes", async () => {
         },
       },
     );
-    assert.equal(statusCode, 200);
-    assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
-    assert.equal(runBody.scenario, testId);
-    values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
-  }
+	    assert.equal(statusCode, 200);
+	    assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+	    assert.equal(runBody.scenario, testId);
+	    values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
+	  }
+
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "traffic-overtaking-wording", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.scenario, "traffic-overtaking-wording");
+  assert.equal(runBody.assertions.find((item) => item.id === "expected-wording-1").pass, true);
+  values["plugins.ajrmMarineTraffic.targets"] = trafficProjection("alarm");
+  values["plugins.ajrmMarineNotifications"].active = [{
+    priority: { level: "danger" },
+    timestamp: new Date().toISOString(),
+    delivery: { visual: true },
+    presentation: { message: `Collision alarm. ${TEST_TARGET_NAME}.` },
+  }];
+  values["plugins.ajrmMarineNotifications.audio"].audioRequest = { message: `Collision alarm. ${TEST_TARGET_NAME}.` };
+  values["plugins.ajrmMarineAudio"].recentEvents = [{
+    ts: new Date().toISOString(),
+    event: "queued",
+    message: `Collision alarm. ${TEST_TARGET_NAME}.`,
+  }];
 
   statusCode = 0;
   runBody = null;
@@ -1104,7 +1182,7 @@ test("Console exposes BITE status and run routes", async () => {
     { muted: false },
     { muted: true },
   ]);
-  assert.equal(runBody.reports.length, 20);
+  assert.equal(runBody.reports.length, 22);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "core-projections",
@@ -1125,11 +1203,13 @@ test("Console exposes BITE status and run routes", async () => {
     "gps-recovery-fresh-fix",
     "lost-gps-retained-current-source",
     "stationary-automute-policy-shape",
+    "gps-explicit-no-fix-immediate",
+    "traffic-overtaking-wording",
     "audio-output-summary",
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 19 tests passed/,
+    /Marine built in tests complete\. 21 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);

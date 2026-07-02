@@ -89,7 +89,21 @@ Current numbered BITE tests:
 | 05 | Notifications broker health | Broker active/history/audio sequence state is visible and bounded. |
 | 06 | Collision visual/audio chain | Synthetic collision reaches Traffic, Display-facing visual alerts, Notifications audio delivery, and Audio acceptance. |
 | 07 | Quiet target no-alert | Stopped/far-away synthetic target does not create a fresh visual or audible alert. |
-| 08 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |
+| 08 | GPS Integrity health | GPS Integrity publishes trust, fix, counters, and timestamp state coherently. |
+| 09 | GPS lost age consistency | GPS-lost wording is checked against the freshest known GPS source timestamp. |
+| 10 | Dead reckoning projection | Operational and independent DR projections expose positions, uncertainty, ages, and vector roles. |
+| 11 | DR GPS-loss exercise | GPS and current are removed, and operational DR must continue using retained current. |
+| 12 | GPS recovery realigns DR | GPS restoration must lock operational DR back to the fresh GPS fix. |
+| 13 | GPS jump rejection | An impossible GPS jump must be rejected without moving the trusted baseline. |
+| 14 | GPS intermittent outage count | A continuous GPS outage must count once rather than once per missing update. |
+| 15 | Docked no-DR-drift | Healthy stationary GPS with tide running must not let independent DR drift away. |
+| 16 | GPS recovery fresh fix | A restored GPS fix must refresh trusted and received timestamps. |
+| 17 | Lost-GPS retained current source | Lost-GPS DR must report retained-current/last-trusted-current rather than live GPS-derived current. |
+| 18 | Stationary automute policy shape | Traffic audio policy exposes whether stationary automute is armed, allowed, and active. |
+| 19 | GPS explicit no-fix immediate | An explicit GNSS no-fix update must produce lost GPS without waiting for stale-position timeout. |
+| 20 | Traffic overtaking wording | A synthetic overtaking encounter must include overtaking and CPA-direction wording through the alert chain. |
+| 90 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
+| 99 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |
 
 Portable evaluator regression tests also cover stale audio evidence, broker-only
 delivery before Audio catches up, missing Display-facing visual evidence, and
