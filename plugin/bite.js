@@ -38,10 +38,12 @@ const DEFAULT_REPORTS_DIRECTORY = path.join(
   "bite-reports",
 );
 const MAX_REPORTS = 50;
+const AJRM_MARINE_CAPTURE_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineCaptureApi");
 
 function createBiteController(app, { pluginId, version }) {
   let running = false;
   let reports = loadReports();
+  let lastRunAllReport = null;
 
   return {
     status() {
@@ -53,6 +55,7 @@ function createBiteController(app, { pluginId, version }) {
         version,
         running,
         lastReport: currentReports.at(-1) || null,
+        lastRunAllReport: lastRunAllReport?.consoleVersion === version ? lastRunAllReport : null,
         reports: reports.slice(-MAX_REPORTS),
         reportsDirectory: reportsDirectory(),
         tests: TESTS,
@@ -86,7 +89,111 @@ function createBiteController(app, { pluginId, version }) {
         running = false;
       }
     },
+    async runAll(options = {}) {
+      if (running) {
+        const error = new Error("BITE run already in progress");
+        error.statusCode = 409;
+        throw error;
+      }
+      running = true;
+      try {
+        lastRunAllReport = await runAllBiteTests(app, {
+          pluginId,
+          consoleVersion: version,
+          timeoutSeconds: options.timeoutSeconds,
+        });
+        for (const report of lastRunAllReport.reports || []) {
+          reports = [...reports, report].slice(-MAX_REPORTS);
+          await saveReport(report);
+        }
+        await saveReport(lastRunAllReport);
+        return lastRunAllReport;
+      } finally {
+        running = false;
+      }
+    },
   };
+}
+
+async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds }) {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const reports = [];
+  const capture = captureApi(app);
+  const captureComment = `AJRM Marine BITE ${new Date().toISOString()}`;
+  let captureStart = null;
+  let captureStop = null;
+  let captureError = null;
+
+  try {
+    if (capture?.start) {
+      captureStart = await capture.start({
+        comment: captureComment,
+        reason: "BITE run all",
+      });
+    } else {
+      captureError = "AJRM Marine Capture API is unavailable; BITE reports will still be written but no voyage bundle will be created.";
+    }
+    for (const test of TESTS) {
+      const report = await runCollisionAudioBite(app, {
+        pluginId,
+        testId: test.id,
+        consoleVersion,
+        timeoutMs: boundedTimeout(timeoutSeconds || test.timeoutSeconds),
+      });
+      reports.push(report);
+    }
+  } finally {
+    if (capture?.stop && captureStart) {
+      try {
+        captureStop = await capture.stop({ reason: "BITE run all complete" });
+      } catch (error) {
+        captureError = error.message || String(error);
+      }
+    }
+  }
+
+  const finishedAt = new Date().toISOString();
+  const failed = reports.filter((report) => !report.ok);
+  return {
+    ok: failed.length === 0 && !captureError,
+    contract: "ajrm-marine-console-bite-run-all-report",
+    contractVersion: 1,
+    consoleVersion,
+    runId,
+    testId: "run-all",
+    scenario: "run-all",
+    result: failed.length === 0 && !captureError ? "pass" : "fail",
+    startedAt,
+    finishedAt,
+    durationSeconds: Math.round((Date.parse(finishedAt) - Date.parse(startedAt)) / 1000),
+    capture: {
+      comment: captureComment,
+      started: Boolean(captureStart),
+      start: captureStart,
+      stop: captureStop,
+      error: captureError,
+    },
+    reports,
+    summary: runAllSummary({ failed, captureStart, captureStop, captureError, count: reports.length }),
+  };
+}
+
+function captureApi(app) {
+  return app.ajrmMarineCaptureApi || globalThis[AJRM_MARINE_CAPTURE_API_REGISTRY] || null;
+}
+
+function runAllSummary({ failed, captureStart, captureStop, captureError, count }) {
+  const testText = `${count} BITE test${count === 1 ? "" : "s"}`;
+  if (captureError) return `${testText} completed with Capture error: ${captureError}`;
+  const bundle = captureStop?.fileName || captureStop?.bundle?.fileName;
+  const captureText = captureStart
+    ? bundle
+      ? `Capture bundle prepared: ${bundle}`
+      : "Capture started and stopped."
+    : "Capture was not available.";
+  if (failed.length) return `${failed.length} of ${testText} failed. ${captureText}`;
+  return `${testText} passed. ${captureText}`;
 }
 
 async function runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.27
+
+- Make Run all BITE tests start AJRM Marine Capture first, run the numbered
+  tests server-side, then stop Capture so the voyage/debug bundle includes the
+  BITE JSON reports.
+
 ## 0.5.26
 
 - Update the Console web asset cache-buster after the BITE dashboard failure

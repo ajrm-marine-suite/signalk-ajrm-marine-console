@@ -3,6 +3,7 @@
 const CONSOLE_STATUS_URL = "/signalk/v1/api/ajrmMarineConsole/status";
 const BITE_STATUS_URL = "/signalk/v1/api/ajrmMarineConsole/bite/status";
 const BITE_RUN_URL = "/signalk/v1/api/ajrmMarineConsole/bite/run";
+const BITE_RUN_ALL_URL = "/signalk/v1/api/ajrmMarineConsole/bite/run-all";
 const AUDIO_STATUS_URL = "/signalk/v1/api/ajrmMarineAudio/status";
 const ACTIVE_MODULE_KEY = "ajrmMarineConsole.activeModule";
 const AUDIO_ACCESS_TOKEN_STORAGE_KEY = "ajrmMarineAudio.accessToken";
@@ -195,8 +196,33 @@ async function runBiteTest(testId) {
 }
 
 async function runAllBiteTests() {
-  for (const test of biteTests()) {
-    await runBiteTest(test.id);
+  biteRunning = true;
+  els.biteLog.value = "Starting Capture and running all BITE tests...";
+  renderBitePanel();
+  try {
+    const report = await jsonRequest(BITE_RUN_ALL_URL, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    for (const child of report.reports || []) {
+      biteResults[child.testId || child.scenario] = child;
+    }
+    biteResults["run-all"] = report;
+    els.biteLog.value = formatBiteReport(report);
+  } catch (error) {
+    if (error.body?.contract === "ajrm-marine-console-bite-run-all-report") {
+      for (const child of error.body.reports || []) {
+        biteResults[child.testId || child.scenario] = child;
+      }
+      biteResults["run-all"] = error.body;
+      els.biteLog.value = formatBiteReport(error.body);
+    } else {
+      els.biteLog.value = `BITE run all failed to run: ${error.message}`;
+    }
+  } finally {
+    biteRunning = false;
+    await refreshBiteStatus();
+    renderBitePanel();
   }
 }
 
@@ -217,6 +243,20 @@ function formatBiteReport(report) {
     lines.push("", "Recent observations:");
     for (const observation of report.observations.slice(-6)) {
       lines.push(`${observation.ts || ""} ${observation.trafficState || ""} ${observation.audioState || ""} ${observation.message || ""}`.trim());
+    }
+  }
+  if (report.capture) {
+    lines.push("", "Capture:");
+    lines.push(report.capture.started ? "started: yes" : "started: no");
+    if (report.capture.comment) lines.push(`comment: ${report.capture.comment}`);
+    const bundle = report.capture.stop?.fileName || report.capture.stop?.bundle?.fileName;
+    if (bundle) lines.push(`bundle: ${bundle}`);
+    if (report.capture.error) lines.push(`error: ${report.capture.error}`);
+  }
+  if (Array.isArray(report.reports) && report.reports.length) {
+    lines.push("", "Child reports:");
+    for (const child of report.reports) {
+      lines.push(`${child.ok ? "PASS" : "FAIL"} ${child.testId || child.scenario}: ${child.summary || ""}`);
     }
   }
   if (report.snapshot) {

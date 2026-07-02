@@ -174,6 +174,14 @@ test("Console exposes BITE status and run routes", async () => {
     },
   };
   const app = {
+    ajrmMarineCaptureApi: {
+      async start() {
+        return { id: "voyage-bite" };
+      },
+      async stop() {
+        return { fileName: "voyage-bite.zip" };
+      },
+    },
     getSelfPath(path) {
       return values[path] || null;
     },
@@ -251,6 +259,36 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusCode, 200);
   assert.equal(runBody.ok, false);
   assert.match(runBody.summary, /mute-explicit/);
+
+  values["plugins.ajrmMarineTraffic.audioPolicy"] = { muted: false };
+  values["plugins.ajrmMarineAudio"] = {
+    muted: false,
+    recentEvents: [{
+      ts: new Date().toISOString(),
+      event: "queued",
+      message: `Collision alarm. ${TEST_TARGET_NAME}.`,
+    }],
+  };
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run-all")(
+    { body: { timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, true);
+  assert.equal(runBody.contract, "ajrm-marine-console-bite-run-all-report");
+  assert.equal(runBody.capture.started, true);
+  assert.equal(runBody.capture.stop.fileName, "voyage-bite.zip");
+  assert.equal(runBody.reports.length, 1);
 
   delete process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR;
   fs.rmSync(reportsDir, { recursive: true, force: true });
