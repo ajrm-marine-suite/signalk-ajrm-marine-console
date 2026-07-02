@@ -646,7 +646,7 @@ test("Console exposes BITE status and run routes", async () => {
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /AJRM Marine BITE complete\. 8 tests passed/,
+    /Marine built in tests complete\. 8 tests passed/,
   );
   assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-published").pass, true);
 

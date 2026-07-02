@@ -583,16 +583,16 @@ function biteSummaryAudioMessage(reports) {
   const tested = reports.filter((report) => report?.testId && report.testId !== "run-all");
   const failed = tested.filter((report) => !report.ok);
   if (!tested.length) {
-    return "AJRM Marine BITE audio output test. If you can hear this, the selected audio output is working.";
+    return "Marine built in tests audio output check. If you can hear this, the selected audio output is working.";
   }
   if (!failed.length) {
-    return `AJRM Marine BITE complete. ${tested.length} tests passed. If you can hear this, the selected audio output is working.`;
+    return `Marine built in tests complete. ${tested.length} tests passed. If you can hear this, the selected audio output is working.`;
   }
   const failedNames = failed
     .slice(0, 4)
     .map((report) => titleForTest(report.testId))
     .join(", ");
-  return `AJRM Marine BITE warning. ${failed.length} of ${tested.length} tests failed: ${failedNames}. If you can hear this, the selected audio output is working.`;
+  return `Marine built in tests warning. ${failed.length} of ${tested.length} tests failed: ${failedNames}. If you can hear this, the selected audio output is working.`;
 }
 
 function titleForTest(testId) {

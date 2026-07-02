@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.38
+
+- Change the spoken BITE summary wording to say "Marine built in tests" so
+  Piper does not try to pronounce AJRM as a word.
+
 ## 0.5.37
 
 - Add final BITE test `08 Audible summary output`, which publishes a spoken
