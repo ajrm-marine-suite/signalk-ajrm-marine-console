@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.41
+
+- Track the active individual BITE test in the Console frontend so pressing a
+  single `Run` button only turns that test blue.
+
 ## 0.5.40
 
 - Poll BITE run progress while `Run all tests` is active so each traffic light

@@ -28,6 +28,7 @@ let nextBrowserAudioRefreshAt = 0;
 let biteStatus = null;
 let biteResults = {};
 let biteRunning = false;
+let biteRunningTestId = null;
 let biteStatusPollTimer = null;
 
 const els = {
@@ -152,7 +153,7 @@ function biteTests() {
 
 function biteTestHtml(test) {
   const result = biteResults[test.id] || null;
-  const currentTestId = biteStatus?.currentRunAll?.currentTestId || null;
+  const currentTestId = biteStatus?.currentRunAll?.currentTestId || biteRunningTestId || null;
   const state = result
     ? result.ok
       ? "pass"
@@ -166,7 +167,7 @@ function biteTestHtml(test) {
     pass: "Pass",
     fail: "Fail",
   }[state];
-  const summary = biteRunning && !result
+  const summary = state === "running"
     ? "Running now..."
     : result?.summary || test.description || "";
   return `<article class="bite-test ${state}">
@@ -187,6 +188,7 @@ function renderBiteError(error) {
 async function runBiteTest(testId) {
   const test = biteTests().find((candidate) => candidate.id === testId) || {};
   biteRunning = true;
+  biteRunningTestId = testId;
   els.biteLog.value = `Running BITE ${biteTestNumber(test)} ${test.title || testId}...`;
   renderBitePanel();
   try {
@@ -209,6 +211,7 @@ async function runBiteTest(testId) {
     }
   } finally {
     biteRunning = false;
+    biteRunningTestId = null;
     await refreshBiteStatus();
     renderBitePanel();
   }
@@ -216,6 +219,7 @@ async function runBiteTest(testId) {
 
 async function runAllBiteTests() {
   biteRunning = true;
+  biteRunningTestId = null;
   biteResults = {};
   els.biteLog.value = "Running BITE pre-test checks...";
   renderBitePanel();
@@ -242,6 +246,7 @@ async function runAllBiteTests() {
     }
   } finally {
     biteRunning = false;
+    biteRunningTestId = null;
     stopBiteStatusPolling();
     await refreshBiteStatus();
     renderBitePanel();
