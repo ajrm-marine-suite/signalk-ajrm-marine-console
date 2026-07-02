@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.28
+
+- Persist each child BITE report before stopping Capture during Run all, so the
+  voyage zip includes the current run's test evidence rather than only earlier
+  reports.
+
 ## 0.5.27
 
 - Make Run all BITE tests start AJRM Marine Capture first, run the numbered

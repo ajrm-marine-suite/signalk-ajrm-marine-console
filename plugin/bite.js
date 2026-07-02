@@ -101,11 +101,12 @@ function createBiteController(app, { pluginId, version }) {
           pluginId,
           consoleVersion: version,
           timeoutSeconds: options.timeoutSeconds,
+          recordReport: async (report) => {
+            reports = [...reports, report].slice(-MAX_REPORTS);
+            await saveReport(report);
+          },
         });
-        for (const report of lastRunAllReport.reports || []) {
-          reports = [...reports, report].slice(-MAX_REPORTS);
-          await saveReport(report);
-        }
+        reports = [...reports, lastRunAllReport].slice(-MAX_REPORTS);
         await saveReport(lastRunAllReport);
         return lastRunAllReport;
       } finally {
@@ -115,7 +116,7 @@ function createBiteController(app, { pluginId, version }) {
   };
 }
 
-async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds }) {
+async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, recordReport }) {
   const runId = randomUUID();
   const startedAt = new Date().toISOString();
   const reports = [];
@@ -142,6 +143,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds }
         timeoutMs: boundedTimeout(timeoutSeconds || test.timeoutSeconds),
       });
       reports.push(report);
+      if (typeof recordReport === "function") await recordReport(report);
     }
   } finally {
     if (capture?.stop && captureStart) {
