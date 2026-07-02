@@ -21,6 +21,9 @@ test("Console uses one compact toolbar and hidden loading overlay cannot display
   assert.match(css, /height:\s*var\(--console-vh\)/);
   assert.match(css, /html,\s*body\s*\{[^}]*overflow:\s*hidden;/s);
   assert.match(css, /\.consolebar\s*\{[^}]*z-index:\s*20;/s);
+  assert.match(css, /#workspace\s*\{[^}]*height:\s*100%;[^}]*overflow:\s*hidden;/s);
+  assert.match(css, /\.overview\s*\{[^}]*height:\s*100%;[^}]*overflow:\s*auto;/s);
+  assert.match(css, /\.overview\s*\{[^}]*scrollbar-gutter:\s*stable;/s);
   assert.match(css, /\.frame-host\s*\{[^}]*overflow:\s*hidden;/s);
   assert.match(css, /\.frame-message\[hidden\]\s*\{\s*display:\s*none;/);
   assert.match(css, /grid-template-rows:\s*auto minmax\(0,\s*1fr\)/);

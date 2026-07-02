@@ -73,8 +73,14 @@ h1, h2, p { margin-top: 0; }
   font-weight: 750;
 }
 .tab.active { background: #123449; border-color: #2a607e; color: white; }
-#workspace { min-height: 0; overflow: hidden; }
-.overview { min-height: 100%; overflow: auto; padding: 1rem; }
+#workspace { min-height: 0; height: 100%; overflow: hidden; }
+.overview {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem;
+  scrollbar-gutter: stable;
+}
 .hero {
   display: flex;
   justify-content: space-between;

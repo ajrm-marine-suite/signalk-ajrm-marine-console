@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.39
+
+- Make the Console workspace and BITE dashboard use bounded internal scrolling
+  so the expanded BITE test list remains reachable on smaller screens.
+- Update Console frontend cache-busting query strings for the release.
+
 ## 0.5.38
 
 - Change the spoken BITE summary wording to say "Marine built in tests" so
