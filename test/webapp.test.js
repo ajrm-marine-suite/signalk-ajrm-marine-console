@@ -98,6 +98,8 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /biteStatus\.currentRunAll\?\.reports/);
   assert.match(script, /formatBiteRunAllProgress/);
   assert.match(script, /biteProgressPhrase/);
+  assert.match(script, /function setBiteLog\(value\)/);
+  assert.match(script, /els\.biteLog\.scrollTop = els\.biteLog\.scrollHeight/);
   assert.doesNotMatch(script, /latestReportsByTest/);
   assert.doesNotMatch(script, /biteResults\[biteStatus\.lastReport/);
   assert.match(script, /biteStatus\?\.currentRunAll\?\.currentTestId \|\| biteRunningTestId/);

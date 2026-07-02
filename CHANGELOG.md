@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.50
+
+- Keep the BITE report textarea scrolled to the latest message while tests are
+  running and when final reports/errors are written.
+
 ## 0.5.49
 
 - Make optional BITE plugin wording conservative: missing optional status now

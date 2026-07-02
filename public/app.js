@@ -120,13 +120,13 @@ function renderBitePanel() {
   els.biteTests.innerHTML = tests.map((test) => biteTestHtml(test)).join("")
     || '<p class="empty-note">No BITE tests are available.</p>';
   if (biteRunning && biteStatus?.currentRunAll) {
-    els.biteLog.value = formatBiteRunAllProgress(biteStatus.currentRunAll);
+    setBiteLog(formatBiteRunAllProgress(biteStatus.currentRunAll));
     return;
   }
   if (!els.biteLog.value || els.biteLog.value === "BITE has not run yet.") {
-    els.biteLog.value = biteStatus?.lastReport
+    setBiteLog(biteStatus?.lastReport
       ? formatBiteReport(biteStatus.lastReport)
-      : "BITE has not run yet.";
+      : "BITE has not run yet.");
   }
 }
 
@@ -187,19 +187,19 @@ function biteTestHtml(test) {
 
 function renderBiteError(error) {
   els.biteTests.innerHTML = '<p class="empty-note">BITE status is unavailable.</p>';
-  els.biteLog.value = `BITE status failed: ${error.message}`;
+  setBiteLog(`BITE status failed: ${error.message}`);
 }
 
 async function runBiteTest(testId) {
   const test = biteTests().find((candidate) => candidate.id === testId) || {};
   if (test.enabled === false) {
-    els.biteLog.value = test.disabledReason || `BITE ${testId} is disabled because its optional plugin is not installed, not enabled, or not visible.`;
+    setBiteLog(test.disabledReason || `BITE ${testId} is disabled because its optional plugin is not installed, not enabled, or not visible.`);
     renderBitePanel();
     return;
   }
   biteRunning = true;
   biteRunningTestId = testId;
-  els.biteLog.value = `Running BITE ${biteTestNumber(test)} ${test.title || testId}...`;
+  setBiteLog(`Running BITE ${biteTestNumber(test)} ${test.title || testId}...`);
   renderBitePanel();
   try {
     const report = await jsonRequest(BITE_RUN_URL, {
@@ -210,14 +210,14 @@ async function runBiteTest(testId) {
       }),
     });
     biteResults[testId] = report;
-    els.biteLog.value = formatBiteReport(report);
+    setBiteLog(formatBiteReport(report));
   } catch (error) {
     if (error.body?.contract === "ajrm-marine-console-bite-report") {
       biteResults[testId] = error.body;
-      els.biteLog.value = formatBiteReport(error.body);
+      setBiteLog(formatBiteReport(error.body));
     } else {
       biteResults[testId] = { ok: false, summary: error.message };
-      els.biteLog.value = `BITE ${testId} failed to run: ${error.message}`;
+      setBiteLog(`BITE ${testId} failed to run: ${error.message}`);
     }
   } finally {
     biteRunning = false;
@@ -231,7 +231,7 @@ async function runAllBiteTests() {
   biteRunning = true;
   biteRunningTestId = null;
   biteResults = {};
-  els.biteLog.value = "Running BITE pre-test checks...";
+  setBiteLog("Running BITE pre-test checks...");
   renderBitePanel();
   startBiteStatusPolling();
   try {
@@ -243,16 +243,16 @@ async function runAllBiteTests() {
       biteResults[child.testId || child.scenario] = child;
     }
     biteResults["run-all"] = report;
-    els.biteLog.value = formatBiteReport(report);
+    setBiteLog(formatBiteReport(report));
   } catch (error) {
     if (error.body?.contract === "ajrm-marine-console-bite-run-all-report") {
       for (const child of error.body.reports || []) {
         biteResults[child.testId || child.scenario] = child;
       }
       biteResults["run-all"] = error.body;
-      els.biteLog.value = formatBiteReport(error.body);
+      setBiteLog(formatBiteReport(error.body));
     } else {
-      els.biteLog.value = `BITE run all failed to run: ${error.message}`;
+      setBiteLog(`BITE run all failed to run: ${error.message}`);
     }
   } finally {
     biteRunning = false;
@@ -274,6 +274,13 @@ function stopBiteStatusPolling() {
   if (!biteStatusPollTimer) return;
   window.clearInterval(biteStatusPollTimer);
   biteStatusPollTimer = null;
+}
+
+function setBiteLog(value) {
+  els.biteLog.value = value;
+  window.requestAnimationFrame(() => {
+    els.biteLog.scrollTop = els.biteLog.scrollHeight;
+  });
 }
 
 function biteTestNumber(test) {
