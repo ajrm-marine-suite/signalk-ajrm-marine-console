@@ -454,6 +454,12 @@ function biteCaptureStartSettleMs() {
   return Math.max(0, Math.min(15000, value));
 }
 
+function biteAudioClientSettleMs() {
+  const value = Number(process.env.AJRM_MARINE_BITE_AUDIO_CLIENT_SETTLE_MS);
+  if (!Number.isFinite(value)) return 10000;
+  return Math.max(0, Math.min(30000, value));
+}
+
 function runAllSummary({ failed, captureStart, captureStop, captureError, restoreError, count }) {
   const testText = `${count} BITE test${count === 1 ? "" : "s"}`;
   if (captureError) return `${testText} completed with Capture error: ${captureError}`;
@@ -700,6 +706,10 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
       startedAtMs,
       timeoutMs,
     });
+  const clientSettleMs = deliveryEvidence ? biteAudioClientSettleMs() : 0;
+  if (clientSettleMs > 0) {
+    await delay(clientSettleMs);
+  }
   const finalAudio = readSelfPath(app, WATCH_PATHS.audio) || audio;
   const assertions = [
     assertion(
@@ -745,6 +755,7 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
       precedingTests: reportsToSummarize.length,
       precedingFailures: failed.length,
       audioEvidence: deliveryEvidence,
+      clientSettleMs,
       audioProgress: audioProgressSummary(finalAudio),
     }],
     summary: result === "pass"
@@ -754,6 +765,7 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
       message,
       audio: audioPolicySummary(finalAudio),
       audioDeliveryEvidence: deliveryEvidence,
+      audioClientSettleMs: clientSettleMs,
       precedingTests: reportsToSummarize.map((report) => ({
         testId: report.testId,
         result: report.result,
@@ -806,11 +818,16 @@ function biteAudioSummaryEvidence(audio, { message, startedAtMs }) {
     };
   }
   const recentAnnouncement = (audio.recentAnnouncements || []).find((announcement) =>
-    audioAnnouncementMatchesSummary(announcement, { message, startedAtMs })
+    audioAnnouncementMatchesSummary(announcement, { message, startedAtMs }) &&
+    (announcement.renderedAt || announcement.localPlaybackStartedAt || announcement.localPlaybackCompletedAt)
   );
   if (recentAnnouncement) {
     return {
-      state: "recent-announcement",
+      state: recentAnnouncement.localPlaybackCompletedAt
+        ? "completed"
+        : recentAnnouncement.localPlaybackStartedAt
+          ? "speaker-started"
+          : "rendered",
       ts: recentAnnouncement.renderedAt || recentAnnouncement.localPlaybackCompletedAt || recentAnnouncement.ts || "",
       message: recentAnnouncement.message || "",
     };
@@ -818,10 +835,14 @@ function biteAudioSummaryEvidence(audio, { message, startedAtMs }) {
   const last = audio.lastAnnouncement;
   if (
     audioAnnouncementMatchesSummary(last, { message, startedAtMs }) &&
-    (last.renderedAt || last.localPlaybackCompletedAt || last.audioUrl || last.publicAudioUrl)
+    (last.renderedAt || last.localPlaybackStartedAt || last.localPlaybackCompletedAt)
   ) {
     return {
-      state: last.localPlaybackCompletedAt ? "completed" : "rendered",
+      state: last.localPlaybackCompletedAt
+        ? "completed"
+        : last.localPlaybackStartedAt
+          ? "speaker-started"
+          : "rendered",
       ts: last.localPlaybackCompletedAt || last.renderedAt || last.queuedAt || "",
       message: last.message || "",
     };
@@ -2023,6 +2044,7 @@ module.exports = {
   createBiteController,
   evaluateCollisionAudioSnapshot,
   evaluateQuietTargetSnapshot,
+  biteAudioSummaryEvidence,
   publishSyntheticEncounter,
   unwrapSignalKLeaf,
 };

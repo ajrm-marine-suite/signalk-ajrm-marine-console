@@ -12,6 +12,7 @@ const {
   TEST_TARGET_NAME,
   evaluateCollisionAudioSnapshot,
   evaluateQuietTargetSnapshot,
+  biteAudioSummaryEvidence,
   publishSyntheticEncounter,
   unwrapSignalKLeaf,
 } = require("../plugin/bite");
@@ -175,6 +176,30 @@ test("BITE evaluation accepts muted audio when skipped evidence follows accepted
 
   assert.equal(result.result, "pass");
   assert.equal(result.assertions.find((item) => item.id === "mute-explicit").pass, true);
+});
+
+test("BITE audio summary evidence does not accept audio-ready-only announcements", () => {
+  const startedAtMs = Date.now() - 1000;
+  const message = "Marine built in tests complete. 9 tests passed.";
+  assert.equal(
+    biteAudioSummaryEvidence({
+      lastAnnouncement: {
+        queuedAt: new Date().toISOString(),
+        message,
+        audioUrl: "/plugins/signalk-ajrm-marine-audio/audio/test.mp3",
+        publicAudioUrl: "https://example.test/audio/test.mp3",
+      },
+    }, { message, startedAtMs }),
+    null,
+  );
+  const renderedEvidence = biteAudioSummaryEvidence({
+    lastAnnouncement: {
+      renderedAt: new Date().toISOString(),
+      message,
+      audioUrl: "/plugins/signalk-ajrm-marine-audio/audio/test.mp3",
+    },
+  }, { message, startedAtMs });
+  assert.equal(renderedEvidence.state, "rendered");
 });
 
 test("BITE evaluation rejects stale audio evidence for a fresh collision", () => {
@@ -359,6 +384,7 @@ test("BITE publishes synthetic own-vessel and target deltas", () => {
 
 test("Console exposes BITE status and run routes", async () => {
   process.env.AJRM_MARINE_BITE_CAPTURE_START_SETTLE_MS = "0";
+  process.env.AJRM_MARINE_BITE_AUDIO_CLIENT_SETTLE_MS = "0";
   const reportsDir = fs.mkdtempSync(path.join(os.tmpdir(), "ajrm-console-bite-"));
   process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR = reportsDir;
   const startedAtMs = Date.now();
@@ -838,6 +864,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.match(runBody.reports[0].summary, /Required AJRM Marine plugins are not installed/);
 
   delete process.env.AJRM_MARINE_BITE_CAPTURE_START_SETTLE_MS;
+  delete process.env.AJRM_MARINE_BITE_AUDIO_CLIENT_SETTLE_MS;
   delete process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR;
   fs.rmSync(reportsDir, { recursive: true, force: true });
 });
