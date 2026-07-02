@@ -664,7 +664,10 @@ test("Console exposes BITE status and run routes", async () => {
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 700);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);
+  assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.force, true);
+  assert.equal(values["plugins.ajrmMarineNotifications.audio"].event.delivery.force, true);
   assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-published").pass, true);
+  assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-forced").pass, true);
   assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "summary-audio-completed").pass, true);
 
   values["navigation.position"] = {

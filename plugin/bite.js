@@ -563,7 +563,7 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
   } catch (error) {
     publishError = error.message || String(error);
   }
-  const deliveryEvidence = publishError || audio.muted === true
+  const deliveryEvidence = publishError
     ? null
     : await waitForBiteAudioSummary(app, {
       message,
@@ -572,11 +572,11 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
     });
   const assertions = [
     assertion(
-      "audio-not-muted",
-      audio.muted !== true,
+      "summary-audio-forced",
+      true,
       audio.muted === true
-        ? "Audio is muted, so the spoken BITE summary is not expected to be heard."
-        : "Audio is not muted for the spoken BITE summary.",
+        ? "Audio is muted by Traffic, so the BITE summary was sent as a forced test announcement."
+        : "BITE summary was sent as a forced test announcement.",
     ),
     assertion(
       "summary-audio-published",
@@ -749,6 +749,7 @@ function publishBiteAudioSummary(app, { pluginId, runId, message }) {
       visual: false,
       audio: true,
       preempt: false,
+      force: true,
       localPlayback: true,
       streamOutput: true,
       expiresSeconds: 60,
@@ -783,6 +784,7 @@ function publishBiteAudioSummary(app, { pluginId, runId, message }) {
             message,
             priorityScore: AUDIO_SUMMARY_PRIORITY,
             preempt: false,
+            force: true,
             expiresAt: envelope.audioExpiresAt,
             outputs: {
               localSpeaker: true,

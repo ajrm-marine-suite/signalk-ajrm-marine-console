@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.42
+
+- Send the final BITE audible summary as a forced test announcement so it
+  bypasses Traffic stationary automute, matching Sound Check behaviour.
+- Treat Traffic mute as expected during the final BITE audio test when the
+  forced summary path is being exercised.
+
 ## 0.5.41
 
 - Track the active individual BITE test in the Console frontend so pressing a
