@@ -21,6 +21,12 @@ const OVERTAKING_TEST_TARGET_NAME = "BITE OVERTAKING TARGET";
 const CLOSE_QUARTERS_TEST_TARGET_MMSI = "235912348";
 const CLOSE_QUARTERS_TEST_TARGET_NAME = "BITE CLOSE TARGET";
 const UNNAMED_TEST_TARGET_MMSI = "235912349";
+const HEAD_ON_TEST_TARGET_MMSI = "235912350";
+const HEAD_ON_TEST_TARGET_NAME = "BITE HEAD ON TARGET";
+const GIVE_WAY_TEST_TARGET_MMSI = "235912351";
+const GIVE_WAY_TEST_TARGET_NAME = "BITE GIVE WAY TARGET";
+const STAND_ON_TEST_TARGET_MMSI = "235912352";
+const STAND_ON_TEST_TARGET_NAME = "BITE STAND ON TARGET";
 const AUDIO_SUMMARY_PRIORITY = 150;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
 const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
@@ -227,6 +233,27 @@ const TESTS = [
     number: 22,
     title: "Traffic unnamed spoken name",
     description: "Publishes an MMSI-only target and checks spoken audio does not attempt to read the MMSI as the vessel name.",
+    timeoutSeconds: 30,
+  },
+  {
+    id: "traffic-head-on-prompt",
+    number: 23,
+    title: "Traffic head-on prompt",
+    description: "Publishes a head-on collision encounter and checks the alert/audio chain says alter starboard, pass port-to-port.",
+    timeoutSeconds: 30,
+  },
+  {
+    id: "traffic-give-way-prompt",
+    number: 24,
+    title: "Traffic give-way prompt",
+    description: "Publishes a starboard-bow collision encounter and checks the alert/audio chain says Give Way.",
+    timeoutSeconds: 30,
+  },
+  {
+    id: "traffic-stand-on-prompt",
+    number: 25,
+    title: "Traffic stand-on prompt",
+    description: "Publishes a port-side collision encounter and checks the alert/audio chain says Stand On.",
     timeoutSeconds: 30,
   },
   {
@@ -672,6 +699,15 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "traffic-unnamed-spoken-name") {
     return runTrafficUnnamedSpokenNameBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-head-on-prompt") {
+    return runTrafficHeadOnPromptBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-give-way-prompt") {
+    return runTrafficGiveWayPromptBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-stand-on-prompt") {
+    return runTrafficStandOnPromptBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
@@ -2504,6 +2540,90 @@ async function runTrafficUnnamedSpokenNameBite(app, { pluginId, testId, consoleV
     forbiddenPatterns: [/CPA will be ahead\. CPA /i],
     passSummary: "Unnamed target spoken wording omitted the MMSI while preserving the alert chain.",
     failSummary: "Traffic unnamed spoken-name check failed",
+  });
+}
+
+async function runTrafficHeadOnPromptBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  return runTrafficMessageScenarioBite(app, {
+    pluginId,
+    testId,
+    consoleVersion,
+    timeoutMs,
+    target: {
+      mmsi: HEAD_ON_TEST_TARGET_MMSI,
+      name: HEAD_ON_TEST_TARGET_NAME,
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 0 }),
+      speedMps: 5 * KNOTS_TO_MPS,
+      courseRad: (3 * Math.PI) / 2,
+      lengthMeters: 18,
+      beamMeters: 5,
+      aisClass: "B",
+    },
+    own: {
+      position: OWN_POSITION,
+      speedMps: 5 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+    },
+    expectedPatterns: [/Risk of collision/i, /Head-on: alter starboard, pass port-to-port/i],
+    forbiddenPatterns: [/CPA will be ahead\. CPA /i],
+    passSummary: "Head-on collision prompt was present in the Traffic alert chain.",
+    failSummary: "Traffic head-on prompt check failed",
+  });
+}
+
+async function runTrafficGiveWayPromptBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  return runTrafficMessageScenarioBite(app, {
+    pluginId,
+    testId,
+    consoleVersion,
+    timeoutMs,
+    target: {
+      mmsi: GIVE_WAY_TEST_TARGET_MMSI,
+      name: GIVE_WAY_TEST_TARGET_NAME,
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: -220 }),
+      speedMps: 5 * KNOTS_TO_MPS,
+      courseRad: 0,
+      lengthMeters: 18,
+      beamMeters: 5,
+      aisClass: "B",
+    },
+    own: {
+      position: OWN_POSITION,
+      speedMps: 5 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+    },
+    expectedPatterns: [/Risk of collision/i, /Give Way/i],
+    forbiddenPatterns: [/CPA will be ahead\. CPA /i],
+    passSummary: "Give-way collision prompt was present in the Traffic alert chain.",
+    failSummary: "Traffic give-way prompt check failed",
+  });
+}
+
+async function runTrafficStandOnPromptBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  return runTrafficMessageScenarioBite(app, {
+    pluginId,
+    testId,
+    consoleVersion,
+    timeoutMs,
+    target: {
+      mmsi: STAND_ON_TEST_TARGET_MMSI,
+      name: STAND_ON_TEST_TARGET_NAME,
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 220 }),
+      speedMps: 5 * KNOTS_TO_MPS,
+      courseRad: Math.PI,
+      lengthMeters: 18,
+      beamMeters: 5,
+      aisClass: "B",
+    },
+    own: {
+      position: OWN_POSITION,
+      speedMps: 5 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+    },
+    expectedPatterns: [/Risk of collision/i, /Stand On/i],
+    forbiddenPatterns: [/CPA will be ahead\. CPA /i],
+    passSummary: "Stand-on collision prompt was present in the Traffic alert chain.",
+    failSummary: "Traffic stand-on prompt check failed",
   });
 }
 

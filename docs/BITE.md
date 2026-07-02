@@ -104,6 +104,9 @@ Current numbered BITE tests:
 | 20 | Traffic overtaking wording | A synthetic overtaking encounter must include overtaking and CPA-direction wording through the alert chain. |
 | 21 | Traffic close-quarters wording | A synthetic close-quarters encounter must say close quarters through the visual/audio alert chain. |
 | 22 | Traffic unnamed spoken name | An MMSI-only target must not have its MMSI read aloud as the vessel name. |
+| 23 | Traffic head-on prompt | A synthetic head-on collision must say alter starboard and pass port-to-port. |
+| 24 | Traffic give-way prompt | A synthetic starboard-bow collision must say Give Way. |
+| 25 | Traffic stand-on prompt | A synthetic port-side collision must say Stand On. |
 | 90 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
 | 99 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |
 

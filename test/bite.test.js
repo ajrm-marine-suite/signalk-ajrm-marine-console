@@ -810,6 +810,30 @@ test("Console exposes BITE status and run routes", async () => {
           audioMessage: "Traffic advisory. Small craft at 12 o'clock. CPA will be on your port side. 45 meters in 2 minutes.",
         });
       }
+      if (String(message?.context || "").includes("235912350")) {
+        injectScenarioMessage({
+          mmsi: "235912350",
+          name: "BITE HEAD ON TARGET",
+          visualMessage: "Collision alarm. Medium vessel BITE HEAD ON TARGET at 12 o'clock. Risk of collision. Head-on: alter starboard, pass port-to-port. CPA 0 meters in 2 minutes.",
+          state: "alarm",
+        });
+      }
+      if (String(message?.context || "").includes("235912351")) {
+        injectScenarioMessage({
+          mmsi: "235912351",
+          name: "BITE GIVE WAY TARGET",
+          visualMessage: "Collision alarm. Medium vessel BITE GIVE WAY TARGET at 2 o'clock. Risk of collision. Give Way. CPA 0 meters in 2 minutes.",
+          state: "alarm",
+        });
+      }
+      if (String(message?.context || "").includes("235912352")) {
+        injectScenarioMessage({
+          mmsi: "235912352",
+          name: "BITE STAND ON TARGET",
+          visualMessage: "Collision alarm. Medium vessel BITE STAND ON TARGET at 10 o'clock. Risk of collision. Stand On. CPA 0 meters in 2 minutes.",
+          state: "alarm",
+        });
+      }
       for (const update of message?.updates || []) {
         for (const value of update.values || []) {
           if (value.path === "plugins.ajrmMarineNotifications.audio") {
@@ -1079,6 +1103,9 @@ test("Console exposes BITE status and run routes", async () => {
     "traffic-overtaking-wording",
     "traffic-close-quarters-wording",
     "traffic-unnamed-spoken-name",
+    "traffic-head-on-prompt",
+    "traffic-give-way-prompt",
+    "traffic-stand-on-prompt",
   ]) {
     statusCode = 0;
     runBody = null;
@@ -1098,8 +1125,10 @@ test("Console exposes BITE status and run routes", async () => {
     assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
     assert.equal(runBody.scenario, trafficWordingTestId);
     assert.equal(runBody.assertions.find((item) => item.id === "expected-wording-1").pass, true);
+    if (trafficWordingTestId === "traffic-unnamed-spoken-name") {
+      assert.equal(runBody.assertions.find((item) => item.id === "forbidden-audio-wording-1").pass, true);
+    }
   }
-  assert.equal(runBody.assertions.find((item) => item.id === "forbidden-audio-wording-1").pass, true);
   values["plugins.ajrmMarineTraffic.targets"] = trafficProjection("alarm");
   values["plugins.ajrmMarineNotifications"].active = [{
     priority: { level: "danger" },
@@ -1211,7 +1240,7 @@ test("Console exposes BITE status and run routes", async () => {
     { muted: false },
     { muted: true },
   ]);
-  assert.equal(runBody.reports.length, 24);
+  assert.equal(runBody.reports.length, 27);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "core-projections",
@@ -1236,11 +1265,14 @@ test("Console exposes BITE status and run routes", async () => {
     "traffic-overtaking-wording",
     "traffic-close-quarters-wording",
     "traffic-unnamed-spoken-name",
+    "traffic-head-on-prompt",
+    "traffic-give-way-prompt",
+    "traffic-stand-on-prompt",
     "audio-output-summary",
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 23 tests passed/,
+    /Marine built in tests complete\. 26 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);
