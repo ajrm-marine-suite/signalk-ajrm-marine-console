@@ -275,6 +275,14 @@ function formatBiteReport(report) {
     lines.push("", "Child reports:");
     for (const child of report.reports) {
       lines.push(`${child.ok ? "PASS" : "FAIL"} ${child.testId || child.scenario}: ${child.summary || ""}`);
+      for (const assertion of child.assertions || []) {
+        if (!assertion.pass) lines.push(`  FAIL ${assertion.id}: ${assertion.message}`);
+      }
+      if (!child.ok && Array.isArray(child.observations) && child.observations.length) {
+        for (const observation of child.observations.slice(0, 4)) {
+          lines.push(`  ${formatBiteObservation(observation)}`);
+        }
+      }
     }
   }
   if (report.snapshot) {

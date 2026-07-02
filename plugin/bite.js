@@ -263,9 +263,15 @@ function runAllReport({
     },
     reports,
     summary: stoppedByPreflight
-      ? `BITE run all stopped by pre-test check: ${failed.map((item) => item.summary).filter(Boolean).join(" ")}`
+      ? `BITE run all stopped by pre-test check: ${preflightReason(failed[0])}`
       : runAllSummary({ failed, captureStart, captureStop, captureError, count: reports.length }),
   };
+}
+
+function preflightReason(report) {
+  const failedAssertions = (report?.assertions || []).filter((item) => !item.pass);
+  if (!failedAssertions.length) return report?.summary || "pre-test check failed.";
+  return failedAssertions.map((item) => item.message).join(" ");
 }
 
 function captureApi(app) {
@@ -305,7 +311,7 @@ async function runPreflightBite(app, { consoleVersion }) {
       "simulator-output-off",
       !simulatorEvidence.running,
       simulatorEvidence.running
-        ? `Simulator output appears active: ${simulatorEvidence.message}`
+        ? `AJRM Marine Simulator output is ON. Stop simulator output before running BITE. ${simulatorEvidence.message}`
         : "No active AJRM simulator output detected.",
     ),
     assertion(
@@ -334,7 +340,7 @@ async function runPreflightBite(app, { consoleVersion }) {
     observations: liveFeedEvidence.slice(0, 12),
     summary: result === "pass"
       ? "Pre-test safety isolation passed."
-      : "Pre-test safety isolation failed. BITE run all has been blocked.",
+      : `Pre-test safety isolation failed. ${preflightReason({ assertions })}`,
     snapshot: {
       collectedAt: finishedAt,
       simulator: simulatorEvidence,
@@ -896,7 +902,11 @@ function simulatorOutputEvidence(app) {
   ].filter(Boolean);
   for (const candidate of candidates) {
     if (candidate?.outputEnabled === true || candidate?.state?.outputEnabled === true) {
-      return { running: true, message: "outputEnabled=true", state: candidate };
+      return {
+        running: true,
+        message: `status says outputEnabled=true${candidate?.own?.motionMode ? `, own vessel mode ${candidate.own.motionMode}` : ""}.`,
+        state: candidate,
+      };
     }
     const text = [
       candidate?.status,
@@ -905,7 +915,7 @@ function simulatorOutputEvidence(app) {
       candidate?.pluginStatus,
     ].filter((item) => typeof item === "string").join(" ");
     if (/own boat|simulation output on|output enabled/i.test(text) && !/output off/i.test(text)) {
-      return { running: true, message: text, state: candidate };
+      return { running: true, message: `status says ${text}.`, state: candidate };
     }
   }
   return { running: false, message: "No simulator output status found.", state: candidates[0] || null };

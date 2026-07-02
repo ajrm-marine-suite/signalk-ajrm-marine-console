@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.33
+
+- Make BITE Run all preflight failures explain the concrete blocker, for
+  example `AJRM Marine Simulator output is ON` or the exact fresh own-vessel
+  Signal K paths/sources that indicate a live feed.
+- Show failed child-test assertions and live-feed observations directly in the
+  BITE dashboard Run all report instead of requiring the raw JSON snapshot.
+
 ## 0.5.32
 
 - Fix BITE collision audio evaluation when audio is muted: Audio can briefly

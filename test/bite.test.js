@@ -416,7 +416,33 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.capture.started, false);
   assert.equal(runBody.reports.length, 1);
   assert.equal(runBody.reports[0].testId, "preflight-safety");
-  assert.match(runBody.summary, /stopped by pre-test check/);
+  assert.match(runBody.summary, /live feed detected|Recent own-vessel feed detected/);
+  assert.match(runBody.reports[0].summary, /Recent own-vessel feed detected/);
+
+  delete values["navigation.position"];
+  values["plugins.ajrmMarineSimulator"] = {
+    outputEnabled: true,
+    own: { motionMode: "self" },
+  };
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run-all")(
+    { body: { timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, false);
+  assert.equal(runBody.capture.started, false);
+  assert.match(runBody.summary, /AJRM Marine Simulator output is ON/);
+  assert.match(runBody.reports[0].summary, /AJRM Marine Simulator output is ON/);
 
   delete process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR;
   fs.rmSync(reportsDir, { recursive: true, force: true });
