@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.24
+
+- Add a BITE dashboard to the Console overview with numbered tests, amber
+  not-run state, green pass/red fail traffic lights, per-test run buttons, a
+  run-all button, and a detailed report panel.
+- Persist BITE reports as JSON under the Console plugin data directory so
+  voyage/debug bundles can include them for offline analysis. Reports from an
+  older Console version remain archived but do not count as current pass/fail
+  status after a software update.
+
 ## 0.5.23
 
 - Clean up the Display-facing BITE assertion text so successful reports show

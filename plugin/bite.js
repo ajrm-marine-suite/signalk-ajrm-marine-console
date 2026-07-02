@@ -1,6 +1,9 @@
 "use strict";
 
 const { randomUUID } = require("node:crypto");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 
 const DEFAULT_TIMEOUT_MS = 45000;
 const POLL_MS = 1000;
@@ -20,20 +23,39 @@ const WATCH_PATHS = {
   audio: "plugins.ajrmMarineAudio",
   display: "plugins.ajrmMarineDisplay",
 };
+const TESTS = [{
+  id: "collision-audio-chain",
+  number: 1,
+  title: "Collision visual/audio chain",
+  description: "Publishes a temporary crossing target and checks Traffic, Display, Notifications, and Audio all react.",
+  timeoutSeconds: 45,
+}];
+const DEFAULT_REPORTS_DIRECTORY = path.join(
+  os.homedir(),
+  ".signalk",
+  "plugin-config-data",
+  "signalk-ajrm-marine-console",
+  "bite-reports",
+);
+const MAX_REPORTS = 50;
 
 function createBiteController(app, { pluginId, version }) {
   let running = false;
-  let lastReport = null;
+  let reports = loadReports();
 
   return {
     status() {
+      const currentReports = reports.filter((report) => report.consoleVersion === version);
       return {
         ok: true,
         contract: "ajrm-marine-console-bite-status",
         contractVersion: 1,
         version,
         running,
-        lastReport,
+        lastReport: currentReports.at(-1) || null,
+        reports: reports.slice(-MAX_REPORTS),
+        reportsDirectory: reportsDirectory(),
+        tests: TESTS,
         watchPaths: WATCH_PATHS,
       };
     },
@@ -45,11 +67,21 @@ function createBiteController(app, { pluginId, version }) {
       }
       running = true;
       try {
-        lastReport = await runCollisionAudioBite(app, {
+        const testId = String(options.testId || TESTS[0].id);
+        if (!TESTS.some((item) => item.id === testId)) {
+          const error = new Error(`Unknown BITE test: ${testId}`);
+          error.statusCode = 400;
+          throw error;
+        }
+        const report = await runCollisionAudioBite(app, {
           pluginId,
+          testId,
+          consoleVersion: version,
           timeoutMs: boundedTimeout(options.timeoutSeconds),
         });
-        return lastReport;
+        reports = [...reports, report].slice(-MAX_REPORTS);
+        await saveReport(report);
+        return report;
       } finally {
         running = false;
       }
@@ -57,7 +89,7 @@ function createBiteController(app, { pluginId, version }) {
   };
 }
 
-async function runCollisionAudioBite(app, { pluginId, timeoutMs }) {
+async function runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
@@ -107,8 +139,10 @@ async function runCollisionAudioBite(app, { pluginId, timeoutMs }) {
     ok: result === "pass",
     contract: "ajrm-marine-console-bite-report",
     contractVersion: 1,
+    consoleVersion,
     runId,
     scenario: "collision-audio-chain",
+    testId,
     result,
     startedAt,
     finishedAt,
@@ -122,6 +156,42 @@ async function runCollisionAudioBite(app, { pluginId, timeoutMs }) {
     summary: summaryFor(result, assertions),
     snapshot: finalSnapshot ? summarizeSnapshot(finalSnapshot) : null,
   };
+}
+
+function loadReports() {
+  try {
+    const directory = reportsDirectory();
+    if (!fs.existsSync(directory)) return [];
+    return fs.readdirSync(directory)
+      .filter((name) => name.endsWith(".json"))
+      .sort()
+      .slice(-MAX_REPORTS)
+      .map((name) => {
+        try {
+          return JSON.parse(fs.readFileSync(path.join(directory, name), "utf8"));
+        } catch (_error) {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  } catch (_error) {
+    return [];
+  }
+}
+
+async function saveReport(report) {
+  const directory = reportsDirectory();
+  await fs.promises.mkdir(directory, { recursive: true });
+  const safeTimestamp = new Date().toISOString().replace(/[:.]/g, "");
+  const fileName = `${safeTimestamp}-${report.testId || report.scenario}-${report.result}.json`;
+  await fs.promises.writeFile(
+    path.join(directory, fileName),
+    `${JSON.stringify(report, null, 2)}\n`,
+  );
+}
+
+function reportsDirectory() {
+  return process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR || DEFAULT_REPORTS_DIRECTORY;
 }
 
 function evaluateCollisionAudioSnapshot(snapshot, { startedAtMs, targetName, targetMmsi }) {

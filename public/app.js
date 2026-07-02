@@ -1,6 +1,8 @@
 "use strict";
 
 const CONSOLE_STATUS_URL = "/signalk/v1/api/ajrmMarineConsole/status";
+const BITE_STATUS_URL = "/signalk/v1/api/ajrmMarineConsole/bite/status";
+const BITE_RUN_URL = "/signalk/v1/api/ajrmMarineConsole/bite/run";
 const AUDIO_STATUS_URL = "/signalk/v1/api/ajrmMarineAudio/status";
 const ACTIVE_MODULE_KEY = "ajrmMarineConsole.activeModule";
 const AUDIO_ACCESS_TOKEN_STORAGE_KEY = "ajrmMarineAudio.accessToken";
@@ -21,6 +23,9 @@ let browserAudioUnlocked = false;
 let browserAudioUnlocking = false;
 let firstBrowserAudioRefresh = true;
 let nextBrowserAudioRefreshAt = 0;
+let biteStatus = null;
+let biteResults = {};
+let biteRunning = false;
 
 const els = {
   version: document.getElementById("version"),
@@ -34,6 +39,9 @@ const els = {
   frameHost: document.getElementById("frameHost"),
   frameMessage: document.getElementById("frameMessage"),
   moduleCards: document.getElementById("moduleCards"),
+  biteRunAll: document.getElementById("biteRunAll"),
+  biteTests: document.getElementById("biteTests"),
+  biteLog: document.getElementById("biteLog"),
   browserAudioHost: document.getElementById("browserAudioHost"),
 };
 
@@ -54,10 +62,23 @@ async function start() {
         : consoleStatus.defaultModule,
     );
     setConnection(true);
+    refreshBiteStatus();
     startBrowserAudioHost();
   } catch (error) {
     setConnection(false, error.message);
     els.overview.hidden = false;
+  }
+}
+
+async function refreshBiteStatus() {
+  try {
+    biteStatus = await jsonRequest(BITE_STATUS_URL);
+    if (biteStatus.lastReport) {
+      biteResults[biteStatus.lastReport.testId || biteStatus.lastReport.scenario] = biteStatus.lastReport;
+    }
+    renderBitePanel();
+  } catch (error) {
+    renderBiteError(error);
   }
 }
 
@@ -85,6 +106,118 @@ function renderNavigation() {
         moduleCardHtml(module),
     )
     .join("") || '<p class="empty-note">No webapps are selected. Choose installed Signal K webapps in the AJRM Marine Console plugin configuration.</p>';
+}
+
+function renderBitePanel() {
+  const tests = biteTests();
+  els.biteRunAll.disabled = biteRunning || tests.length === 0;
+  els.biteTests.innerHTML = tests.map((test) => biteTestHtml(test)).join("")
+    || '<p class="empty-note">No BITE tests are available.</p>';
+  if (!els.biteLog.value || els.biteLog.value === "BITE has not run yet.") {
+    els.biteLog.value = biteStatus?.lastReport
+      ? formatBiteReport(biteStatus.lastReport)
+      : "BITE has not run yet.";
+  }
+}
+
+function biteTests() {
+  if (Array.isArray(biteStatus?.tests) && biteStatus.tests.length) return biteStatus.tests;
+  return [{
+    id: "collision-audio-chain",
+    number: 1,
+    title: "Collision visual/audio chain",
+    description: "Checks Traffic, Display, Notifications, and Audio all react to a temporary crossing target.",
+    timeoutSeconds: 45,
+  }];
+}
+
+function biteTestHtml(test) {
+  const result = biteResults[test.id] || null;
+  const state = biteRunning
+    ? "running"
+    : result
+      ? result.ok
+        ? "pass"
+        : "fail"
+      : "pending";
+  const stateLabel = {
+    pending: "Not run",
+    running: "Running",
+    pass: "Pass",
+    fail: "Fail",
+  }[state];
+  const summary = biteRunning && !result
+    ? "Running now..."
+    : result?.summary || test.description || "";
+  return `<article class="bite-test ${state}">
+    <div class="bite-light" aria-label="${escapeHtml(stateLabel)}"></div>
+    <div class="bite-test-main">
+      <strong>${String(test.number || "").padStart(2, "0")} ${escapeHtml(test.title || test.id)}</strong>
+      <span>${escapeHtml(summary)}</span>
+    </div>
+    <button class="bite-run" type="button" data-bite-test="${escapeHtml(test.id)}" ${biteRunning ? "disabled" : ""}>Run</button>
+  </article>`;
+}
+
+function renderBiteError(error) {
+  els.biteTests.innerHTML = '<p class="empty-note">BITE status is unavailable.</p>';
+  els.biteLog.value = `BITE status failed: ${error.message}`;
+}
+
+async function runBiteTest(testId) {
+  const test = biteTests().find((candidate) => candidate.id === testId) || {};
+  biteRunning = true;
+  els.biteLog.value = `Running BITE ${String(test.number || "").padStart(2, "0")} ${test.title || testId}...`;
+  renderBitePanel();
+  try {
+    const report = await jsonRequest(BITE_RUN_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        testId,
+        timeoutSeconds: test.timeoutSeconds || 45,
+      }),
+    });
+    biteResults[testId] = report;
+    els.biteLog.value = formatBiteReport(report);
+  } catch (error) {
+    biteResults[testId] = { ok: false, summary: error.message };
+    els.biteLog.value = `BITE ${testId} failed to run: ${error.message}`;
+  } finally {
+    biteRunning = false;
+    await refreshBiteStatus();
+    renderBitePanel();
+  }
+}
+
+async function runAllBiteTests() {
+  for (const test of biteTests()) {
+    await runBiteTest(test.id);
+  }
+}
+
+function formatBiteReport(report) {
+  const lines = [
+    `${report.ok ? "PASS" : "FAIL"} ${report.scenario || report.testId || "BITE"}`,
+    report.summary || "",
+    report.startedAt && report.finishedAt
+      ? `Started ${report.startedAt}; finished ${report.finishedAt}; duration ${report.durationSeconds || 0} s`
+      : "",
+    "",
+    "Assertions:",
+  ].filter((line) => line !== "");
+  for (const assertion of report.assertions || []) {
+    lines.push(`${assertion.pass ? "PASS" : "FAIL"} ${assertion.id}: ${assertion.message}`);
+  }
+  if (Array.isArray(report.observations) && report.observations.length) {
+    lines.push("", "Recent observations:");
+    for (const observation of report.observations.slice(-6)) {
+      lines.push(`${observation.ts || ""} ${observation.trafficState || ""} ${observation.audioState || ""} ${observation.message || ""}`.trim());
+    }
+  }
+  if (report.snapshot) {
+    lines.push("", "Snapshot:", JSON.stringify(report.snapshot, null, 2));
+  }
+  return lines.join("\n");
 }
 
 function moduleCardHtml(module) {
@@ -441,6 +574,11 @@ els.moduleCards.addEventListener("click", (event) => {
   const button = event.target.closest("[data-module]");
   if (button) selectModule(button.dataset.module);
 });
+els.biteTests.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-bite-test]");
+  if (button) runBiteTest(button.dataset.biteTest);
+});
+els.biteRunAll.addEventListener("click", runAllBiteTests);
 els.overviewHelpButton.addEventListener("click", showOverviewHelp);
 els.overviewBackButton.addEventListener("click", () => selectModule("overview"));
 els.enableBrowserAudio.addEventListener("click", unlockBrowserAudio);

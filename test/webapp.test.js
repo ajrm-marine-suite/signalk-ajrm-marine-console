@@ -25,6 +25,9 @@ test("Console uses one compact toolbar and hidden loading overlay cannot display
   assert.match(css, /\.frame-message\[hidden\]\s*\{\s*display:\s*none;/);
   assert.match(css, /grid-template-rows:\s*auto minmax\(0,\s*1fr\)/);
   assert.match(html, /id="overviewHelp"/);
+  assert.match(html, /id="biteTests"/);
+  assert.match(html, /id="biteRunAll"/);
+  assert.match(html, /id="biteLog"/);
   assert.match(html, /src="\.\/help\.html"/);
   assert.doesNotMatch(
     fs.readFileSync(path.join(root, "plugin", "modules.js"), "utf8"),
@@ -78,6 +81,12 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.doesNotMatch(script, /dataset\.keepAlive/);
   assert.match(script, /consoleAudioHost=1/);
   assert.match(script, /function refreshBrowserAudio\(\{ force = false \} = \{\}\)/);
+  assert.match(script, /BITE_STATUS_URL/);
+  assert.match(script, /BITE_RUN_URL/);
+  assert.match(script, /function runBiteTest\(testId\)/);
+  assert.match(script, /function runAllBiteTests\(\)/);
+  assert.match(script, /data-bite-test/);
+  assert.match(script, /formatBiteReport/);
   assert.match(script, /error\.status = response\.status/);
   assert.match(script, /status\.muted === true && announcement\.force !== true/);
   assert.match(script, /announcement\.audioUrl \|\| announcement\.publicAudioUrl/);

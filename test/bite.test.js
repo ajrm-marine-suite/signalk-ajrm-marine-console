@@ -1,6 +1,9 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const test = require("node:test");
 const createPlugin = require("../plugin");
 const {
@@ -139,6 +142,8 @@ test("BITE publishes synthetic own-vessel and target deltas", () => {
 });
 
 test("Console exposes BITE status and run routes", async () => {
+  const reportsDir = fs.mkdtempSync(path.join(os.tmpdir(), "ajrm-console-bite-"));
+  process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR = reportsDir;
   const startedAtMs = Date.now();
   const values = {
     "plugins.ajrmMarineTraffic.targets": trafficProjection("alarm"),
@@ -197,6 +202,8 @@ test("Console exposes BITE status and run routes", async () => {
   });
   assert.equal(statusBody.ok, true);
   assert.equal(statusBody.running, false);
+  assert.equal(Array.isArray(statusBody.tests), true);
+  assert.equal(statusBody.tests[0].number, 1);
 
   let statusCode = 0;
   let runBody;
@@ -215,4 +222,8 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusCode, 200);
   assert.equal(runBody.ok, true);
   assert.equal(runBody.scenario, "collision-audio-chain");
+  assert.equal(runBody.consoleVersion, require("../package.json").version);
+  assert.ok(fs.readdirSync(reportsDir).some((name) => name.endsWith(".json")));
+  delete process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR;
+  fs.rmSync(reportsDir, { recursive: true, force: true });
 });
