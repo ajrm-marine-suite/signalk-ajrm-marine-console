@@ -36,7 +36,7 @@ server:
 
 ## Stage 2: Pi Server BITE
 
-The first Pi BITE runner is exposed from Console:
+The Pi BITE runner is exposed from Console:
 
 ```bash
 curl -sk -X POST https://localhost:3443/plugins/signalk-ajrm-marine-console/bite/run \
@@ -44,13 +44,23 @@ curl -sk -X POST https://localhost:3443/plugins/signalk-ajrm-marine-console/bite
   -d '{"timeoutSeconds":45}'
 ```
 
-It publishes a short synthetic crossing encounter using the temporary AIS target
-`BITE TEST TARGET` / MMSI `235912345`, then watches Traffic, Display,
-Notifications, and Audio status/projection paths. At the end of the run it
-publishes a quiet cleanup sample so the synthetic encounter clears from Traffic.
+Run all starts with test `00`, which verifies the required AJRM Marine Suite
+plugins are installed and operational before any synthetic data is injected. It
+checks required package/webapp presence, core status projections, the Capture
+API, simulator output state, and fresh live own-vessel data. If this preflight
+fails, the run stops and Capture is not started.
+
+The collision test publishes a short synthetic crossing encounter using the
+temporary AIS target `BITE TEST TARGET` / MMSI `235912345`, then watches Traffic,
+Display, Notifications, and Audio status/projection paths. At the end of the run
+it publishes a quiet cleanup sample so the synthetic encounter clears from
+Traffic.
 
 The runner returns a machine-readable report with `pass`/`fail` assertions for:
 
+- Required plugins being installed and publishing/available.
+- Simulator output being stopped before the test.
+- No fresh live own-vessel navigation or instrument feed being present.
 - Traffic publishing a `warn`, `alarm`, or `emergency` for the BITE target.
 - Display publishing its status projection, and the Display-facing visual alert
   projection containing the BITE target.

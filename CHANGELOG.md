@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.35
+
+- Extend BITE test `00` to verify required AJRM Marine Suite plugins are
+  installed and operational before any synthetic traffic is injected.
+- Stop BITE Run all with a concrete missing/disabled plugin reason when a
+  required suite component is absent or not publishing the expected status/API.
+
 ## 0.5.34
 
 - Make AJRM Marine Capture a required suite dependency because BITE and support

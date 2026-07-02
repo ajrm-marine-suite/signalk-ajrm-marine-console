@@ -4,6 +4,8 @@ const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const packageInfo = require("../package.json");
+const { discoverWebapps } = require("./modules");
 
 const DEFAULT_TIMEOUT_MS = 45000;
 const POLL_MS = 1000;
@@ -26,13 +28,14 @@ const WATCH_PATHS = {
   audio: "plugins.ajrmMarineAudio",
   display: "plugins.ajrmMarineDisplay",
 };
+const REQUIRED_SUITE_PLUGINS = Object.freeze(packageInfo.signalk?.requires || []);
 const PREFLIGHT_TEST_ID = "preflight-safety";
 const TESTS = [
   {
     id: PREFLIGHT_TEST_ID,
     number: 0,
-    title: "Pre-test safety isolation",
-    description: "Checks that simulator output and live navigation/instrument feeds are not active before BITE injects test data.",
+    title: "Required plugins and safety isolation",
+    description: "Checks that required AJRM Marine plugins are installed/enabled and that simulator or live feeds are not active before BITE injects test data.",
     timeoutSeconds: 5,
     blocking: true,
   },
@@ -304,9 +307,17 @@ async function runPreflightBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
+  const requiredPluginEvidence = requiredSuitePluginEvidence(app);
   const simulatorEvidence = simulatorOutputEvidence(app);
   const liveFeedEvidence = recentLiveFeedEvidence(app, startedAtMs);
   const assertions = [
+    assertion(
+      "required-suite-plugins",
+      requiredPluginEvidence.ok,
+      requiredPluginEvidence.ok
+        ? "All required AJRM Marine suite plugins are installed and publishing/available."
+        : requiredPluginEvidence.message,
+    ),
     assertion(
       "simulator-output-off",
       !simulatorEvidence.running,
@@ -339,14 +350,69 @@ async function runPreflightBite(app, { consoleVersion }) {
     assertions,
     observations: liveFeedEvidence.slice(0, 12),
     summary: result === "pass"
-      ? "Pre-test safety isolation passed."
-      : `Pre-test safety isolation failed. ${preflightReason({ assertions })}`,
+      ? "Required plugin and pre-test safety checks passed."
+      : `Required plugin or pre-test safety check failed. ${preflightReason({ assertions })}`,
     snapshot: {
       collectedAt: finishedAt,
+      requiredPlugins: requiredPluginEvidence,
       simulator: simulatorEvidence,
       liveFeed: liveFeedEvidence.slice(0, 12),
       maxLiveDataAgeSeconds: PREFLIGHT_LIVE_DATA_MAX_AGE_MS / 1000,
     },
+  };
+}
+
+function requiredSuitePluginEvidence(app) {
+  const availableWebapps = Array.isArray(app.ajrmMarineConsoleAvailableWebapps)
+    ? app.ajrmMarineConsoleAvailableWebapps
+    : discoverWebapps();
+  const installed = new Set(availableWebapps.map((module) => module.packageName || module.id));
+  const installedMissing = REQUIRED_SUITE_PLUGINS.filter((id) => !installed.has(id));
+  const snapshot = collectSnapshot(app);
+  const runtimeChecks = [
+    {
+      id: "signalk-ajrm-marine-display",
+      ok: snapshot.display?.enabled !== false && snapshot.display?.contract === "ajrm-marine-display-status",
+      message: "Display status projection is missing, disabled, or not recognised.",
+    },
+    {
+      id: "signalk-ajrm-marine-traffic",
+      ok: Boolean(snapshot.traffic || snapshot.trafficAudioPolicy),
+      message: "Traffic status projection is missing.",
+    },
+    {
+      id: "signalk-ajrm-marine-notifications",
+      ok: Boolean(snapshot.notifications || snapshot.notificationsAudio),
+      message: "Notifications status projection is missing.",
+    },
+    {
+      id: "signalk-ajrm-marine-audio",
+      ok: Boolean(snapshot.audio),
+      message: "Audio status projection is missing.",
+    },
+    {
+      id: "signalk-ajrm-marine-capture",
+      ok: Boolean(captureApi(app)?.start && captureApi(app)?.stop),
+      message: "Capture API is unavailable.",
+    },
+  ].filter((item) => REQUIRED_SUITE_PLUGINS.includes(item.id));
+  const runtimeFailures = runtimeChecks.filter((item) => !item.ok);
+  const ok = installedMissing.length === 0 && runtimeFailures.length === 0;
+  const parts = [];
+  if (installedMissing.length) {
+    parts.push(`Required AJRM Marine plugins are not installed: ${installedMissing.join(", ")}.`);
+  }
+  if (runtimeFailures.length) {
+    parts.push(`Required AJRM Marine plugins are not enabled or not publishing status: ${runtimeFailures.map((item) => `${item.id} (${item.message})`).join("; ")}.`);
+  }
+  return {
+    ok,
+    required: REQUIRED_SUITE_PLUGINS,
+    installed: REQUIRED_SUITE_PLUGINS.filter((id) => installed.has(id)),
+    installedMissing,
+    runtimeChecks,
+    runtimeFailures,
+    message: ok ? "All required AJRM Marine suite plugins are installed and publishing/available." : parts.join(" "),
   };
 }
 

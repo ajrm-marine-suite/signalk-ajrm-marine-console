@@ -6,6 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const createPlugin = require("../plugin");
+const packageInfo = require("../package.json");
 const {
   TEST_TARGET_MMSI,
   TEST_TARGET_NAME,
@@ -224,6 +225,14 @@ test("Console exposes BITE status and run routes", async () => {
     },
   };
   const app = {
+    ajrmMarineConsoleAvailableWebapps: packageInfo.signalk.requires.map((id) => ({
+      id,
+      packageName: id,
+      title: id,
+      kind: "webapp",
+      url: `/${id}/`,
+      version: "0.5.0",
+    })),
     ajrmMarineCaptureApi: {
       async start() {
         return { id: "voyage-bite" };
@@ -290,6 +299,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusCode, 200);
   assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.scenario, "preflight-safety");
+  assert.equal(runBody.assertions.find((item) => item.id === "required-suite-plugins").pass, true);
 
   statusCode = 0;
   runBody = null;
@@ -443,6 +453,32 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.capture.started, false);
   assert.match(runBody.summary, /AJRM Marine Simulator output is ON/);
   assert.match(runBody.reports[0].summary, /AJRM Marine Simulator output is ON/);
+
+  values["plugins.ajrmMarineSimulator"] = {
+    outputEnabled: false,
+  };
+  app.ajrmMarineConsoleAvailableWebapps = app.ajrmMarineConsoleAvailableWebapps.filter(
+    (module) => module.id !== "signalk-ajrm-marine-audio",
+  );
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run-all")(
+    { body: { timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, false);
+  assert.equal(runBody.capture.started, false);
+  assert.match(runBody.summary, /Required AJRM Marine plugins are not installed: signalk-ajrm-marine-audio/);
+  assert.match(runBody.reports[0].summary, /Required AJRM Marine plugins are not installed/);
 
   delete process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR;
   fs.rmSync(reportsDir, { recursive: true, force: true });
