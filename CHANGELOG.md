@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.26
+
+- Update the Console web asset cache-buster after the BITE dashboard failure
+  handling change, so browsers load the corrected script immediately after
+  install.
+
 ## 0.5.25
 
 - Return completed BITE failures as normal JSON reports instead of HTTP 500
