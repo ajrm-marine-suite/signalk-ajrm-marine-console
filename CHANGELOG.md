@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.52
+
+- Raise the final BITE audible summary priority so it is spoken promptly after
+  the current announcement, without interrupting speech already in progress.
+
 ## 0.5.51
 
 - Give the final BITE audible summary longer to render before marking the

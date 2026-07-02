@@ -720,7 +720,7 @@ test("Console exposes BITE status and run routes", async () => {
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
     /Marine built in tests complete\. 8 tests passed/,
   );
-  assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 700);
+  assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 950);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.force, true);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].event.delivery.force, true);
