@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "AJRM Marine Console API",
-    "version": "0.5.13",
+    "version": "0.5.16",
     "description": "Configurable Console webapp manifest and selected webapp overview."
   },
   "servers": [
@@ -17,6 +17,50 @@
         "responses": {
           "200": {
             "description": "Current Console status"
+          }
+        }
+      }
+    },
+    "/bite/status": {
+      "get": {
+        "summary": "Get AJRM Marine BITE status and the last run report",
+        "responses": {
+          "200": {
+            "description": "Current BITE status"
+          }
+        }
+      }
+    },
+    "/bite/run": {
+      "post": {
+        "summary": "Run the guarded collision-audio BITE scenario",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "timeoutSeconds": {
+                    "type": "number",
+                    "minimum": 5,
+                    "maximum": 120,
+                    "default": 45
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "BITE passed"
+          },
+          "409": {
+            "description": "A BITE run is already in progress"
+          },
+          "500": {
+            "description": "BITE failed"
           }
         }
       }

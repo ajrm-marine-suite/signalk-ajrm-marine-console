@@ -10,6 +10,7 @@ const {
   selectedWebappIds,
   suiteAppCatalog,
 } = require("./modules");
+const { createBiteController } = require("./bite");
 
 const PLUGIN_ID = "signalk-ajrm-marine-console";
 const STATUS_PATH = "plugins.ajrmMarineConsole";
@@ -19,6 +20,10 @@ module.exports = function ajrmMarineConsole(app) {
   let options = normalizeOptions({});
   let availableWebapps = discoverWebapps();
   let status = null;
+  const bite = createBiteController(app, {
+    pluginId: PLUGIN_ID,
+    version: packageInfo.version,
+  });
 
   plugin.id = PLUGIN_ID;
   plugin.name = "AJRM Marine Console";
@@ -56,6 +61,26 @@ module.exports = function ajrmMarineConsole(app) {
       res.set?.("Cache-Control", "no-store");
       res.json({ ok: true, ...status });
     });
+    router.get(`${prefix}/bite/status`, (_req, res) => {
+      res.set?.("Cache-Control", "no-store");
+      res.json(bite.status());
+    });
+    if (typeof router.post === "function") {
+      router.post(`${prefix}/bite/run`, async (req, res) => {
+        try {
+          const report = await bite.run(req.body || {});
+          res.set?.("Cache-Control", "no-store");
+          res.status?.(report.ok ? 200 : 500);
+          res.json(report);
+        } catch (error) {
+          res.status?.(error.statusCode || 500);
+          res.json({
+            ok: false,
+            error: error.message || String(error),
+          });
+        }
+      });
+    }
   }
 
   function buildStatus(sessionId = randomUUID()) {

@@ -36,8 +36,28 @@ server:
 
 ## Stage 2: Pi Server BITE
 
-The Pi BITE runner should be a guarded command exposed from Console or a
-dedicated internal script. It should:
+The first Pi BITE runner is exposed from Console:
+
+```bash
+curl -sk -X POST https://localhost:3443/plugins/signalk-ajrm-marine-console/bite/run \
+  -H 'Content-Type: application/json' \
+  -d '{"timeoutSeconds":45}'
+```
+
+It publishes a short synthetic crossing encounter using the temporary AIS target
+`BITE TEST TARGET` / MMSI `999123456`, then watches Traffic, Notifications, and
+Audio status paths. At the end of the run it publishes a quiet cleanup sample so
+the synthetic encounter clears from Traffic.
+
+The runner returns a machine-readable report with `pass`/`fail` assertions for:
+
+- Traffic publishing a `warn`, `alarm`, or `emergency` for the BITE target.
+- Notifications publishing matching audio delivery.
+- Audio accepting, queueing, rendering, skipping, or muting matching BITE audio.
+- Any mute condition being explicit rather than silent.
+
+The next Pi BITE runner should use Simulator's GPX route-following mode for a
+longer realistic voyage. It should:
 
 1. Read and save current Traffic, Audio, Simulator, Capture, and Notifications
    settings.
@@ -83,4 +103,3 @@ The output should be compared as a semantic event stream, not by exact wall-cloc
 timestamps. CPA distances, TCPA wording, and event times may vary slightly; the
 safety requirement is that required visual and audible events exist in the right
 order with explicit reasons for any suppression.
-

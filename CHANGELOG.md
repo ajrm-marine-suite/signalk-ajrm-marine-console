@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.16
+
+- Add first Console BITE routes: `GET /bite/status` and `POST /bite/run`.
+  The initial guarded scenario publishes a temporary crossing target, verifies
+  the Traffic -> Notifications -> Audio safety chain, then publishes a quiet
+  cleanup sample.
+
 ## 0.5.15
 
 - Make the Console browser-audio host consume Audio's recent-announcements
