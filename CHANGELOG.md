@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.18
+
+- Publish BITE synthetic vessel deltas using Signal K `$source` and root vessel
+  static data, matching the simulator's delta shape so Traffic can ingest the
+  temporary target.
+
 ## 0.5.17
 
 - Fix the first BITE collision scenario to use a collision-capable vessel MMSI

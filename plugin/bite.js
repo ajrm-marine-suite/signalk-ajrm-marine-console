@@ -191,12 +191,12 @@ function publishSyntheticEncounter(app, { pluginId, runId, quiet }) {
   const targetCourse = quiet ? 0 : (270 * Math.PI) / 180;
   const ownSpeed = quiet ? 0 : 5 * KNOTS_TO_MPS;
   const ownCourse = quiet ? 0 : Math.PI / 2;
-  const source = { label: "AJRM Marine BITE", type: "BITE", src: runId };
+  const sourceName = `ajrm-marine-bite-${runId}`;
 
   app.handleMessage(pluginId, {
     context: "vessels.self",
     updates: [{
-      source,
+      $source: sourceName,
       timestamp,
       values: [
         { path: "navigation.position", value: OWN_POSITION },
@@ -211,16 +211,21 @@ function publishSyntheticEncounter(app, { pluginId, runId, quiet }) {
   app.handleMessage(pluginId, {
     context: `vessels.urn:mrn:imo:mmsi:${TEST_TARGET_MMSI}`,
     updates: [{
-      source,
+      $source: sourceName,
       timestamp,
       values: [
-        { path: "mmsi", value: TEST_TARGET_MMSI },
-        { path: "name", value: quiet ? `${TEST_TARGET_NAME} QUIET` : TEST_TARGET_NAME },
+        {
+          path: "",
+          value: {
+            mmsi: TEST_TARGET_MMSI,
+            name: quiet ? `${TEST_TARGET_NAME} QUIET` : TEST_TARGET_NAME,
+          },
+        },
         { path: "navigation.position", value: targetPosition },
         { path: "navigation.speedOverGround", value: targetSpeed },
         { path: "navigation.courseOverGroundTrue", value: targetCourse },
         { path: "navigation.state", value: quiet ? "stopped" : "underWay" },
-        { path: "design.length", value: 60 },
+        { path: "design.length", value: { overall: 60 } },
         { path: "design.beam", value: 12 },
         { path: "sensors.ais.class", value: "A" },
       ],

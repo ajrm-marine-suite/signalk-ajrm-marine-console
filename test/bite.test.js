@@ -96,7 +96,10 @@ test("BITE publishes synthetic own-vessel and target deltas", () => {
   assert.equal(messages.length, 2);
   assert.equal(messages[0].message.context, "vessels.self");
   assert.equal(messages[1].message.context, `vessels.urn:mrn:imo:mmsi:${TEST_TARGET_MMSI}`);
-  assert.ok(messages[1].message.updates[0].values.some((item) => item.value === TEST_TARGET_NAME));
+  assert.ok(messages[1].message.updates[0].$source.startsWith("ajrm-marine-bite-"));
+  assert.ok(messages[1].message.updates[0].values.some((item) =>
+    item.path === "" && item.value.name === TEST_TARGET_NAME && item.value.mmsi === TEST_TARGET_MMSI
+  ));
 });
 
 test("Console exposes BITE status and run routes", async () => {
