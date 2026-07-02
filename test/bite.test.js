@@ -183,6 +183,15 @@ test("Console exposes BITE status and run routes", async () => {
       },
     },
     getSelfPath(path) {
+      if (path === "plugins.ajrmMarineNotifications") {
+        values[path].active[0].timestamp = new Date().toISOString();
+      }
+      if (path === "plugins.ajrmMarineNotifications.audio") {
+        values[path].timestamp = new Date().toISOString();
+      }
+      if (path === "plugins.ajrmMarineAudio") {
+        values[path].recentEvents[0].ts = new Date().toISOString();
+      }
       return values[path] || null;
     },
     handleMessage() {},
@@ -212,6 +221,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.running, false);
   assert.equal(Array.isArray(statusBody.tests), true);
   assert.equal(statusBody.tests[0].number, 0);
+  assert.equal(statusBody.tests[1].id, "core-projections");
 
   let statusCode = 0;
   let runBody;
@@ -228,8 +238,26 @@ test("Console exposes BITE status and run routes", async () => {
     },
   );
   assert.equal(statusCode, 200);
-  assert.equal(runBody.ok, true);
+  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.scenario, "preflight-safety");
+
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "core-projections", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, true);
+  assert.equal(runBody.scenario, "core-projections");
 
   statusCode = 0;
   runBody = null;
@@ -246,7 +274,7 @@ test("Console exposes BITE status and run routes", async () => {
     },
   );
   assert.equal(statusCode, 200);
-  assert.equal(runBody.ok, true);
+  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.scenario, "collision-audio-chain");
   assert.equal(runBody.consoleVersion, require("../package.json").version);
   assert.ok(fs.readdirSync(reportsDir).some((name) => name.endsWith(".json")));
@@ -302,11 +330,17 @@ test("Console exposes BITE status and run routes", async () => {
     },
   );
   assert.equal(statusCode, 200);
-  assert.equal(runBody.ok, true);
+  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.contract, "ajrm-marine-console-bite-run-all-report");
   assert.equal(runBody.capture.started, true);
   assert.equal(runBody.capture.stop.fileName, "voyage-bite.zip");
-  assert.equal(runBody.reports.length, 2);
+  assert.equal(runBody.reports.length, 4);
+  assert.deepEqual(runBody.reports.map((report) => report.testId), [
+    "preflight-safety",
+    "core-projections",
+    "collision-audio-chain",
+    "quiet-target-no-alert",
+  ]);
 
   values["navigation.position"] = {
     value: { latitude: 56, longitude: -5 },

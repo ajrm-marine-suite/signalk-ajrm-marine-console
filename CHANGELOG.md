@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.31
+
+- Add BITE test `01 Core status projections` to confirm Traffic, Display,
+  Notifications, and Audio are publishing the status paths the harness needs.
+- Keep the collision test as `02 Collision visual/audio chain`.
+- Add BITE test `03 Quiet target no-alert` to confirm a stopped/far-away
+  synthetic target does not create a fresh visual or audible alert.
+- Tighten BITE no-alert matching so negative tests require the exact synthetic
+  target rather than the broader BITE collision phrase matcher.
+
 ## 0.5.30
 
 - Add BITE test `00 Pre-test safety isolation`, which checks for active

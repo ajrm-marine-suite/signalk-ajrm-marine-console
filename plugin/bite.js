@@ -12,6 +12,8 @@ const PREFLIGHT_LIVE_DATA_MAX_AGE_MS = 15000;
 const KNOTS_TO_MPS = 0.514444;
 const TEST_TARGET_MMSI = "235912345";
 const TEST_TARGET_NAME = "BITE TEST TARGET";
+const QUIET_TEST_TARGET_MMSI = "235912346";
+const QUIET_TEST_TARGET_NAME = "BITE QUIET TARGET";
 const OWN_POSITION = { latitude: 56.21122, longitude: -5.55756 };
 const TARGET_POSITION = { latitude: 56.21122, longitude: -5.54756 };
 const QUIET_TARGET_POSITION = { latitude: 56.24122, longitude: -5.49756 };
@@ -35,11 +37,25 @@ const TESTS = [
     blocking: true,
   },
   {
-    id: "collision-audio-chain",
+    id: "core-projections",
     number: 1,
+    title: "Core status projections",
+    description: "Checks that Traffic, Display, Notifications, and Audio are publishing the status paths BITE needs to observe.",
+    timeoutSeconds: 10,
+  },
+  {
+    id: "collision-audio-chain",
+    number: 2,
     title: "Collision visual/audio chain",
     description: "Publishes a temporary crossing target and checks Traffic, Display, Notifications, and Audio all react.",
     timeoutSeconds: 45,
+  },
+  {
+    id: "quiet-target-no-alert",
+    number: 3,
+    title: "Quiet target no-alert",
+    description: "Publishes a stopped/far-away target and checks the suite does not create a fresh visual or audible alert for it.",
+    timeoutSeconds: 15,
   },
 ];
 const LIVE_FEED_PATHS = [
@@ -104,14 +120,12 @@ function createBiteController(app, { pluginId, version }) {
           error.statusCode = 400;
           throw error;
         }
-        const report = testId === PREFLIGHT_TEST_ID
-          ? await runPreflightBite(app, { consoleVersion: version, timeoutMs: boundedTimeout(options.timeoutSeconds) })
-          : await runCollisionAudioBite(app, {
-              pluginId,
-              testId,
-              consoleVersion: version,
-              timeoutMs: boundedTimeout(options.timeoutSeconds),
-            });
+        const report = await runBiteTestById(app, {
+          pluginId,
+          testId,
+          consoleVersion: version,
+          timeoutMs: boundedTimeout(options.timeoutSeconds),
+        });
         reports = [...reports, report].slice(-MAX_REPORTS);
         await saveReport(report);
         return report;
@@ -184,7 +198,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       captureError = "AJRM Marine Capture API is unavailable; BITE reports will still be written but no voyage bundle will be created.";
     }
     for (const test of TESTS.filter((item) => item.id !== PREFLIGHT_TEST_ID)) {
-      const report = await runCollisionAudioBite(app, {
+      const report = await runBiteTestById(app, {
         pluginId,
         testId: test.id,
         consoleVersion,
@@ -271,6 +285,15 @@ function runAllSummary({ failed, captureStart, captureStop, captureError, count 
   return `${testText} passed. ${captureText}`;
 }
 
+async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  if (testId === PREFLIGHT_TEST_ID) return runPreflightBite(app, { consoleVersion });
+  if (testId === "core-projections") return runCoreProjectionBite(app, { consoleVersion });
+  if (testId === "quiet-target-no-alert") {
+    return runQuietTargetNoAlertBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+}
+
 async function runPreflightBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -321,6 +344,57 @@ async function runPreflightBite(app, { consoleVersion }) {
   };
 }
 
+async function runCoreProjectionBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const assertions = [
+    assertion(
+      "traffic-projection",
+      Boolean(snapshot.traffic || snapshot.trafficAudioPolicy),
+      snapshot.traffic || snapshot.trafficAudioPolicy
+        ? "Traffic status projection is present."
+        : "Traffic status projection is missing.",
+    ),
+    assertion(
+      "display-projection",
+      snapshot.display?.enabled !== false && snapshot.display?.contract === "ajrm-marine-display-status",
+      snapshot.display?.contract === "ajrm-marine-display-status"
+        ? "Display status projection is present and enabled."
+        : "Display status projection is missing or not recognised.",
+    ),
+    assertion(
+      "notifications-projection",
+      Boolean(snapshot.notifications || snapshot.notificationsAudio),
+      snapshot.notifications || snapshot.notificationsAudio
+        ? "Notifications projection is present."
+        : "Notifications projection is missing.",
+    ),
+    assertion(
+      "audio-projection",
+      Boolean(snapshot.audio),
+      snapshot.audio ? "Audio status projection is present." : "Audio status projection is missing.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "core-projections",
+    testId: "core-projections",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [],
+    summary: result === "pass"
+      ? "Core status projections are present."
+      : `Core status projection check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: summarizeSnapshot(snapshot),
+  });
+}
+
 async function runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -367,18 +441,13 @@ async function runCollisionAudioBite(app, { pluginId, testId, consoleVersion, ti
   }
 
   const finishedAt = new Date().toISOString();
-  return {
-    ok: result === "pass",
-    contract: "ajrm-marine-console-bite-report",
-    contractVersion: 1,
+  return biteReport({
     consoleVersion,
     runId,
     scenario: "collision-audio-chain",
     testId,
     result,
     startedAt,
-    finishedAt,
-    durationSeconds: Math.round((Date.parse(finishedAt) - startedAtMs) / 1000),
     target: {
       mmsi: TEST_TARGET_MMSI,
       name: TEST_TARGET_NAME,
@@ -387,7 +456,105 @@ async function runCollisionAudioBite(app, { pluginId, testId, consoleVersion, ti
     observations: observations.slice(-12),
     summary: summaryFor(result, assertions),
     snapshot: finalSnapshot ? summarizeSnapshot(finalSnapshot) : null,
+    finishedAt,
+    startedAtMs,
+  });
+}
+
+async function runQuietTargetNoAlertBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const observations = [];
+  let lastRefreshAt = 0;
+  let finalSnapshot = null;
+  let evaluation = null;
+
+  try {
+    publishSyntheticQuietTarget(app, { pluginId, runId });
+    while (Date.now() - startedAtMs <= timeoutMs) {
+      if (Date.now() - lastRefreshAt >= REFRESH_MS) {
+        publishSyntheticQuietTarget(app, { pluginId, runId });
+        lastRefreshAt = Date.now();
+      }
+      finalSnapshot = collectSnapshot(app);
+      evaluation = evaluateQuietTargetSnapshot(finalSnapshot, {
+        startedAtMs,
+        targetName: QUIET_TEST_TARGET_NAME,
+        targetMmsi: QUIET_TEST_TARGET_MMSI,
+      });
+      if (evaluation.observation) observations.push(evaluation.observation);
+      if (evaluation.complete) break;
+      await delay(POLL_MS);
+    }
+    if (!evaluation) {
+      finalSnapshot = collectSnapshot(app);
+      evaluation = evaluateQuietTargetSnapshot(finalSnapshot, {
+        startedAtMs,
+        targetName: QUIET_TEST_TARGET_NAME,
+        targetMmsi: QUIET_TEST_TARGET_MMSI,
+      });
+    }
+  } finally {
+    publishSyntheticQuietTarget(app, { pluginId, runId });
+  }
+
+  const result = evaluation?.result || "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "quiet-target-no-alert",
+    testId,
+    result,
+    startedAt,
+    startedAtMs,
+    target: {
+      mmsi: QUIET_TEST_TARGET_MMSI,
+      name: QUIET_TEST_TARGET_NAME,
+    },
+    assertions: evaluation?.assertions || [],
+    observations: observations.slice(-12),
+    summary: result === "pass"
+      ? "Quiet BITE target did not create a fresh visual or audible alert."
+      : `Quiet BITE target no-alert check failed: ${(evaluation?.assertions || []).filter((item) => !item.pass).map((item) => item.id).join(", ") || "unknown"}.`,
+    snapshot: finalSnapshot ? summarizeSnapshot(finalSnapshot) : null,
+  });
+}
+
+function biteReport({
+  consoleVersion,
+  runId,
+  scenario,
+  testId,
+  result,
+  startedAt,
+  startedAtMs,
+  target,
+  assertions,
+  observations,
+  summary,
+  snapshot,
+  finishedAt = new Date().toISOString(),
+}) {
+  const report = {
+    ok: result === "pass",
+    contract: "ajrm-marine-console-bite-report",
+    contractVersion: 1,
+    consoleVersion,
+    runId,
+    scenario,
+    testId,
+    result,
+    startedAt,
+    finishedAt,
+    durationSeconds: Math.round((Date.parse(finishedAt) - startedAtMs) / 1000),
+    assertions,
+    observations,
+    summary,
+    snapshot,
   };
+  if (target) report.target = target;
+  return report;
 }
 
 function loadReports() {
@@ -509,6 +676,65 @@ function evaluateCollisionAudioSnapshot(snapshot, { startedAtMs, targetName, tar
   };
 }
 
+function evaluateQuietTargetSnapshot(snapshot, { startedAtMs, targetName, targetMmsi }) {
+  const trafficAlert = findTrafficAlert(snapshot.traffic, targetName, targetMmsi);
+  const displayEvidence = findDisplayAlertEvidence(snapshot.notifications, {
+    startedAtMs,
+    targetName,
+    targetMmsi,
+    strict: true,
+  });
+  const audioEvidence = findAudioEvidence(snapshot.audio || {}, {
+    startedAtMs,
+    targetName,
+    targetMmsi,
+    strict: true,
+  });
+  const brokerEvidence = findBrokerAudioEvidence(snapshot.notificationsAudio, {
+    startedAtMs,
+    targetName,
+    targetMmsi,
+    strict: true,
+  });
+  const assertions = [
+    assertion(
+      "no-traffic-alert",
+      !trafficAlert,
+      trafficAlert
+        ? `Traffic unexpectedly published ${trafficAlert.encounter?.state} for ${trafficAlert.name}.`
+        : "Traffic did not publish an alert for the quiet target.",
+    ),
+    assertion(
+      "no-display-alert",
+      !displayEvidence,
+      displayEvidence
+        ? `Display-facing alert unexpectedly contains ${displayEvidence.state}: ${displayEvidence.message}`
+        : "Display-facing alerts do not contain the quiet target.",
+    ),
+    assertion(
+      "no-audio-alert",
+      !(audioEvidence || brokerEvidence),
+      audioEvidence || brokerEvidence
+        ? `Audio path unexpectedly contains quiet target message: ${(audioEvidence || brokerEvidence).message || ""}`
+        : "Audio path does not contain the quiet target.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return {
+    complete: result === "pass",
+    result,
+    assertions,
+    observation: trafficAlert || audioEvidence || brokerEvidence
+      ? {
+          ts: new Date().toISOString(),
+          trafficState: trafficAlert?.encounter?.state || "",
+          audioState: audioEvidence?.state || "",
+          message: audioEvidence?.message || brokerEvidence?.message || displayEvidence?.message || "",
+        }
+      : null,
+  };
+}
+
 function publishSyntheticEncounter(app, { pluginId, runId, quiet }) {
   const timestamp = new Date().toISOString();
   const targetPosition = quiet ? QUIET_TARGET_POSITION : TARGET_POSITION;
@@ -553,6 +779,50 @@ function publishSyntheticEncounter(app, { pluginId, runId, quiet }) {
         { path: "design.length", value: { overall: 60 } },
         { path: "design.beam", value: 12 },
         { path: "sensors.ais.class", value: "A" },
+      ],
+    }],
+  });
+}
+
+function publishSyntheticQuietTarget(app, { pluginId, runId }) {
+  const timestamp = new Date().toISOString();
+  const sourceName = `ajrm-marine-bite-${runId}`;
+
+  app.handleMessage(pluginId, {
+    context: "vessels.self",
+    updates: [{
+      $source: sourceName,
+      timestamp,
+      values: [
+        { path: "navigation.position", value: OWN_POSITION },
+        { path: "navigation.speedOverGround", value: 0 },
+        { path: "navigation.speedThroughWater", value: 0 },
+        { path: "navigation.courseOverGroundTrue", value: Math.PI / 2 },
+        { path: "navigation.headingTrue", value: Math.PI / 2 },
+        { path: "navigation.state", value: "stopped" },
+      ],
+    }],
+  });
+  app.handleMessage(pluginId, {
+    context: `vessels.urn:mrn:imo:mmsi:${QUIET_TEST_TARGET_MMSI}`,
+    updates: [{
+      $source: sourceName,
+      timestamp,
+      values: [
+        {
+          path: "",
+          value: {
+            mmsi: QUIET_TEST_TARGET_MMSI,
+            name: QUIET_TEST_TARGET_NAME,
+          },
+        },
+        { path: "navigation.position", value: QUIET_TARGET_POSITION },
+        { path: "navigation.speedOverGround", value: 0 },
+        { path: "navigation.courseOverGroundTrue", value: 0 },
+        { path: "navigation.state", value: "stopped" },
+        { path: "design.length", value: { overall: 12 } },
+        { path: "design.beam", value: 4 },
+        { path: "sensors.ais.class", value: "B" },
       ],
     }],
   });
@@ -696,18 +966,20 @@ function findTrafficAlert(traffic, targetName, targetMmsi) {
   }) || null;
 }
 
-function findBrokerAudioEvidence(value, { startedAtMs, targetName, targetMmsi }) {
+function findBrokerAudioEvidence(value, { startedAtMs, targetName, targetMmsi, strict = false }) {
   const candidates = flattenObjects(value);
   const freshTimestamp = candidates.some((candidate) =>
     freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs),
   );
   return candidates.find((candidate) =>
     (freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs) || freshTimestamp)
-    && messageMatches(candidate?.message || candidate?.presentation?.message || candidate?.audioMessage, targetName, targetMmsi)
+    && messageMatches(candidate?.message || candidate?.presentation?.message || candidate?.audioMessage, targetName, targetMmsi, {
+      allowBiteWildcard: !strict,
+    })
   ) || null;
 }
 
-function findDisplayAlertEvidence(value, { startedAtMs, targetName, targetMmsi }) {
+function findDisplayAlertEvidence(value, { startedAtMs, targetName, targetMmsi, strict = false }) {
   const candidates = flattenObjects(value);
   const freshTimestamp = candidates.some((candidate) =>
     freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs),
@@ -719,7 +991,7 @@ function findDisplayAlertEvidence(value, { startedAtMs, targetName, targetMmsi }
     return visualEnabled
       && isAlertState(state)
       && (freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs) || freshTimestamp)
-      && messageMatches(message, targetName, targetMmsi);
+      && messageMatches(message, targetName, targetMmsi, { allowBiteWildcard: !strict });
   });
   if (!match) return null;
   return {
@@ -740,7 +1012,7 @@ function isAlertState(state) {
   ].includes(String(state || "").toLowerCase());
 }
 
-function findAudioEvidence(audio, { startedAtMs, targetName, targetMmsi }) {
+function findAudioEvidence(audio, { startedAtMs, targetName, targetMmsi, strict = false }) {
   const candidates = [];
   if (audio?.timeline?.event) candidates.push({ ...audio.timeline.event, source: "timeline" });
   for (const event of audio?.recentEvents || []) candidates.push({ ...event, source: "recentEvents" });
@@ -755,7 +1027,7 @@ function findAudioEvidence(audio, { startedAtMs, targetName, targetMmsi }) {
     const message = candidate.message || "";
     const state = String(candidate.state || candidate.event || "");
     return freshEnough(ts, startedAtMs)
-      && messageMatches(message, targetName, targetMmsi)
+      && messageMatches(message, targetName, targetMmsi, { allowBiteWildcard: !strict })
       && /accepted|queued|audio-ready|rendered|speaker|skipped|muted|lastAnnouncement/i.test(state);
   });
   if (!match) return null;
@@ -783,9 +1055,11 @@ function flattenObjects(value) {
   }
 }
 
-function messageMatches(message, targetName, targetMmsi) {
+function messageMatches(message, targetName, targetMmsi, { allowBiteWildcard = true } = {}) {
   const text = String(message || "");
-  return text.includes(targetName) || text.includes(targetMmsi) || /BITE TEST/i.test(text);
+  return text.includes(targetName)
+    || text.includes(targetMmsi)
+    || (allowBiteWildcard && /BITE TEST/i.test(text));
 }
 
 function matchesTarget(target, targetName, targetMmsi) {
