@@ -171,7 +171,7 @@ function biteTestHtml(test) {
     disabled: "Disabled",
   }[state];
   const summary = state === "disabled"
-    ? test.disabledReason || "This optional test is disabled because the plugin is not installed."
+    ? test.disabledReason || "This optional test is disabled because the plugin is not installed, not enabled, or not visible."
     : state === "running"
     ? "Running now..."
     : result?.summary || test.description || "";
@@ -193,7 +193,7 @@ function renderBiteError(error) {
 async function runBiteTest(testId) {
   const test = biteTests().find((candidate) => candidate.id === testId) || {};
   if (test.enabled === false) {
-    els.biteLog.value = test.disabledReason || `BITE ${testId} is disabled because its optional plugin is not installed.`;
+    els.biteLog.value = test.disabledReason || `BITE ${testId} is disabled because its optional plugin is not installed, not enabled, or not visible.`;
     renderBitePanel();
     return;
   }

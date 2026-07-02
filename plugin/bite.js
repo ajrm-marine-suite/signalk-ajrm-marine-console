@@ -368,7 +368,7 @@ function biteTestsForApp(app) {
       enabled: evidence.installed,
       disabledReason: evidence.installed
         ? ""
-        : `${test.title} is disabled because ${test.pluginId} is not installed or not visible to Console.`,
+        : `${test.title} is disabled because ${test.pluginId} is not installed, not enabled, or not visible to Console.`,
     };
   }).sort((left, right) => Number(left.number || 0) - Number(right.number || 0));
 }
@@ -1067,7 +1067,7 @@ async function runHarbourEditorAvailabilityBite(app, { consoleVersion }) {
       evidence.installed,
       evidence.installed
         ? "Harbour Editor is installed and visible to Console."
-        : "Harbour Editor is not installed or not visible to Console.",
+        : "Harbour Editor is not installed, not enabled, or not visible to Console.",
     ),
     assertion(
       "harbour-editor-webapp-route",
@@ -1081,7 +1081,7 @@ async function runHarbourEditorAvailabilityBite(app, { consoleVersion }) {
       evidence.status?.contract === "ajrm-marine-harbour-editor-status" && evidence.status?.enabled === true,
       evidence.status?.contract === "ajrm-marine-harbour-editor-status"
         ? `Harbour Editor status reports ${evidence.status.harbourCount ?? "unknown"} harbour region(s).`
-        : "Harbour Editor status projection is missing; update or enable Harbour Editor.",
+        : "Harbour Editor status projection is missing; Harbour Editor may be absent, disabled, still starting, or older than v0.5.5.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";

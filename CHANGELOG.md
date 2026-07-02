@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.49
+
+- Make optional BITE plugin wording conservative: missing optional status now
+  says the plugin may be absent, disabled, still starting, or too old, rather
+  than implying Console can always distinguish those cases.
+
 ## 0.5.48
 
 - Read the optional Harbour Editor BITE status from the Signal K path
