@@ -8,6 +8,7 @@ const {
   TEST_TARGET_NAME,
   evaluateCollisionAudioSnapshot,
   publishSyntheticEncounter,
+  unwrapSignalKLeaf,
 } = require("../plugin/bite");
 
 function trafficProjection(state = "alarm") {
@@ -59,6 +60,13 @@ test("BITE target MMSI is a collision-capable vessel, not an AtoN or base statio
   assert.doesNotMatch(TEST_TARGET_MMSI, /^99\d{7}$/);
   assert.doesNotMatch(TEST_TARGET_MMSI, /^00\d{7}$/);
   assert.match(TEST_TARGET_MMSI, /^\d{9}$/);
+});
+
+test("BITE unwraps Signal K leaf values returned by getSelfPath", () => {
+  const projection = trafficProjection("alarm");
+  assert.equal(unwrapSignalKLeaf({ value: projection, timestamp: new Date().toISOString() }), projection);
+  assert.equal(unwrapSignalKLeaf(projection), projection);
+  assert.equal(unwrapSignalKLeaf(null), null);
 });
 
 test("BITE evaluation fails when Traffic alerts but Audio has no matching event", () => {

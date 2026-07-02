@@ -246,10 +246,22 @@ function collectSnapshot(app) {
 
 function readSelfPath(app, path) {
   try {
-    return app.getSelfPath?.(path) || null;
+    return unwrapSignalKLeaf(app.getSelfPath?.(path));
   } catch (_error) {
     return null;
   }
+}
+
+function unwrapSignalKLeaf(value) {
+  if (
+    value &&
+    typeof value === "object" &&
+    Object.prototype.hasOwnProperty.call(value, "value") &&
+    !Object.prototype.hasOwnProperty.call(value, "contract")
+  ) {
+    return value.value;
+  }
+  return value || null;
 }
 
 function findTrafficAlert(traffic, targetName, targetMmsi) {
@@ -384,4 +396,5 @@ module.exports = {
   createBiteController,
   evaluateCollisionAudioSnapshot,
   publishSyntheticEncounter,
+  unwrapSignalKLeaf,
 };

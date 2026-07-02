@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.19
+
+- Unwrap Signal K leaf values when BITE reads watched paths with `getSelfPath`,
+  so the report evaluates real Traffic, Notifications, and Audio projections
+  instead of the surrounding `{ value, timestamp }` wrapper.
+
 ## 0.5.18
 
 - Publish BITE synthetic vessel deltas using Signal K `$source` and root vessel
