@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.46
+
+- Move BITE `Audible summary output` to test `99` and always run it last,
+  after optional plugin checks.
+- Tighten the audible summary check so it waits for rendered/completed Audio
+  evidence instead of passing as soon as speaker playback starts.
+
 ## 0.5.45
 
 - Reset BITE traffic lights to amber on a fresh page load or server restart

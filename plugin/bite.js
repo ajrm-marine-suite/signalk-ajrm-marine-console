@@ -92,7 +92,7 @@ const TESTS = [
   },
   {
     id: "audio-output-summary",
-    number: 8,
+    number: 99,
     title: "Audible summary output",
     description: "Publishes a final spoken BITE summary so the skipper can confirm the selected audio output was actually heard.",
     timeoutSeconds: 30,
@@ -282,7 +282,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       captureError = "AJRM Marine Capture API is unavailable; BITE reports will still be written but no voyage bundle will be created.";
       progress({ phase: "capture-unavailable", currentTestId: null });
     }
-    for (const test of biteTestsForApp(app).filter((item) => item.id !== PREFLIGHT_TEST_ID && item.enabled !== false)) {
+    for (const test of runnableBiteTestsForApp(app)) {
       progress({ phase: "running", currentTestId: test.id });
       const report = await runBiteTestById(app, {
         pluginId,
@@ -369,7 +369,17 @@ function biteTestsForApp(app) {
         ? ""
         : `${test.title} is disabled because ${test.pluginId} is not installed or not visible to Console.`,
     };
-  });
+  }).sort((left, right) => Number(left.number || 0) - Number(right.number || 0));
+}
+
+function runnableBiteTestsForApp(app) {
+  return biteTestsForApp(app)
+    .filter((item) => item.id !== PREFLIGHT_TEST_ID && item.enabled !== false)
+    .sort((left, right) => {
+      if (left.id === "audio-output-summary") return 1;
+      if (right.id === "audio-output-summary") return -1;
+      return Number(left.number || 0) - Number(right.number || 0);
+    });
 }
 
 function preflightReason(report) {
@@ -721,7 +731,7 @@ function biteAudioSummaryEvidence(audio, { message, startedAtMs }) {
   if (!audio || typeof audio !== "object") return null;
   const renderedEvent = (audio.recentEvents || []).find((event) =>
     audioEventMatchesSummary(event, { message, startedAtMs }) &&
-    /rendered|speaker-started|completed|audio-ready/.test(String(event.event || "").toLowerCase())
+    /rendered|completed/.test(String(event.event || "").toLowerCase())
   );
   if (renderedEvent) {
     return {

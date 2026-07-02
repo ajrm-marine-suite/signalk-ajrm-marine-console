@@ -520,9 +520,11 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(Array.isArray(statusBody.tests), true);
   assert.equal(statusBody.tests[0].number, 0);
   assert.equal(statusBody.tests[1].id, "core-projections");
-  assert.equal(statusBody.tests.at(-1).id, "harbour-editor-availability");
-  assert.equal(statusBody.tests.at(-1).enabled, false);
-  assert.match(statusBody.tests.at(-1).disabledReason, /signalk-ajrm-marine-harbour-editor/);
+  assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
+  assert.equal(statusBody.tests.at(-1).number, 99);
+  const harbourStatusTest = statusBody.tests.find((item) => item.id === "harbour-editor-availability");
+  assert.equal(harbourStatusTest.enabled, false);
+  assert.match(harbourStatusTest.disabledReason, /signalk-ajrm-marine-harbour-editor/);
   assert.equal(statusBody.latestReportsByTest, undefined);
 
   app.ajrmMarineConsoleAvailableWebapps.push({
@@ -549,8 +551,8 @@ test("Console exposes BITE status and run routes", async () => {
       statusBody = value;
     },
   });
-  assert.equal(statusBody.tests.at(-1).id, "harbour-editor-availability");
-  assert.equal(statusBody.tests.at(-1).enabled, true);
+  assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
+  assert.equal(statusBody.tests.find((item) => item.id === "harbour-editor-availability").enabled, true);
 
   let statusCode = 0;
   let runBody;
