@@ -314,7 +314,7 @@ function findDisplayAlertEvidence(value, { startedAtMs, targetName, targetMmsi }
   const freshTimestamp = candidates.some((candidate) =>
     freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs),
   );
-  return candidates.find((candidate) => {
+  const match = candidates.find((candidate) => {
     const state = String(candidate?.state || candidate?.priority?.level || "").toLowerCase();
     const message = candidate?.message || candidate?.presentation?.message || "";
     const visualEnabled = candidate?.delivery?.visual !== false;
@@ -322,7 +322,13 @@ function findDisplayAlertEvidence(value, { startedAtMs, targetName, targetMmsi }
       && isAlertState(state)
       && (freshEnough(candidate?.timestamp || candidate?.ts || candidate?.createdAt, startedAtMs) || freshTimestamp)
       && messageMatches(message, targetName, targetMmsi);
-  }) || null;
+  });
+  if (!match) return null;
+  return {
+    ...match,
+    state: String(match?.state || match?.priority?.level || "").toLowerCase(),
+    message: match?.message || match?.presentation?.message || "",
+  };
 }
 
 function isAlertState(state) {

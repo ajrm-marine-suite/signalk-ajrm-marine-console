@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.23
+
+- Clean up the Display-facing BITE assertion text so successful reports show
+  the matched priority level and collision message rather than raw nested
+  projection fields.
+
 ## 0.5.22
 
 - Make the Display-facing BITE assertion recognise Notifications priority
