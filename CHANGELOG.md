@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.53
+
+- During BITE Run all, pause Capture automatic recording, manually start the
+  BITE capture, wait briefly before injecting test traffic, then stop Capture
+  and restore the previous automatic-recording setting.
+- Temporarily unmute AJRM Marine Traffic audio during BITE Run all and restore
+  the skipper's previous mute state after the test.
+
 ## 0.5.52
 
 - Raise the final BITE audible summary priority so it is spoken promptly after

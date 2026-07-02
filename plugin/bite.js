@@ -131,6 +131,7 @@ const DEFAULT_REPORTS_DIRECTORY = path.join(
 );
 const MAX_REPORTS = 50;
 const AJRM_MARINE_CAPTURE_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineCaptureApi");
+const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
 
 function createBiteController(app, { pluginId, version }) {
   let running = false;
@@ -227,10 +228,14 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
   const startedAt = new Date().toISOString();
   const reports = [];
   const capture = captureApi(app);
+  const traffic = trafficApi(app);
   const captureComment = `AJRM Marine BITE ${new Date().toISOString()}`;
   let captureStart = null;
   let captureStop = null;
   let captureError = null;
+  let captureWasAutomatic = null;
+  let trafficWasMuted = null;
+  let restoreError = null;
   const progress = (extra = {}) => {
     if (typeof onProgress !== "function") return;
     onProgress({
@@ -246,6 +251,11 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
         start: captureStart,
         stop: captureStop,
         error: captureError,
+        automaticRecordingBeforeTest: captureWasAutomatic,
+      },
+      trafficAudio: {
+        mutedBeforeTest: trafficWasMuted,
+        restoreError,
       },
       reports: [...reports],
       ...extra,
@@ -273,12 +283,31 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
         stoppedByPreflight: true,
       });
     }
+    if (traffic?.status && traffic?.setAudioPolicy) {
+      try {
+        const trafficStatus = await traffic.status();
+        trafficWasMuted = trafficStatus?.audioPolicy?.muted === true;
+        await traffic.setAudioPolicy({ muted: false });
+        progress({ phase: "audio-unmuted", currentTestId: null });
+      } catch (error) {
+        restoreError = `Traffic audio setup failed: ${error.message || String(error)}`;
+        progress({ phase: "audio-setup-failed", currentTestId: null });
+      }
+    }
     if (capture?.start) {
+      if (capture?.status && capture?.setAutomaticRecordingEnabled) {
+        const captureStatus = await capture.status();
+        captureWasAutomatic = captureStatus?.enabled === true;
+        await capture.setAutomaticRecordingEnabled(false);
+        progress({ phase: "capture-auto-disabled", currentTestId: null });
+      }
       captureStart = await capture.start({
         comment: captureComment,
         reason: "BITE run all",
       });
       progress({ phase: "capture-started", currentTestId: null });
+      await delay(biteCaptureStartSettleMs());
+      progress({ phase: "capture-start-settled", currentTestId: null });
     } else {
       captureError = "AJRM Marine Capture API is unavailable; BITE reports will still be written but no voyage bundle will be created.";
       progress({ phase: "capture-unavailable", currentTestId: null });
@@ -306,6 +335,24 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
         progress({ phase: "capture-stop-failed", currentTestId: null });
       }
     }
+    if (capture?.setAutomaticRecordingEnabled && captureWasAutomatic !== null) {
+      try {
+        await capture.setAutomaticRecordingEnabled(captureWasAutomatic);
+        progress({ phase: "capture-auto-restored", currentTestId: null });
+      } catch (error) {
+        restoreError = `Capture automatic recording restore failed: ${error.message || String(error)}`;
+        progress({ phase: "capture-auto-restore-failed", currentTestId: null });
+      }
+    }
+    if (traffic?.setAudioPolicy && trafficWasMuted !== null) {
+      try {
+        await traffic.setAudioPolicy({ muted: trafficWasMuted });
+        progress({ phase: "audio-restored", currentTestId: null });
+      } catch (error) {
+        restoreError = `Traffic audio restore failed: ${error.message || String(error)}`;
+        progress({ phase: "audio-restore-failed", currentTestId: null });
+      }
+    }
   }
 
   return runAllReport({
@@ -317,6 +364,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
     captureStop,
     captureError,
     captureComment,
+    restoreError,
   });
 }
 
@@ -329,19 +377,21 @@ function runAllReport({
   captureStop,
   captureError,
   captureComment,
+  restoreError,
   stoppedByPreflight = false,
 }) {
   const finishedAt = new Date().toISOString();
   const failed = reports.filter((report) => !report.ok);
+  const ok = failed.length === 0 && !captureError && !restoreError;
   return {
-    ok: failed.length === 0 && !captureError,
+    ok,
     contract: "ajrm-marine-console-bite-run-all-report",
     contractVersion: 1,
     consoleVersion,
     runId,
     testId: "run-all",
     scenario: "run-all",
-    result: failed.length === 0 && !captureError ? "pass" : "fail",
+    result: ok ? "pass" : "fail",
     startedAt,
     finishedAt,
     durationSeconds: Math.round((Date.parse(finishedAt) - Date.parse(startedAt)) / 1000),
@@ -351,11 +401,12 @@ function runAllReport({
       start: captureStart,
       stop: captureStop,
       error: captureError,
+      restoreError,
     },
     reports,
     summary: stoppedByPreflight
       ? `BITE run all stopped by pre-test check: ${preflightReason(failed[0])}`
-      : runAllSummary({ failed, captureStart, captureStop, captureError, count: reports.length }),
+      : runAllSummary({ failed, captureStart, captureStop, captureError, restoreError, count: reports.length }),
   };
 }
 
@@ -393,9 +444,20 @@ function captureApi(app) {
   return app.ajrmMarineCaptureApi || globalThis[AJRM_MARINE_CAPTURE_API_REGISTRY] || null;
 }
 
-function runAllSummary({ failed, captureStart, captureStop, captureError, count }) {
+function trafficApi(app) {
+  return app.ajrmMarineTrafficApi || globalThis[AJRM_MARINE_TRAFFIC_API_REGISTRY] || null;
+}
+
+function biteCaptureStartSettleMs() {
+  const value = Number(process.env.AJRM_MARINE_BITE_CAPTURE_START_SETTLE_MS);
+  if (!Number.isFinite(value)) return 5000;
+  return Math.max(0, Math.min(15000, value));
+}
+
+function runAllSummary({ failed, captureStart, captureStop, captureError, restoreError, count }) {
   const testText = `${count} BITE test${count === 1 ? "" : "s"}`;
   if (captureError) return `${testText} completed with Capture error: ${captureError}`;
+  if (restoreError) return `${testText} completed with restore error: ${restoreError}`;
   const bundle = captureStop?.fileName || captureStop?.bundle?.fileName;
   const captureText = captureStart
     ? bundle

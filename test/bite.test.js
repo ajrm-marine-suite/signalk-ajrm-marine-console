@@ -358,6 +358,7 @@ test("BITE publishes synthetic own-vessel and target deltas", () => {
 });
 
 test("Console exposes BITE status and run routes", async () => {
+  process.env.AJRM_MARINE_BITE_CAPTURE_START_SETTLE_MS = "0";
   const reportsDir = fs.mkdtempSync(path.join(os.tmpdir(), "ajrm-console-bite-"));
   process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR = reportsDir;
   const startedAtMs = Date.now();
@@ -440,6 +441,8 @@ test("Console exposes BITE status and run routes", async () => {
     },
   };
   const messages = [];
+  const captureCommands = [];
+  const trafficCommands = [];
   const app = {
     ajrmMarineConsoleAvailableWebapps: packageInfo.signalk.requires.map((id) => ({
       id,
@@ -450,11 +453,29 @@ test("Console exposes BITE status and run routes", async () => {
       version: "0.5.0",
     })),
     ajrmMarineCaptureApi: {
+      async status() {
+        return { enabled: true };
+      },
+      async setAutomaticRecordingEnabled(enabled) {
+        captureCommands.push({ enabled });
+        return { enabled };
+      },
       async start() {
+        captureCommands.push({ start: true });
         return { id: "voyage-bite" };
       },
       async stop() {
+        captureCommands.push({ stop: true });
         return { fileName: "voyage-bite.zip" };
+      },
+    },
+    ajrmMarineTrafficApi: {
+      async status() {
+        return { audioPolicy: { muted: true } };
+      },
+      async setAudioPolicy(command) {
+        trafficCommands.push(command);
+        return { muted: command.muted === true };
       },
     },
     getSelfPath(path) {
@@ -704,6 +725,16 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.contract, "ajrm-marine-console-bite-run-all-report");
   assert.equal(runBody.capture.started, true);
   assert.equal(runBody.capture.stop.fileName, "voyage-bite.zip");
+  assert.deepEqual(captureCommands, [
+    { enabled: false },
+    { start: true },
+    { stop: true },
+    { enabled: true },
+  ]);
+  assert.deepEqual(trafficCommands, [
+    { muted: false },
+    { muted: true },
+  ]);
   assert.equal(runBody.reports.length, 9);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
@@ -806,6 +837,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.match(runBody.summary, /Required AJRM Marine plugins are not installed: signalk-ajrm-marine-audio/);
   assert.match(runBody.reports[0].summary, /Required AJRM Marine plugins are not installed/);
 
+  delete process.env.AJRM_MARINE_BITE_CAPTURE_START_SETTLE_MS;
   delete process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR;
   fs.rmSync(reportsDir, { recursive: true, force: true });
 });
