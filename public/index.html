@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#071826" />
     <title>AJRM Marine Console</title>
-    <link rel="stylesheet" href="./styles.css?v=0.5.84" />
-    <script defer src="./app.js?v=0.5.84"></script>
+    <link rel="stylesheet" href="./styles.css?v=0.5.92" />
+    <script defer src="./app.js?v=0.5.92"></script>
   </head>
   <body>
     <header class="consolebar">
@@ -49,6 +49,10 @@
                 Run suite health checks and capture the evidence bundle for
                 offline diagnosis.
               </p>
+            </div>
+            <div id="biteOverall" class="bite-overall pending" aria-live="polite">
+              <span class="bite-light" aria-label="Not run"></span>
+              <strong>Not run</strong>
             </div>
             <button id="biteRunAll" class="help-button" type="button">Run all tests</button>
           </div>

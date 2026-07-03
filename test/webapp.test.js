@@ -30,6 +30,7 @@ test("Console uses one compact toolbar and hidden loading overlay cannot display
   assert.match(css, /grid-template-rows:\s*auto minmax\(0,\s*1fr\)/);
   assert.match(html, /id="overviewHelp"/);
   assert.match(html, /id="biteDashboard"/);
+  assert.match(html, /id="biteOverall"/);
   assert.match(html, /id="biteTests"/);
   assert.match(html, /id="biteRunAll"/);
   assert.match(html, /id="biteLog"/);
@@ -95,6 +96,8 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /function runAllBiteTests\(\)/);
   assert.match(script, /function runBiteGroup\(groupId\)/);
   assert.match(script, /function biteGroupHtml\(group, allTests, groupIndex = 0\)/);
+  assert.match(script, /function renderBiteOverall\(tests\)/);
+  assert.match(script, /function biteOverallState\(tests\)/);
   assert.match(script, /function biteGroupDisplayNumber\(group, groupIndex = 0\)/);
   assert.match(script, /const groupTitle = \[groupNumber, group\.title \|\| group\.id\]\.filter\(Boolean\)\.join\(" "\)/);
   assert.match(script, /BITE_STATUS_REFRESH_MS/);
@@ -134,6 +137,7 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.doesNotMatch(script, /event\.target\.closest\("\\[data-bite-group\\]"\)/);
   assert.match(script, /formatBiteReport/);
   assert.match(css, /\.bite-test\.disabled/);
+  assert.match(css, /\.bite-overall\.running \.bite-light \{ color: #38bdf8; background: #38bdf8; \}/);
   assert.match(css, /\.bite-test\.running \.bite-light \{ color: #38bdf8; background: #38bdf8; \}/);
   assert.match(css, /\.bite-group\.fail/);
   assert.match(css, /\.bite-group-header/);

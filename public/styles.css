@@ -153,6 +153,32 @@ h1, h2, p { margin-top: 0; }
   margin-bottom: .8rem;
 }
 .bite-header h3 { margin: 0; }
+.bite-overall {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  min-width: 7.4rem;
+  justify-content: center;
+  border: 1px solid #31546a;
+  border-radius: 999px;
+  padding: .55rem .75rem;
+  background: #061622;
+  color: #d8edf7;
+  font-size: .82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.bite-overall.pending .bite-light { color: #f59e0b; background: #f59e0b; }
+.bite-overall.running .bite-light { color: #38bdf8; background: #38bdf8; }
+.bite-overall.pass .bite-light { color: #22c55e; background: #22c55e; }
+.bite-overall.fail .bite-light { color: #ef4444; background: #ef4444; }
+.bite-overall.disabled {
+  opacity: .68;
+}
+.bite-overall.disabled .bite-light {
+  color: #64748b;
+  background: #64748b;
+}
 .bite-tests {
   display: grid;
   gap: .55rem;

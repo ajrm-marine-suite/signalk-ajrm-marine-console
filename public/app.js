@@ -41,6 +41,7 @@ const els = {
   tabs: document.getElementById("tabs"),
   overview: document.getElementById("overview"),
   biteDashboard: document.getElementById("biteDashboard"),
+  biteOverall: document.getElementById("biteOverall"),
   overviewHelp: document.getElementById("overviewHelp"),
   overviewHelpButton: document.getElementById("overviewHelpButton"),
   overviewBackButton: document.getElementById("overviewBackButton"),
@@ -120,6 +121,7 @@ function renderBitePanel() {
   const tests = biteTests();
   const enabledTests = tests.filter((test) => test.enabled !== false);
   els.biteRunAll.disabled = biteRunning || enabledTests.length === 0;
+  renderBiteOverall(tests);
   els.biteTests.innerHTML = biteGroups().map((group, index) => biteGroupHtml(group, tests, index)).join("")
     || '<p class="empty-note">No BITE tests are available.</p>';
   if (biteRunning && biteStatus?.currentRunAll) {
@@ -131,6 +133,23 @@ function renderBitePanel() {
       ? formatBiteReport(biteStatus.lastReport)
       : "BITE has not run yet.");
   }
+}
+
+function renderBiteOverall(tests) {
+  const state = biteOverallState(tests);
+  const label = biteStateLabel(state);
+  els.biteOverall.className = `bite-overall ${state}`;
+  els.biteOverall.innerHTML = `<span class="bite-light" aria-label="${escapeHtml(label)}"></span><strong>${escapeHtml(label)}</strong>`;
+}
+
+function biteOverallState(tests) {
+  if (biteRunning || biteStatus?.currentRunAll?.running) return "running";
+  const available = tests.filter((test) => test.enabled !== false);
+  if (!available.length) return "disabled";
+  const results = available.map((test) => biteResults[test.id]).filter(Boolean);
+  if (results.some((result) => result.ok === false)) return "fail";
+  if (results.length === available.length && results.every((result) => result.ok === true)) return "pass";
+  return "pending";
 }
 
 function biteTests() {
