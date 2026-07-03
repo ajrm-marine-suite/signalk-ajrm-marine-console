@@ -5903,7 +5903,9 @@ function validPosition(position) {
 
 function gpsUnavailable(state = {}) {
   const gps = state.gps || {};
-  return gps.fixValid === false ||
+  return state.trust === "lost" ||
+    state.acceptedGps === false ||
+    gps.fixValid === false ||
     (state.trust === "lost" && gps.fixValid == null && !validPosition(gps.position));
 }
 
@@ -5962,7 +5964,8 @@ function offsetPositionMeters(position, { eastMeters = 0, northMeters = 0 } = {}
 
 function currentAvailable(value = {}) {
   return value?.available === true ||
-    (Number.isFinite(Number(value.setTrue)) && Number.isFinite(Number(value.drift)));
+    (Number.isFinite(Number(value.setTrue)) && Number.isFinite(Number(value.drift))) ||
+    (Number.isFinite(Number(value.setTrueDegrees)) && Number.isFinite(Number(value.driftKnots)));
 }
 
 function displayMeters(value) {
