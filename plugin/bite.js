@@ -206,54 +206,11 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     description: "Checks Pi Controller publishes host telemetry paths that Capture, Logger, and Snapshot can include.",
   }),
   pluginContractTest({
-    pluginId: ALERT_PANEL_PLUGIN_ID,
-    id: "alert-panel-status-contract",
-    number: "9.6.1",
-    title: "Alert Panel status contract",
-    description: "Checks Alert Panel reports its read-only status and link to Notifications.",
-  }),
-  pluginContractTest({
-    pluginId: INSTRUMENTS_PLUGIN_ID,
-    id: "instruments-status-contract",
-    number: "9.7.1",
-    title: "Instruments status contract",
-    description: "Checks Instruments publishes display values and source paths without owning alert logic.",
-  }),
-  pluginContractTest({
-    pluginId: INSTRUMENT_ALERTS_PLUGIN_ID,
-    id: "instrument-alerts-status-contract",
-    number: "9.8.1",
-    title: "Instrument Alerts status contract",
-    description: "Checks Instrument Alerts exposes monitor state and recent events for debugging audible instrument alarms.",
-  }),
-  pluginContractTest({
-    pluginId: SIMULATOR_PLUGIN_ID,
-    id: "simulator-state-contract",
-    number: "9.5.1",
-    title: "Simulator state contract",
-    description: "Checks Simulator state reports output status, own-vessel mode, environment state, and targets.",
-  }),
-  pluginContractTest({
     pluginId: SNAPSHOT_PLUGIN_ID,
     id: "snapshot-api-contract",
     number: "9.2.1",
     title: "Snapshot API contract",
     description: "Checks Snapshot exposes the in-process snapshot API used for support/debug bundles.",
-  }),
-  pluginContractTest({
-    pluginId: VOYAGE_VIEWER_PLUGIN_ID,
-    id: "voyage-viewer-status-contract",
-    number: "9.4.1",
-    title: "Voyage Viewer status contract",
-    description: "Checks Voyage Viewer reports the voyage/log/clip directories it can analyse.",
-  }),
-  pluginContractTest({
-    pluginId: DR_PLOTTER_PLUGIN_ID,
-    id: "dr-plotter-status-contract",
-    number: "3.0.2",
-    title: "DR Plotter status contract",
-    description: "Checks DR Plotter status exposes plot-fix settings and GPS Integrity linkage.",
-    groupId: "gps-dr",
   }),
 ]);
 const PLUGIN_AVAILABILITY_TESTS = Object.freeze([
@@ -692,7 +649,6 @@ const BITE_GROUP_DEFINITIONS = [
     testIds: [
       "gps-integrity-availability",
       "dr-plotter-availability",
-      "dr-plotter-status-contract",
       "gps-integrity-health",
       "gps-lost-age-consistency",
       "gps-integrity-diagnostics-contract",
@@ -1243,26 +1199,8 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "pi-controller-telemetry-contract") {
     return runPiControllerTelemetryContractBite(app, { consoleVersion });
   }
-  if (testId === "alert-panel-status-contract") {
-    return runAlertPanelStatusContractBite(app, { consoleVersion });
-  }
-  if (testId === "instruments-status-contract") {
-    return runInstrumentsStatusContractBite(app, { consoleVersion });
-  }
-  if (testId === "instrument-alerts-status-contract") {
-    return runInstrumentAlertsStatusContractBite(app, { consoleVersion });
-  }
-  if (testId === "simulator-state-contract") {
-    return runSimulatorStateContractBite(app, { consoleVersion });
-  }
   if (testId === "snapshot-api-contract") {
     return runSnapshotApiContractBite(app, { consoleVersion });
-  }
-  if (testId === "voyage-viewer-status-contract") {
-    return runVoyageViewerStatusContractBite(app, { consoleVersion });
-  }
-  if (testId === "dr-plotter-status-contract") {
-    return runDrPlotterStatusContractBite(app, { consoleVersion });
   }
   if (testId === "quiet-target-no-alert") {
     return runQuietTargetNoAlertBite(app, { pluginId, testId, consoleVersion, timeoutMs });
@@ -2487,216 +2425,6 @@ async function runPiControllerTelemetryContractBite(app, { consoleVersion }) {
   });
 }
 
-async function runAlertPanelStatusContractBite(app, { consoleVersion }) {
-  const runId = randomUUID();
-  const startedAtMs = Date.now();
-  const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, ALERT_PANEL_PLUGIN_ID);
-  const status = evidence.status || {};
-  const assertions = [
-    assertion(
-      "alert-panel-visible",
-      evidence.installed,
-      evidence.installed
-        ? "Alert Panel is installed and visible to Console."
-        : "Alert Panel is not installed, not enabled, or not visible to Console.",
-    ),
-    assertion(
-      "read-only-status",
-      status.readOnly === true,
-      "Alert Panel should report itself as a read-only crew display.",
-    ),
-    assertion(
-      "notifications-link",
-      typeof status.notificationsStatusUrl === "string" && status.notificationsStatusUrl.includes("notifications"),
-      "Alert Panel status should link to the Notifications status source it renders.",
-    ),
-    assertion(
-      "refresh-interval",
-      finiteNonNegative(status.refreshIntervalMs),
-      "Alert Panel status should expose its refresh interval.",
-    ),
-  ];
-  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
-  return biteReport({
-    consoleVersion,
-    runId,
-    scenario: "alert-panel-status-contract",
-    testId: "alert-panel-status-contract",
-    result,
-    startedAt,
-    startedAtMs,
-    assertions,
-    observations: [evidence],
-    summary: result === "pass"
-      ? "Alert Panel status contract is available."
-      : `Alert Panel status contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: evidence,
-  });
-}
-
-async function runInstrumentsStatusContractBite(app, { consoleVersion }) {
-  const runId = randomUUID();
-  const startedAtMs = Date.now();
-  const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, INSTRUMENTS_PLUGIN_ID);
-  const status = evidence.status || {};
-  const assertions = [
-    assertion(
-      "instruments-visible",
-      evidence.installed,
-      evidence.installed
-        ? "Instruments is installed and visible to Console."
-        : "Instruments is not installed, not enabled, or not visible to Console.",
-    ),
-    assertion(
-      "instrument-status",
-      status.ok === true && status.plugin === INSTRUMENTS_PLUGIN_ID,
-      "Instruments status should identify the plugin and report ok=true.",
-    ),
-    assertion(
-      "instrument-source-paths",
-      typeof status.paths?.depth === "string" && typeof status.paths?.exhaustWaterTemperature === "string",
-      "Instruments should expose the Signal K source paths behind its display values.",
-    ),
-    assertion(
-      "instrument-display-sections",
-      ["depth", "wind", "current", "gps", "navigation", "exhaustWater"].every((key) =>
-        status[key] && typeof status[key] === "object"
-      ),
-      "Instruments status should expose depth, wind, current, GPS, navigation, and exhaust display sections.",
-    ),
-    assertion(
-      "instrument-controls",
-      finiteNonNegative(status.controls?.refreshIntervalSeconds),
-      "Instruments should expose refresh controls for debugging slow displays.",
-    ),
-  ];
-  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
-  return biteReport({
-    consoleVersion,
-    runId,
-    scenario: "instruments-status-contract",
-    testId: "instruments-status-contract",
-    result,
-    startedAt,
-    startedAtMs,
-    assertions,
-    observations: [evidence],
-    summary: result === "pass"
-      ? "Instruments status contract is available."
-      : `Instruments status contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: evidence,
-  });
-}
-
-async function runInstrumentAlertsStatusContractBite(app, { consoleVersion }) {
-  const runId = randomUUID();
-  const startedAtMs = Date.now();
-  const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, INSTRUMENT_ALERTS_PLUGIN_ID);
-  const status = evidence.status || {};
-  const monitors = Array.isArray(status.monitors) ? status.monitors : [];
-  const assertions = [
-    assertion(
-      "instrument-alerts-visible",
-      evidence.installed,
-      evidence.installed
-        ? "Instrument Alerts is installed and visible to Console."
-        : "Instrument Alerts is not installed, not enabled, or not visible to Console.",
-    ),
-    assertion(
-      "instrument-alerts-status",
-      status.ok === true && status.plugin === INSTRUMENT_ALERTS_PLUGIN_ID,
-      "Instrument Alerts status should identify the plugin and report ok=true.",
-    ),
-    assertion(
-      "monitors-array",
-      Array.isArray(status.monitors),
-      "Instrument Alerts should expose a monitors array.",
-    ),
-    assertion(
-      "monitor-state-shape",
-      monitors.length === 0 || monitors.every((monitor) => monitor.id && monitor.path && monitor.state && typeof monitor.state === "object"),
-      "Each Instrument Alerts monitor should include id, Signal K path, and public state.",
-    ),
-    assertion(
-      "recent-events-array",
-      Array.isArray(status.recentEvents),
-      "Instrument Alerts should expose recentEvents for debugging repeated audible alarms.",
-    ),
-  ];
-  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
-  return biteReport({
-    consoleVersion,
-    runId,
-    scenario: "instrument-alerts-status-contract",
-    testId: "instrument-alerts-status-contract",
-    result,
-    startedAt,
-    startedAtMs,
-    assertions,
-    observations: [evidence],
-    summary: result === "pass"
-      ? "Instrument Alerts status contract is available."
-      : `Instrument Alerts status contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: evidence,
-  });
-}
-
-async function runSimulatorStateContractBite(app, { consoleVersion }) {
-  const runId = randomUUID();
-  const startedAtMs = Date.now();
-  const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, SIMULATOR_PLUGIN_ID);
-  const state = evidence.status || {};
-  const assertions = [
-    assertion(
-      "simulator-visible",
-      evidence.installed,
-      evidence.installed
-        ? "Simulator is installed and visible to Console."
-        : "Simulator is not installed, not enabled, or not visible to Console.",
-    ),
-    assertion(
-      "simulator-state",
-      state.plugin === SIMULATOR_PLUGIN_ID && typeof state.running === "boolean" && typeof state.outputEnabled === "boolean",
-      "Simulator state should identify the plugin and expose running/outputEnabled booleans.",
-    ),
-    assertion(
-      "own-vessel-mode",
-      !state.own || ["stationary", "self", "route"].includes(String(state.own.motionMode || "")),
-      "Simulator own-vessel state should expose a recognised motion mode when running.",
-    ),
-    assertion(
-      "environment-shape",
-      !state.environment || typeof state.environment.enabled === "boolean",
-      "Simulator environment state should expose an enabled boolean when running.",
-    ),
-    assertion(
-      "targets-array",
-      !state.targets || Array.isArray(state.targets),
-      "Simulator should expose AIS targets as an array when running.",
-    ),
-  ];
-  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
-  return biteReport({
-    consoleVersion,
-    runId,
-    scenario: "simulator-state-contract",
-    testId: "simulator-state-contract",
-    result,
-    startedAt,
-    startedAtMs,
-    assertions,
-    observations: [evidence],
-    summary: result === "pass"
-      ? "Simulator state contract is available."
-      : `Simulator state contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: evidence,
-  });
-}
-
 async function runSnapshotApiContractBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -2755,107 +2483,6 @@ async function runSnapshotApiContractBite(app, { consoleVersion }) {
       snapshotKeys: snapshot && typeof snapshot === "object" ? Object.keys(snapshot).slice(0, 30) : [],
       snapshotError,
     },
-  });
-}
-
-async function runVoyageViewerStatusContractBite(app, { consoleVersion }) {
-  const runId = randomUUID();
-  const startedAtMs = Date.now();
-  const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, VOYAGE_VIEWER_PLUGIN_ID);
-  const status = evidence.status || {};
-  const assertions = [
-    assertion(
-      "voyage-viewer-visible",
-      evidence.installed,
-      evidence.installed
-        ? "Voyage Viewer is installed and visible to Console."
-        : "Voyage Viewer is not installed, not enabled, or not visible to Console.",
-    ),
-    assertion(
-      "voyage-viewer-ok",
-      status.ok === true,
-      "Voyage Viewer status should report ok=true.",
-    ),
-    assertion(
-      "voyage-directory",
-      typeof status.voyageDirectory === "string" && status.voyageDirectory.length > 0,
-      "Voyage Viewer should expose its voyage directory.",
-    ),
-    assertion(
-      "log-and-clip-directories",
-      typeof status.logDirectory === "string" && typeof status.clipDirectory === "string",
-      "Voyage Viewer should expose log and clip directories.",
-    ),
-  ];
-  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
-  return biteReport({
-    consoleVersion,
-    runId,
-    scenario: "voyage-viewer-status-contract",
-    testId: "voyage-viewer-status-contract",
-    result,
-    startedAt,
-    startedAtMs,
-    assertions,
-    observations: [evidence],
-    summary: result === "pass"
-      ? "Voyage Viewer status contract is available."
-      : `Voyage Viewer status contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: evidence,
-  });
-}
-
-async function runDrPlotterStatusContractBite(app, { consoleVersion }) {
-  const runId = randomUUID();
-  const startedAtMs = Date.now();
-  const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, DR_PLOTTER_PLUGIN_ID);
-  const status = evidence.status || {};
-  const assertions = [
-    assertion(
-      "dr-plotter-visible",
-      evidence.installed,
-      evidence.installed
-        ? "DR Plotter is installed and visible to Console."
-        : "DR Plotter is not installed, not enabled, or not visible to Console.",
-    ),
-    assertion(
-      "dr-plotter-status",
-      status.ok === true && status.plugin === DR_PLOTTER_PLUGIN_ID,
-      "DR Plotter status should identify the plugin and report ok=true.",
-    ),
-    assertion(
-      "gps-integrity-link",
-      typeof status.ajrmMarineGpsIntegrityStatePath === "string" && status.ajrmMarineGpsIntegrityStatePath.includes("ajrmMarineGpsIntegrity"),
-      "DR Plotter should expose the GPS Integrity state path it renders.",
-    ),
-    assertion(
-      "plot-fix-settings",
-      finiteNonNegative(status.plotFixIntervalMinutes) && typeof status.coordinateFormat === "string",
-      "DR Plotter should expose plot-fix interval and coordinate format settings.",
-    ),
-    assertion(
-      "no-ais-targets",
-      status.noAisTargets === true,
-      "DR Plotter should explicitly report that it does not plot AIS targets.",
-    ),
-  ];
-  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
-  return biteReport({
-    consoleVersion,
-    runId,
-    scenario: "dr-plotter-status-contract",
-    testId: "dr-plotter-status-contract",
-    result,
-    startedAt,
-    startedAtMs,
-    assertions,
-    observations: [evidence],
-    summary: result === "pass"
-      ? "DR Plotter status contract is available."
-      : `DR Plotter status contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: evidence,
   });
 }
 

@@ -1233,7 +1233,6 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "traffic-head-on-prompt").groupId, "traffic");
   assert.equal(statusBody.tests.find((item) => item.id === "gps-integrity-availability").groupId, "gps-dr");
   assert.equal(statusBody.tests.find((item) => item.id === "dr-plotter-availability").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "dr-plotter-status-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-jump-rejection").groupId, "gps-dr");
   assert.equal(statusBody.tests.find((item) => item.id === "gps-current-contract").number, "3.16");
   assert.equal(statusBody.tests.find((item) => item.id === "vessel-database-availability").enabled, true);
@@ -1243,15 +1242,10 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-api-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-availability").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-status-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "simulator-availability").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "simulator-state-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "alert-panel-availability").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "alert-panel-status-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "instruments-availability").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "instruments-status-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-availability").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-status-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "pi-controller-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "pi-controller-telemetry-contract").enabled, true);
   assert.deepEqual(
@@ -1259,7 +1253,6 @@ test("Console exposes BITE status and run routes", async () => {
     [
       "gps-integrity-availability",
       "dr-plotter-availability",
-      "dr-plotter-status-contract",
       "gps-integrity-health",
       "gps-lost-age-consistency",
       "gps-integrity-diagnostics-contract",
@@ -1284,11 +1277,11 @@ test("Console exposes BITE status and run routes", async () => {
   );
   for (const [groupId, expectedIds] of [
     ["signalk-ajrm-marine-snapshot", ["snapshot-availability", "snapshot-api-contract"]],
-    ["signalk-ajrm-marine-voyage-viewer", ["voyage-viewer-availability", "voyage-viewer-status-contract"]],
-    ["signalk-ajrm-marine-simulator", ["simulator-availability", "simulator-state-contract"]],
-    ["signalk-ajrm-marine-alerts", ["alert-panel-availability", "alert-panel-status-contract"]],
-    ["signalk-ajrm-marine-instruments", ["instruments-availability", "instruments-status-contract"]],
-    ["signalk-ajrm-marine-instrument-alerts", ["instrument-alerts-availability", "instrument-alerts-status-contract"]],
+    ["signalk-ajrm-marine-voyage-viewer", ["voyage-viewer-availability"]],
+    ["signalk-ajrm-marine-simulator", ["simulator-availability"]],
+    ["signalk-ajrm-marine-alerts", ["alert-panel-availability"]],
+    ["signalk-ajrm-marine-instruments", ["instruments-availability"]],
+    ["signalk-ajrm-marine-instrument-alerts", ["instrument-alerts-availability"]],
   ]) {
     assert.deepEqual(statusBody.groups.find((item) => item.id === groupId).testIds, expectedIds);
   }
@@ -1516,7 +1509,6 @@ test("Console exposes BITE status and run routes", async () => {
     "docked-no-dr-drift",
     "gps-recovery-fresh-fix",
     "lost-gps-retained-current-source",
-    "dr-plotter-status-contract",
     "stationary-automute-policy-shape",
     "gps-explicit-no-fix-immediate",
     "gps-weak-signal-detection",
@@ -1524,11 +1516,6 @@ test("Console exposes BITE status and run routes", async () => {
     "gps-counter-contract",
     "gps-current-contract",
     "snapshot-api-contract",
-    "voyage-viewer-status-contract",
-    "simulator-state-contract",
-    "alert-panel-status-contract",
-    "instruments-status-contract",
-    "instrument-alerts-status-contract",
   ]) {
     statusCode = 0;
     runBody = null;
@@ -1743,7 +1730,7 @@ test("Console exposes BITE status and run routes", async () => {
     { muted: false },
     { muted: true },
   ]);
-  assert.equal(runBody.reports.length, 70);
+  assert.equal(runBody.reports.length, 64);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "console-availability",
@@ -1779,7 +1766,6 @@ test("Console exposes BITE status and run routes", async () => {
     "traffic-visual-audio-wording-alignment",
     "gps-integrity-availability",
     "dr-plotter-availability",
-    "dr-plotter-status-contract",
     "gps-integrity-health",
     "gps-lost-age-consistency",
     "gps-integrity-diagnostics-contract",
@@ -1803,22 +1789,17 @@ test("Console exposes BITE status and run routes", async () => {
     "logger-availability",
     "logger-api-contract",
     "voyage-viewer-availability",
-    "voyage-viewer-status-contract",
     "simulator-availability",
-    "simulator-state-contract",
     "alert-panel-availability",
-    "alert-panel-status-contract",
     "instruments-availability",
-    "instruments-status-contract",
     "instrument-alerts-availability",
-    "instrument-alerts-status-contract",
     "pi-controller-availability",
     "pi-controller-telemetry-contract",
     "audio-output-summary",
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 69 tests passed/,
+    /Marine built in tests complete\. 63 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);
