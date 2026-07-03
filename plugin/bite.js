@@ -3028,7 +3028,7 @@ async function runGpsWeakSignalDetectionBite(app, { pluginId, consoleVersion, ti
       hdop: 12,
       satellites: 2,
       timeoutMs: Math.max(5000, timeoutMs - (Date.now() - startedAtMs)),
-      predicate: (state) => state.trust === "degraded" || state.degradedSignalActive === true,
+      predicate: (state) => gpsWeakSignalObserved(state),
     });
   } finally {
     publishDeadReckoningExerciseSample(app, {
@@ -3048,7 +3048,7 @@ async function runGpsWeakSignalDetectionBite(app, { pluginId, consoleVersion, ti
     assertion("weak-signal-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted."),
     assertion(
       "weak-signal-degraded",
-      degraded?.trust === "degraded" || degraded?.degradedSignalActive === true,
+      gpsWeakSignalObserved(degraded || {}),
       degraded
         ? `Weak sample trust=${degraded.trust}; degradedSignalActive=${degraded.degradedSignalActive}.`
         : "Weak GPS sample was not observed.",
@@ -3080,6 +3080,20 @@ async function runGpsWeakSignalDetectionBite(app, { pluginId, consoleVersion, ti
       : `GPS weak-signal detection failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: { baseline: gpsIntegritySummary(baseline || {}), degraded: gpsIntegritySummary(degraded || {}) },
   });
+}
+
+function gpsWeakSignalObserved(state = {}) {
+  const observed = state.diagnostics?.observed || {};
+  const hdop = Number(observed.hdop ?? state.gps?.hdop);
+  const satellites = Number(observed.satellites ?? state.gps?.satellites);
+  return (
+    (Number.isFinite(hdop) && hdop >= 12) ||
+    (Number.isFinite(satellites) && satellites <= 2)
+  ) && (
+    state.degradedSignalActive === true ||
+    state.diagnostics?.decision?.degradedSignalActive === true ||
+    (Array.isArray(state.reasons) && state.reasons.some((reason) => /HDOP|satellites/i.test(String(reason))))
+  );
 }
 
 async function runTrafficOvertakingWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {

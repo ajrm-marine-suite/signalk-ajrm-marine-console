@@ -206,6 +206,9 @@ h1, h2, p { margin-top: 0; }
   gap: .45rem;
   padding: .55rem;
 }
+.bite-group-tests[hidden] {
+  display: none;
+}
 .bite-group.pending > .bite-group-header .bite-light { color: #f59e0b; background: #f59e0b; }
 .bite-group.running > .bite-group-header .bite-light { color: #38bdf8; background: #38bdf8; }
 .bite-group.pass > .bite-group-header .bite-light { color: #22c55e; background: #22c55e; }
