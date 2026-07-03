@@ -996,7 +996,7 @@ test("Console exposes BITE status and run routes", async () => {
         injectScenarioMessage({
           mmsi: "235912355",
           name: "BITE ADVISORY TARGET",
-          visualMessage: "Traffic advisory. Medium vessel BITE ADVISORY TARGET at 11 o'clock. CPA will be on your port side. 320 meters in 7 minutes.",
+          visualMessage: "Traffic advisory. Small craft BITE ADVISORY TARGET at 12 o'clock. Close quarters. CPA 38 meters in 2 minutes.",
         });
       }
       if (String(message?.context || "").includes("235912356")) {

@@ -4230,19 +4230,19 @@ async function runTrafficAdvisoryNoActionPromptBite(app, { pluginId, testId, con
     target: {
       mmsi: ADVISORY_NO_PROMPT_TEST_TARGET_MMSI,
       name: ADVISORY_NO_PROMPT_TEST_TARGET_NAME,
-      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 720, northMeters: 220 }),
-      speedMps: 4 * KNOTS_TO_MPS,
-      courseRad: Math.PI,
-      lengthMeters: 28,
-      beamMeters: 7,
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 45 }),
+      speedMps: 3 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+      lengthMeters: 7,
+      beamMeters: 2,
       aisClass: "B",
     },
     own: {
       position: OWN_POSITION,
-      speedMps: 5 * KNOTS_TO_MPS,
+      speedMps: 6 * KNOTS_TO_MPS,
       courseRad: Math.PI / 2,
     },
-    expectedPatterns: [/Traffic advisory/i, /CPA/i],
+    expectedPatterns: [/Traffic advisory/i, /(Close quarters|CPA)/i],
     forbiddenPatterns: [
       /Head-on: alter starboard/i,
       /pass port-to-port/i,
@@ -4558,9 +4558,27 @@ async function runTrafficMessageScenarioBite(app, {
     observations: observations.slice(-12),
     summary: result === "pass"
       ? passSummary
-      : `${failSummary}: ${(evaluation?.assertions || []).filter((item) => !item.pass).map((item) => item.id).join(", ") || "unknown"}.`,
+      : trafficScenarioFailureSummary(failSummary, evaluation, finalSnapshot, target),
     snapshot: finalSnapshot ? summarizeSnapshot(finalSnapshot) : null,
   });
+}
+
+function trafficScenarioFailureSummary(prefix, evaluation, snapshot, target = {}) {
+  const failed = (evaluation?.assertions || []).filter((item) => !item.pass);
+  const failedIds = failed.map((item) => item.id).join(", ") || "unknown";
+  const snapshotSummary = snapshot ? summarizeSnapshot(snapshot) : null;
+  const targetLabel = target.name || target.mmsi || "scenario target";
+  const primary = [];
+  if (failed.some((item) => item.id === "traffic-alert")) primary.push("Traffic did not publish an alert/advisory for the target");
+  if (failed.some((item) => item.id === "display-message")) primary.push("Display/Notifications did not receive a visual message");
+  if (failed.some((item) => item.id === "audio-path-message")) primary.push("Notifications/Audio did not receive a spoken message");
+  const diagnostic = primary.length
+    ? primary.join("; ")
+    : failed.slice(0, 2).map((item) => item.message).join(" ");
+  const profileText = snapshotSummary
+    ? ` Profile=${snapshotSummary.trafficProfile || "unknown"}, Traffic targets=${snapshotSummary.trafficTargets ?? "unknown"}, active alert states=${(snapshotSummary.trafficAlertStates || []).join(", ") || "none"}.`
+    : "";
+  return `${prefix}: ${diagnostic || "No detailed failure diagnostic was available"}. Target=${targetLabel}. Failed checks: ${failedIds}.${profileText}`;
 }
 
 async function runStationaryAutomutePolicyShapeBite(app, { consoleVersion }) {
