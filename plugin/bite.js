@@ -31,6 +31,12 @@ const TARGET_OVERTAKING_TEST_TARGET_MMSI = "235912353";
 const TARGET_OVERTAKING_TEST_TARGET_NAME = "BITE TARGET OVERTAKING";
 const SAME_COURSE_TEST_TARGET_MMSI = "235912354";
 const SAME_COURSE_TEST_TARGET_NAME = "BITE SAME COURSE TARGET";
+const ADVISORY_NO_PROMPT_TEST_TARGET_MMSI = "235912355";
+const ADVISORY_NO_PROMPT_TEST_TARGET_NAME = "BITE ADVISORY TARGET";
+const CPA_DEDUP_TEST_TARGET_MMSI = "235912356";
+const CPA_DEDUP_TEST_TARGET_NAME = "BITE CPA DEDUP TARGET";
+const VISUAL_AUDIO_MATCH_TEST_TARGET_MMSI = "235912357";
+const VISUAL_AUDIO_MATCH_TEST_TARGET_NAME = "BITE WORDING MATCH TARGET";
 const AUDIO_SUMMARY_PRIORITY = 150;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
 const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
@@ -495,6 +501,27 @@ const TESTS = [
     timeoutSeconds: 5,
   },
   {
+    id: "traffic-advisory-no-action-prompt",
+    number: "2.13",
+    title: "Traffic advisory has no action prompt",
+    description: "Publishes an advisory-level encounter and checks it stays descriptive, without COLREG manoeuvre prompts.",
+    timeoutSeconds: 30,
+  },
+  {
+    id: "traffic-cpa-deduplicated-wording",
+    number: "2.14",
+    title: "Traffic CPA wording de-duplicated",
+    description: "Publishes a passing encounter and checks CPA wording is not repeated after a CPA-will-be phrase.",
+    timeoutSeconds: 30,
+  },
+  {
+    id: "traffic-visual-audio-wording-alignment",
+    number: "2.15",
+    title: "Traffic visual/audio wording alignment",
+    description: "Publishes a named encounter and checks the visual and spoken paths preserve the same essential encounter wording.",
+    timeoutSeconds: 30,
+  },
+  {
     id: "gps-vector-arrow-contract",
     number: "3.14",
     title: "GPS/DR vector arrow contract",
@@ -595,6 +622,9 @@ const BITE_GROUP_DEFINITIONS = [
       "traffic-same-course-wording",
       "traffic-target-projection-contract",
       "traffic-audio-policy-contract",
+      "traffic-advisory-no-action-prompt",
+      "traffic-cpa-deduplicated-wording",
+      "traffic-visual-audio-wording-alignment",
     ],
   },
   {
@@ -1208,6 +1238,15 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "traffic-audio-policy-contract") {
     return runTrafficAudioPolicyContractBite(app, { consoleVersion });
+  }
+  if (testId === "traffic-advisory-no-action-prompt") {
+    return runTrafficAdvisoryNoActionPromptBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-cpa-deduplicated-wording") {
+    return runTrafficCpaDeduplicatedWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-visual-audio-wording-alignment") {
+    return runTrafficVisualAudioWordingAlignmentBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
   if (testId === "gps-vector-arrow-contract") return runGpsVectorArrowContractBite(app, { consoleVersion });
   if (testId === "gps-counter-contract") return runGpsCounterContractBite(app, { consoleVersion });
@@ -4182,6 +4221,145 @@ async function runTrafficSameCourseWordingBite(app, { pluginId, testId, consoleV
   });
 }
 
+async function runTrafficAdvisoryNoActionPromptBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  return runTrafficMessageScenarioBite(app, {
+    pluginId,
+    testId,
+    consoleVersion,
+    timeoutMs,
+    target: {
+      mmsi: ADVISORY_NO_PROMPT_TEST_TARGET_MMSI,
+      name: ADVISORY_NO_PROMPT_TEST_TARGET_NAME,
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 720, northMeters: 220 }),
+      speedMps: 4 * KNOTS_TO_MPS,
+      courseRad: Math.PI,
+      lengthMeters: 28,
+      beamMeters: 7,
+      aisClass: "B",
+    },
+    own: {
+      position: OWN_POSITION,
+      speedMps: 5 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+    },
+    expectedPatterns: [/Traffic advisory/i, /CPA/i],
+    forbiddenPatterns: [
+      /Head-on: alter starboard/i,
+      /pass port-to-port/i,
+      /\bGive Way\b/i,
+      /\bStand On\b/i,
+      /Risk of collision/i,
+    ],
+    passSummary: "Advisory-level traffic wording remained descriptive without manoeuvre prompts.",
+    failSummary: "Traffic advisory no-action-prompt check failed",
+  });
+}
+
+async function runTrafficCpaDeduplicatedWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  return runTrafficMessageScenarioBite(app, {
+    pluginId,
+    testId,
+    consoleVersion,
+    timeoutMs,
+    target: {
+      mmsi: CPA_DEDUP_TEST_TARGET_MMSI,
+      name: CPA_DEDUP_TEST_TARGET_NAME,
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: -40, northMeters: -80 }),
+      speedMps: 4 * KNOTS_TO_MPS,
+      courseRad: (80 * Math.PI) / 180,
+      lengthMeters: 18,
+      beamMeters: 5,
+      aisClass: "B",
+    },
+    own: {
+      position: OWN_POSITION,
+      speedMps: 5 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+    },
+    expectedPatterns: [/CPA will be on your (port|starboard) side/i, /\d+ (meters|miles) in \d+ (second|seconds|minute|minutes)/i],
+    forbiddenPatterns: [
+      /CPA will be[^.]*\.\s*CPA\s/i,
+      /CPA will be ahead\.\s*CPA\s/i,
+      /CPA will be astern\.\s*CPA\s/i,
+    ],
+    passSummary: "Traffic CPA pass wording avoided repeating CPA after the CPA-will-be phrase.",
+    failSummary: "Traffic CPA de-duplication wording check failed",
+  });
+}
+
+async function runTrafficVisualAudioWordingAlignmentBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const target = {
+    mmsi: VISUAL_AUDIO_MATCH_TEST_TARGET_MMSI,
+    name: VISUAL_AUDIO_MATCH_TEST_TARGET_NAME,
+    position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 45 }),
+    speedMps: 3 * KNOTS_TO_MPS,
+    courseRad: Math.PI / 2,
+    lengthMeters: 7,
+    beamMeters: 2,
+    aisClass: "B",
+  };
+  const own = {
+    position: OWN_POSITION,
+    speedMps: 6 * KNOTS_TO_MPS,
+    courseRad: Math.PI / 2,
+  };
+  const observations = [];
+  let lastRefreshAt = 0;
+  let finalSnapshot = null;
+  let evaluation = null;
+  try {
+    publishSyntheticTrafficScenario(app, { pluginId, runId, target, own });
+    while (Date.now() - startedAtMs <= timeoutMs) {
+      if (Date.now() - lastRefreshAt >= REFRESH_MS) {
+        publishSyntheticTrafficScenario(app, { pluginId, runId, target, own });
+        lastRefreshAt = Date.now();
+      }
+      finalSnapshot = collectSnapshot(app);
+      evaluation = evaluateTrafficVisualAudioAlignment(finalSnapshot, {
+        startedAtMs,
+        targetName: target.name,
+        targetMmsi: target.mmsi,
+      });
+      if (evaluation.observation) observations.push(evaluation.observation);
+      if (evaluation.complete) break;
+      await delay(POLL_MS);
+    }
+    if (!evaluation) {
+      finalSnapshot = collectSnapshot(app);
+      evaluation = evaluateTrafficVisualAudioAlignment(finalSnapshot, {
+        startedAtMs,
+        targetName: target.name,
+        targetMmsi: target.mmsi,
+      });
+    }
+  } finally {
+    await clearSyntheticScenarioTarget(app, { pluginId, runId, target });
+  }
+  const result = evaluation?.result || "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: testId,
+    testId,
+    result,
+    startedAt,
+    startedAtMs,
+    target: {
+      mmsi: target.mmsi,
+      name: target.name,
+    },
+    assertions: evaluation?.assertions || [],
+    observations: observations.slice(-12),
+    summary: result === "pass"
+      ? "Traffic visual and audio paths preserved the same essential encounter wording."
+      : `Traffic visual/audio wording alignment check failed: ${(evaluation?.assertions || []).filter((item) => !item.pass).map((item) => item.id).join(", ") || "unknown"}.`,
+    snapshot: finalSnapshot ? summarizeSnapshot(finalSnapshot) : null,
+  });
+}
+
 async function runTrafficTargetProjectionContractBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -4795,6 +4973,102 @@ function evaluateQuietTargetSnapshot(snapshot, { startedAtMs, targetName, target
           trafficState: trafficAlert?.encounter?.state || "",
           audioState: audioEvidence?.state || "",
           message: audioEvidence?.message || brokerEvidence?.message || displayEvidence?.message || "",
+        }
+      : null,
+  };
+}
+
+function evaluateTrafficVisualAudioAlignment(snapshot, { startedAtMs, targetName, targetMmsi }) {
+  const trafficAlert = findTrafficAlert(snapshot.traffic, targetName, targetMmsi);
+  const displayEvidence = findDisplayAlertEvidence(snapshot.notifications, {
+    startedAtMs,
+    targetName,
+    targetMmsi,
+    strict: true,
+  });
+  const brokerEvidence = findBrokerAudioEvidence(snapshot.notificationsAudio, {
+    startedAtMs,
+    targetName,
+    targetMmsi,
+    strict: true,
+  });
+  const audioEvidence = findAudioEvidence(snapshot.audio || {}, {
+    startedAtMs,
+    targetName,
+    targetMmsi,
+    strict: true,
+  });
+  const visualText = [
+    trafficAlert?.encounter?.message,
+    displayEvidence?.message,
+  ].filter(Boolean).join(" | ");
+  const audioText = [
+    brokerEvidence?.message,
+    audioEvidence?.message,
+  ].filter(Boolean).join(" | ");
+  const essentialPatterns = [
+    /Close quarters|Risk of collision|CPA will be|CPA \d+/i,
+    /\d+ (meters|miles) in \d+ (second|seconds|minute|minutes)/i,
+  ];
+  const assertions = [
+    assertion(
+      "traffic-alert",
+      Boolean(trafficAlert),
+      trafficAlert
+        ? `Traffic published ${trafficAlert.encounter?.state} for ${trafficAlert.name}.`
+        : "Traffic has not published a warn/alarm/emergency for the wording-alignment target.",
+    ),
+    assertion(
+      "display-message",
+      Boolean(displayEvidence),
+      displayEvidence
+        ? `Display-facing message found: ${displayEvidence.message}`
+        : "Display-facing alert message was not found for the wording-alignment target.",
+    ),
+    assertion(
+      "audio-path-message",
+      Boolean(brokerEvidence || audioEvidence),
+      brokerEvidence
+        ? `Notifications audio message found: ${brokerEvidence.message}`
+        : audioEvidence
+          ? `Audio renderer message found: ${audioEvidence.message}`
+          : "Audio path message was not found for the wording-alignment target.",
+    ),
+    ...essentialPatterns.map((pattern, index) =>
+      assertion(
+        `essential-visual-wording-${index + 1}`,
+        pattern.test(visualText),
+        pattern.test(visualText)
+          ? `Visual path contains essential wording ${pattern}.`
+          : `Visual path is missing essential wording ${pattern}: ${visualText || "no visual text"}.`,
+      )
+    ),
+    ...essentialPatterns.map((pattern, index) =>
+      assertion(
+        `essential-audio-wording-${index + 1}`,
+        pattern.test(audioText),
+        pattern.test(audioText)
+          ? `Audio path contains essential wording ${pattern}.`
+          : `Audio path is missing essential wording ${pattern}: ${audioText || "no audio text"}.`,
+      )
+    ),
+    assertion(
+      "named-target-preserved",
+      new RegExp(targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(visualText) &&
+        new RegExp(targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(audioText),
+      "Named targets should keep the same vessel name in visual and spoken wording.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return {
+    complete: result === "pass" || Date.now() - startedAtMs >= DEFAULT_TIMEOUT_MS,
+    result,
+    assertions,
+    observation: visualText || audioText
+      ? {
+          ts: new Date().toISOString(),
+          visualText,
+          audioText,
         }
       : null,
   };
