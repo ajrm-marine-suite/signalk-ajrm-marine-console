@@ -91,6 +91,7 @@ Current numbered BITE tests:
 | 07 | Quiet target no-alert | Stopped/far-away synthetic target does not create a fresh visual or audible alert. |
 | 08 | GPS Integrity health | GPS Integrity publishes trust, fix, counters, and timestamp state coherently. |
 | 09 | GPS lost age consistency | GPS-lost wording is checked against the freshest known GPS source timestamp. |
+| 09.5 | GPS Integrity diagnostics contract | GPS Integrity publishes the diagnostic block Voyage Viewer uses for end-of-day review. |
 | 10 | Dead reckoning projection | Operational and independent DR projections expose positions, uncertainty, ages, and vector roles. |
 | 11 | DR GPS-loss exercise | GPS and current are removed, and operational DR must continue using retained current. |
 | 12 | GPS recovery realigns DR | GPS restoration must lock operational DR back to the fresh GPS fix. |
@@ -101,12 +102,15 @@ Current numbered BITE tests:
 | 17 | Lost-GPS retained current source | Lost-GPS DR must report retained-current/last-trusted-current rather than live GPS-derived current. |
 | 18 | Stationary automute policy shape | Traffic audio policy exposes whether stationary automute is armed, allowed, and active. |
 | 19 | GPS explicit no-fix immediate | An explicit GNSS no-fix update must produce lost GPS without waiting for stale-position timeout. |
+| 19.5 | GPS weak-signal detection | A weak GNSS sample must degrade GPS trust and increment the weak-signal counter. |
 | 20 | Traffic overtaking wording | A synthetic overtaking encounter must include overtaking and CPA-direction wording through the alert chain. |
 | 21 | Traffic close-quarters wording | A synthetic close-quarters encounter must say close quarters through the visual/audio alert chain. |
 | 22 | Traffic unnamed spoken name | An MMSI-only target must not have its MMSI read aloud as the vessel name. |
 | 23 | Traffic head-on prompt | A synthetic head-on collision must say alter starboard and pass port-to-port. |
 | 24 | Traffic give-way prompt | A synthetic starboard-bow collision must say Give Way. |
 | 25 | Traffic stand-on prompt | A synthetic port-side collision must say Stand On. |
+| 26 | Traffic target overtaking wording | A target overtaking own vessel from astern must say it is overtaking you. |
+| 27 | Traffic same-course wording | A same-speed parallel encounter must say same general course and give the CPA side. |
 | 90 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
 | 99 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |
 

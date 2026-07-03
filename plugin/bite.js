@@ -27,6 +27,10 @@ const GIVE_WAY_TEST_TARGET_MMSI = "235912351";
 const GIVE_WAY_TEST_TARGET_NAME = "BITE GIVE WAY TARGET";
 const STAND_ON_TEST_TARGET_MMSI = "235912352";
 const STAND_ON_TEST_TARGET_NAME = "BITE STAND ON TARGET";
+const TARGET_OVERTAKING_TEST_TARGET_MMSI = "235912353";
+const TARGET_OVERTAKING_TEST_TARGET_NAME = "BITE TARGET OVERTAKING";
+const SAME_COURSE_TEST_TARGET_MMSI = "235912354";
+const SAME_COURSE_TEST_TARGET_NAME = "BITE SAME COURSE TARGET";
 const AUDIO_SUMMARY_PRIORITY = 150;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
 const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
@@ -127,6 +131,15 @@ const TESTS = [
     pluginId: GPS_INTEGRITY_PLUGIN_ID,
   },
   {
+    id: "gps-integrity-diagnostics-contract",
+    number: 9.5,
+    title: "GPS Integrity diagnostics contract",
+    description: "Optional check that GPS Integrity publishes the diagnostic block Voyage Viewer uses for end-of-day review.",
+    timeoutSeconds: 5,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
     id: "dead-reckoning-projection",
     number: 10,
     title: "Dead reckoning projection",
@@ -215,6 +228,15 @@ const TESTS = [
     pluginId: GPS_INTEGRITY_PLUGIN_ID,
   },
   {
+    id: "gps-weak-signal-detection",
+    number: 19.5,
+    title: "GPS weak-signal detection",
+    description: "Optional active test that injects a weak GNSS sample and checks GPS Integrity reports degraded signal and increments the weak-signal counter.",
+    timeoutSeconds: 20,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
     id: "traffic-overtaking-wording",
     number: 20,
     title: "Traffic overtaking wording",
@@ -254,6 +276,20 @@ const TESTS = [
     number: 25,
     title: "Traffic stand-on prompt",
     description: "Publishes a port-side collision encounter and checks the alert/audio chain says Stand On.",
+    timeoutSeconds: 30,
+  },
+  {
+    id: "traffic-target-overtaking-wording",
+    number: 26,
+    title: "Traffic target overtaking wording",
+    description: "Publishes a target overtaking own vessel from astern and checks the alert/audio chain says it is overtaking you.",
+    timeoutSeconds: 30,
+  },
+  {
+    id: "traffic-same-course-wording",
+    number: 27,
+    title: "Traffic same-course wording",
+    description: "Publishes a same-speed parallel encounter and checks the alert/audio chain says same general course with a CPA side.",
     timeoutSeconds: 30,
   },
   {
@@ -673,6 +709,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "gps-integrity-health") return runGpsIntegrityHealthBite(app, { consoleVersion });
   if (testId === "gps-lost-age-consistency") return runGpsLostAgeConsistencyBite(app, { consoleVersion });
+  if (testId === "gps-integrity-diagnostics-contract") {
+    return runGpsIntegrityDiagnosticsContractBite(app, { consoleVersion });
+  }
   if (testId === "dead-reckoning-projection") return runDeadReckoningProjectionBite(app, { consoleVersion });
   if (testId === "dead-reckoning-loss-exercise") {
     return runDeadReckoningLossExerciseBite(app, { pluginId, consoleVersion, timeoutMs });
@@ -691,6 +730,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "gps-explicit-no-fix-immediate") {
     return runGpsExplicitNoFixImmediateBite(app, { pluginId, consoleVersion, timeoutMs });
   }
+  if (testId === "gps-weak-signal-detection") {
+    return runGpsWeakSignalDetectionBite(app, { pluginId, consoleVersion, timeoutMs });
+  }
   if (testId === "traffic-overtaking-wording") {
     return runTrafficOvertakingWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
@@ -708,6 +750,12 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "traffic-stand-on-prompt") {
     return runTrafficStandOnPromptBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-target-overtaking-wording") {
+    return runTrafficTargetOvertakingWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-same-course-wording") {
+    return runTrafficSameCourseWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
@@ -1044,6 +1092,8 @@ async function publishAndWaitForGpsIntegrity(app, {
   includeGps,
   includeCurrent,
   currentDriftMps = DR_EXERCISE_CURRENT_DRIFT_MPS,
+  hdop = 0.8,
+  satellites = 12,
   timeoutMs,
   predicate,
 }) {
@@ -1055,6 +1105,8 @@ async function publishAndWaitForGpsIntegrity(app, {
     includeGps,
     includeCurrent,
     currentDriftMps,
+    hdop,
+    satellites,
   });
   return waitForGpsIntegrity(app, { timeoutMs, predicate });
 }
@@ -1625,6 +1677,73 @@ async function runGpsLostAgeConsistencyBite(app, { consoleVersion }) {
       notification: notificationSummary(notification),
       evidence,
     },
+  });
+}
+
+async function runGpsIntegrityDiagnosticsContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const gpsIntegrity = snapshot.gpsIntegrity || {};
+  const diagnostics = gpsIntegrity.diagnostics || {};
+  const observed = diagnostics.observed || {};
+  const decision = diagnostics.decision || {};
+  const thresholds = diagnostics.thresholds || {};
+  const assertions = [
+    assertion(
+      "gps-diagnostics-contract",
+      diagnostics.contract === "ajrm-marine-gps-integrity-diagnostics" &&
+        Number(diagnostics.contractVersion) >= 1,
+      diagnostics.contract
+        ? `GPS Integrity diagnostics contract is ${diagnostics.contract} v${diagnostics.contractVersion}.`
+        : "GPS Integrity diagnostics contract is missing.",
+    ),
+    assertion(
+      "gps-diagnostics-observed-inputs",
+      typeof observed.positionPresent === "boolean" &&
+        typeof observed.fixValid === "boolean" &&
+        Object.prototype.hasOwnProperty.call(observed, "hdop") &&
+        Object.prototype.hasOwnProperty.call(observed, "satellites"),
+      "Diagnostics should expose observed position/fix/HDOP/satellite inputs.",
+    ),
+    assertion(
+      "gps-diagnostics-decision-flags",
+      typeof decision.acceptedGps === "boolean" &&
+        typeof decision.positionJumpRejected === "boolean" &&
+        typeof decision.degradedSignalActive === "boolean" &&
+        typeof decision.drDiscrepancyActive === "boolean" &&
+        Array.isArray(decision.reasons),
+      "Diagnostics should expose accepted/rejected/degraded/DR decision flags and reasons.",
+    ),
+    assertion(
+      "gps-diagnostics-thresholds",
+      ["maxBoatSpeedKnots", "maxHdop", "minSatellites", "gpsLostSeconds", "warningDrDiscrepancyMeters", "alarmDrDiscrepancyMeters"]
+        .every((key) => Number.isFinite(Number(thresholds[key]))),
+      "Diagnostics should expose the thresholds used for the decision.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-integrity-diagnostics-contract",
+    testId: "gps-integrity-diagnostics-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{
+      trust: gpsIntegrity.trust || "",
+      diagnosticsContract: diagnostics.contract || "",
+      observed,
+      decision,
+      thresholds,
+    }],
+    summary: result === "pass"
+      ? "GPS Integrity diagnostics contract is present for voyage review."
+      : `GPS Integrity diagnostics contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { gpsIntegrity: gpsIntegritySummary(gpsIntegrity), diagnostics },
   });
 }
 
@@ -2457,6 +2576,88 @@ async function runGpsExplicitNoFixImmediateBite(app, { pluginId, consoleVersion,
   });
 }
 
+async function runGpsWeakSignalDetectionBite(app, { pluginId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const baselinePosition = { ...OWN_POSITION };
+  let baseline = null;
+  let degraded = null;
+  try {
+    baseline = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "weak-signal-baseline",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      timeoutMs: Math.min(7000, timeoutMs / 2),
+      predicate: (state) => state.acceptedGps === true,
+    });
+    degraded = await publishAndWaitForGpsIntegrity(app, {
+      pluginId,
+      runId,
+      phase: "weak-signal-degraded",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      hdop: 12,
+      satellites: 2,
+      timeoutMs: Math.max(5000, timeoutMs - (Date.now() - startedAtMs)),
+      predicate: (state) => state.trust === "degraded" || state.degradedSignalActive === true,
+    });
+  } finally {
+    publishDeadReckoningExerciseSample(app, {
+      pluginId,
+      runId,
+      phase: "restore-gps",
+      position: baselinePosition,
+      includeGps: true,
+      includeCurrent: true,
+      currentDriftMps: 0,
+    });
+  }
+  const before = Number(baseline?.counters?.degradedSignals || 0);
+  const after = Number(degraded?.counters?.degradedSignals || before);
+  const reasons = (degraded?.reasons || []).join(" ");
+  const assertions = [
+    assertion("weak-signal-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted."),
+    assertion(
+      "weak-signal-degraded",
+      degraded?.trust === "degraded" || degraded?.degradedSignalActive === true,
+      degraded
+        ? `Weak sample trust=${degraded.trust}; degradedSignalActive=${degraded.degradedSignalActive}.`
+        : "Weak GPS sample was not observed.",
+    ),
+    assertion(
+      "weak-signal-counter-incremented",
+      after >= before + 1,
+      `Weak-signal counter before=${before}, after=${after}.`,
+    ),
+    assertion(
+      "weak-signal-reason-visible",
+      /HDOP|satellites/i.test(reasons),
+      reasons ? `Weak-signal reasons: ${reasons}` : "Weak-signal reasons were not published.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-weak-signal-detection",
+    testId: "gps-weak-signal-detection",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ degradedSignalsBefore: before, degradedSignalsAfter: after, reasons }],
+    summary: result === "pass"
+      ? "Weak GPS signal was detected and counted."
+      : `GPS weak-signal detection failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { baseline: gpsIntegritySummary(baseline || {}), degraded: gpsIntegritySummary(degraded || {}) },
+  });
+}
+
 async function runTrafficOvertakingWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
   return runTrafficMessageScenarioBite(app, {
     pluginId,
@@ -2624,6 +2825,62 @@ async function runTrafficStandOnPromptBite(app, { pluginId, testId, consoleVersi
     forbiddenPatterns: [/CPA will be ahead\. CPA /i],
     passSummary: "Stand-on collision prompt was present in the Traffic alert chain.",
     failSummary: "Traffic stand-on prompt check failed",
+  });
+}
+
+async function runTrafficTargetOvertakingWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  return runTrafficMessageScenarioBite(app, {
+    pluginId,
+    testId,
+    consoleVersion,
+    timeoutMs,
+    target: {
+      mmsi: TARGET_OVERTAKING_TEST_TARGET_MMSI,
+      name: TARGET_OVERTAKING_TEST_TARGET_NAME,
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: -180, northMeters: 0 }),
+      speedMps: 7 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+      lengthMeters: 18,
+      beamMeters: 5,
+      aisClass: "B",
+    },
+    own: {
+      position: OWN_POSITION,
+      speedMps: 4 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+    },
+    expectedPatterns: [/It is overtaking you/i, /CPA will be astern/i],
+    forbiddenPatterns: [/CPA will be ahead\. CPA /i],
+    passSummary: "Target-overtaking wording was present in the Traffic alert chain.",
+    failSummary: "Traffic target-overtaking wording check failed",
+  });
+}
+
+async function runTrafficSameCourseWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  return runTrafficMessageScenarioBite(app, {
+    pluginId,
+    testId,
+    consoleVersion,
+    timeoutMs,
+    target: {
+      mmsi: SAME_COURSE_TEST_TARGET_MMSI,
+      name: SAME_COURSE_TEST_TARGET_NAME,
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 70, northMeters: 180 }),
+      speedMps: 5 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+      lengthMeters: 18,
+      beamMeters: 5,
+      aisClass: "B",
+    },
+    own: {
+      position: OWN_POSITION,
+      speedMps: 5 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+    },
+    expectedPatterns: [/Same general course/i, /CPA will be on your (port|starboard) side/i],
+    forbiddenPatterns: [/CPA will be ahead\. CPA /i],
+    passSummary: "Same-course passing wording was present in the Traffic alert chain.",
+    failSummary: "Traffic same-course wording check failed",
   });
 }
 
@@ -3304,6 +3561,8 @@ function publishDeadReckoningExerciseSample(app, {
   includeGps,
   includeCurrent,
   currentDriftMps = DR_EXERCISE_CURRENT_DRIFT_MPS,
+  hdop = 0.8,
+  satellites = 12,
 }) {
   const timestamp = new Date().toISOString();
   const currentSetValue = includeCurrent ? DR_EXERCISE_CURRENT_SET_RAD : null;
@@ -3321,8 +3580,8 @@ function publishDeadReckoningExerciseSample(app, {
         { path: "navigation.speedThroughWater", value: 0 },
         { path: "navigation.headingTrue", value: 0 },
         { path: "navigation.gnss.methodQuality", value: includeGps ? "GNSS fix" : "no GPS" },
-        { path: "navigation.gnss.horizontalDilution", value: includeGps ? 0.8 : null },
-        { path: "navigation.gnss.satellites", value: includeGps ? 12 : 0 },
+        { path: "navigation.gnss.horizontalDilution", value: includeGps ? hdop : null },
+        { path: "navigation.gnss.satellites", value: includeGps ? satellites : 0 },
         { path: "environment.current.setTrue", value: currentSetValue },
         { path: "environment.current.drift", value: currentDriftValue },
         { path: "environment.tide.setTrue", value: currentSetValue },
