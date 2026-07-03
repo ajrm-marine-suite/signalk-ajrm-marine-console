@@ -213,7 +213,7 @@ h1, h2, p { margin-top: 0; }
 .bite-group-tests {
   display: grid;
   gap: .45rem;
-  padding: .55rem .55rem .55rem 2.35rem;
+  padding: .55rem .55rem .55rem 5.875rem;
 }
 .bite-group-tests[hidden] {
   display: none;
@@ -373,7 +373,7 @@ h1, h2, p { margin-top: 0; }
   .hero { align-items: stretch; flex-direction: column; }
   .bite-header { align-items: stretch; flex-direction: column; }
   .bite-group-header { grid-template-columns: minmax(0, 1fr); }
-  .bite-group-tests { padding-left: 1.25rem; }
+  .bite-group-tests { padding-left: 3.125rem; }
   .bite-test { grid-template-columns: 1.2rem minmax(0, 1fr); }
   .bite-run { grid-column: 2; }
   .bite-run-group { grid-column: 1; }

@@ -120,7 +120,7 @@ function renderBitePanel() {
   const tests = biteTests();
   const enabledTests = tests.filter((test) => test.enabled !== false);
   els.biteRunAll.disabled = biteRunning || enabledTests.length === 0;
-  els.biteTests.innerHTML = biteGroups().map((group) => biteGroupHtml(group, tests)).join("")
+  els.biteTests.innerHTML = biteGroups().map((group, index) => biteGroupHtml(group, tests, index)).join("")
     || '<p class="empty-note">No BITE tests are available.</p>';
   if (biteRunning && biteStatus?.currentRunAll) {
     setBiteLog(formatBiteRunAllProgress(biteStatus.currentRunAll));
@@ -172,13 +172,13 @@ function biteGroups() {
   }];
 }
 
-function biteGroupHtml(group, allTests) {
+function biteGroupHtml(group, allTests, groupIndex = 0) {
   const tests = group.testIds.map((testId) => allTests.find((test) => test.id === testId)).filter(Boolean);
   const state = biteGroupState(group, tests);
   const expanded = biteExpandedGroups.has(group.id) || state === "running";
   const enabled = tests.some((test) => test.enabled !== false);
   const summary = biteGroupSummary(group, tests, state);
-  const groupTitle = [group.number, group.title || group.id].filter(Boolean).join(" ");
+  const groupTitle = [biteGroupDisplayNumber(group, groupIndex), group.title || group.id].filter(Boolean).join(" ");
   return `<section class="bite-group ${state}" data-bite-group-section="${escapeHtml(group.id)}">
     <div class="bite-group-header">
       <button class="bite-group-toggle" type="button" data-bite-group-toggle="${escapeHtml(group.id)}" aria-expanded="${expanded ? "true" : "false"}">
@@ -192,7 +192,7 @@ function biteGroupHtml(group, allTests) {
       <button class="bite-run bite-run-group" type="button" data-bite-run-group="${escapeHtml(group.id)}" ${biteRunning || !enabled ? "disabled" : ""}>Run group</button>
     </div>
     <div class="bite-group-tests" ${expanded ? "" : "hidden"}>
-      ${tests.map((test) => biteTestHtml(test)).join("")}
+      ${tests.map((test, index) => biteTestHtml(test, group, index)).join("")}
     </div>
   </section>`;
 }
@@ -219,7 +219,7 @@ function biteGroupSummary(group, tests, state) {
   return `${passed}/${available.length} passed. ${group.description || ""}`.trim();
 }
 
-function biteTestHtml(test) {
+function biteTestHtml(test, group = null, testIndex = 0) {
   const result = biteResults[test.id] || null;
   const currentTestId = biteStatus?.currentRunAll?.currentTestId || biteRunningTestId || null;
   const available = test.enabled !== false;
@@ -247,11 +247,20 @@ function biteTestHtml(test) {
   return `<article class="bite-test ${state}">
     <div class="bite-light" aria-label="${escapeHtml(stateLabel)}"></div>
     <div class="bite-test-main">
-      <strong>${biteTestNumber(test)} ${escapeHtml(test.title || test.id)}</strong>
+      <strong>${biteChildDisplayNumber(test, group, testIndex)} ${escapeHtml(test.title || test.id)}</strong>
       <span>${escapeHtml(summary)}</span>
     </div>
     <button class="bite-run" type="button" data-bite-test="${escapeHtml(test.id)}" ${biteRunning || !available ? "disabled" : ""}>Run</button>
   </article>`;
+}
+
+function biteGroupDisplayNumber(group, groupIndex = 0) {
+  if (String(group?.number || "") === "99") return "99";
+  return String(groupIndex);
+}
+
+function biteChildDisplayNumber(_test, _group, testIndex = 0) {
+  return `.${testIndex + 1}`;
 }
 
 function biteStateLabel(state) {
