@@ -1427,6 +1427,45 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.ok, false);
   assert.match(runBody.summary, /mute-explicit/);
 
+  values["plugins.ajrmMarinePiController"] = {
+    version: { value: "0.5.6" },
+    system: {
+      hostname: { value: "nemo" },
+      platform: { value: "linux" },
+      uptimeSeconds: { value: 1234 },
+      memory: {
+        totalBytes: { value: 1024 },
+        freeBytes: { value: 512 },
+        usedBytes: { value: 512 },
+      },
+      process: {
+        pid: { value: 4321 },
+        uptimeSeconds: { value: 12 },
+        node: { value: "v22.22.1" },
+      },
+    },
+  };
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "pi-controller-telemetry-contract", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.assertions.find((item) => item.id === "host-identity").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "uptime-visible").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "memory-visible").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "process-visible").pass, true);
+
   values["plugins.ajrmMarineTraffic.audioPolicy"] = trafficAudioPolicy;
   values["plugins.ajrmMarineAudio"] = {
     ...values["plugins.ajrmMarineAudio"],

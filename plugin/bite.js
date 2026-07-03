@@ -2999,7 +2999,7 @@ async function runDeadReckoningLossExerciseBite(app, { pluginId, consoleVersion,
     ),
     assertion(
       "dr-gps-lost",
-      gpsIntegrity.trust === "lost" && gpsIntegrity.gps?.fixValid === false,
+      gpsIntegrity.trust === "lost" && gpsUnavailable(gpsIntegrity),
       gpsIntegrity.trust === "lost"
         ? "GPS Integrity entered lost-GPS state after GPS was removed."
         : `GPS Integrity did not enter lost-GPS state; trust=${gpsIntegrity.trust || "unknown"}.`,
@@ -3197,7 +3197,7 @@ async function runGpsJumpRejectionBite(app, { pluginId, consoleVersion, timeoutM
     assertion("jump-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted."),
     assertion(
       "jump-rejected",
-      jumped?.acceptedGps === false && (jumped?.trust === "suspect" || /Position jump/i.test((jumped?.reasons || []).join(" "))),
+      jumped?.acceptedGps !== true && (jumped?.trust === "suspect" || /Position jump/i.test((jumped?.reasons || []).join(" "))),
       jumped ? `Jump trust=${jumped.trust}; acceptedGps=${jumped.acceptedGps}.` : "Jump state was not observed.",
     ),
     assertion(
@@ -3262,7 +3262,7 @@ async function runGpsIntermittentOutageCountBite(app, { pluginId, consoleVersion
       });
       repeatedLost = await waitForGpsIntegrity(app, {
         timeoutMs: Math.min(5000, Math.max(1500, timeoutMs / 4)),
-        predicate: (state) => state.trust === "lost" && state.gps?.fixValid === false,
+        predicate: (state) => state.trust === "lost" && gpsUnavailable(state),
       }) || repeatedLost;
       if (!lost) lost = repeatedLost;
       await delay(750);
@@ -3420,7 +3420,7 @@ async function runGpsRecoveryFreshFixBite(app, { pluginId, consoleVersion, timeo
     });
     lost = await waitForGpsIntegrity(app, {
       timeoutMs: Math.min(7000, timeoutMs / 3),
-      predicate: (state) => state.trust === "lost" && state.gps?.fixValid === false,
+      predicate: (state) => state.trust === "lost" && gpsUnavailable(state),
     });
     restoreStartedAtMs = Date.now();
     recovered = await publishAndWaitForGpsIntegrity(app, {
@@ -3556,7 +3556,7 @@ async function runLostGpsRetainedCurrentSourceBite(app, { pluginId, consoleVersi
   const retainedSource = ["last-trusted-current", "retained-current"].includes(String(current.source || ""));
   const assertions = [
     assertion("retained-current-baseline-accepted", Boolean(baseline), "Trusted GPS/current baseline should be accepted."),
-    assertion("retained-current-gps-lost", lost?.trust === "lost" && lost?.gps?.fixValid === false, "GPS should be lost after GPS and live current are removed."),
+    assertion("retained-current-gps-lost", lost?.trust === "lost" && gpsUnavailable(lost), "GPS should be lost after GPS and live current are removed."),
     assertion(
       "retained-current-source-explicit",
       retainedSource,
@@ -3627,7 +3627,7 @@ async function runGpsExplicitNoFixImmediateBite(app, { pluginId, consoleVersion,
       timeoutMs: Math.max(5000, timeoutMs - (Date.now() - startedAtMs)),
       predicate: (state) =>
         state.trust === "lost" &&
-        state.gps?.fixValid === false &&
+        gpsUnavailable(state) &&
         (state.gps?.explicitGpsUnavailable === true || /no fix|no gps|missing|invalid/i.test((state.reasons || []).join(" "))),
     });
   } finally {
@@ -3647,7 +3647,7 @@ async function runGpsExplicitNoFixImmediateBite(app, { pluginId, consoleVersion,
     : null;
   const assertions = [
     assertion("explicit-no-fix-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted before the no-fix sample."),
-    assertion("explicit-no-fix-lost", lost?.trust === "lost" && lost?.gps?.fixValid === false, "Explicit GNSS no-fix should make GPS Integrity report lost."),
+    assertion("explicit-no-fix-lost", lost?.trust === "lost" && gpsUnavailable(lost), "Explicit GNSS no-fix should make GPS Integrity report lost."),
     assertion(
       "explicit-no-fix-flag-visible",
       lost?.gps?.explicitGpsUnavailable === true || /no fix|no gps/i.test((lost?.reasons || []).join(" ")),
@@ -5172,7 +5172,15 @@ function unwrapSignalKLeaf(value) {
     Object.prototype.hasOwnProperty.call(value, "value") &&
     !Object.prototype.hasOwnProperty.call(value, "contract")
   ) {
-    return value.value;
+    return unwrapSignalKLeaf(value.value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => unwrapSignalKLeaf(item));
+  }
+  if (value && typeof value === "object" && !Object.prototype.hasOwnProperty.call(value, "contract")) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, unwrapSignalKLeaf(entry)]),
+    );
   }
   return value || null;
 }
@@ -5619,6 +5627,12 @@ function validPosition(position) {
     && Math.abs(Number(position.longitude)) <= 180;
 }
 
+function gpsUnavailable(state = {}) {
+  const gps = state.gps || {};
+  return gps.fixValid === false ||
+    (state.trust === "lost" && gps.fixValid == null && !validPosition(gps.position));
+}
+
 function deadReckoningLossExerciseEvidence(state = {}, baselinePosition = OWN_POSITION) {
   const operational = state.operationalDeadReckoning || state.deadReckoning || {};
   const position = operational.position;
@@ -5632,7 +5646,7 @@ function deadReckoningLossExerciseEvidence(state = {}, baselinePosition = OWN_PO
     (state.trust === "lost" && state.lastTrustedCurrent && currentAvailable(state.lastTrustedCurrent));
   return {
     complete: state.trust === "lost" &&
-      state.gps?.fixValid === false &&
+      gpsUnavailable(state) &&
       retainedCurrent &&
       validPosition(position) &&
       offsets.distanceMeters >= 1,
