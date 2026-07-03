@@ -113,9 +113,10 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.doesNotMatch(script, /latestReportsByTest/);
   assert.doesNotMatch(script, /biteResults\[biteStatus\.lastReport/);
   assert.match(script, /biteStatus\?\.currentRunAll\?\.currentTestId \|\| biteRunningTestId/);
+  const normalisedScript = script.replace(/\r\n/g, "\n");
   assert.ok(
-    script.indexOf(': biteRunning && currentTestId === test.id') <
-      script.indexOf(': result\n      ? result.ok'),
+    normalisedScript.indexOf(': biteRunning && currentTestId === test.id') <
+      normalisedScript.indexOf(': result\n      ? result.ok'),
     "Current running sub-test state must override stale pass/fail results",
   );
   assert.match(script, /const summary = state === "disabled"/);
