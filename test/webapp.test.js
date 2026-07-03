@@ -94,8 +94,9 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /function runBiteTest\(testId\)/);
   assert.match(script, /function runAllBiteTests\(\)/);
   assert.match(script, /function runBiteGroup\(groupId\)/);
-  assert.match(script, /function biteGroupHtml\(group, allTests\)/);
-  assert.match(script, /const groupTitle = \[group\.number, group\.title \|\| group\.id\]\.filter\(Boolean\)\.join\(" "\)/);
+  assert.match(script, /function biteGroupHtml\(group, allTests, groupIndex = 0\)/);
+  assert.match(script, /function biteGroupDisplayNumber\(group, groupIndex = 0\)/);
+  assert.match(script, /const groupTitle = \[groupNumber, group\.title \|\| group\.id\]\.filter\(Boolean\)\.join\(" "\)/);
   assert.match(script, /BITE_STATUS_REFRESH_MS/);
   assert.match(script, /let biteRunningTestId = null/);
   assert.match(script, /let biteRunningGroupId = null/);

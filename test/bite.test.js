@@ -731,6 +731,43 @@ test("Console exposes BITE status and run routes", async () => {
       }],
     },
     "plugins.ajrmMarineGpsIntegrity.navigationIntegrity": gpsIntegrityProjection,
+    "plugins.ajrmMarineVesselDatabase.summary": {
+      plugin: "signalk-ajrm-marine-vessel-database",
+      version: "0.5.2",
+      vesselCount: 24,
+      databasePath: "/tmp/ajrm-vessels.json",
+      fillMissingData: true,
+      stats: {
+        learned: 2,
+        updated: 3,
+        filled: 4,
+        ignored: 0,
+        errors: 0,
+      },
+    },
+    "plugins.ajrmMarineLogger.playback": {
+      active: false,
+      speed: 1,
+      fileName: "",
+    },
+    "plugins.ajrmMarinePiController": {
+      version: "0.5.6",
+      system: {
+        hostname: "nemo",
+        platform: "linux",
+        uptimeSeconds: 1234,
+        memory: {
+          totalBytes: 1024,
+          freeBytes: 512,
+          usedBytes: 512,
+        },
+        process: {
+          pid: 4321,
+          uptimeSeconds: 12,
+          node: "v22.22.1",
+        },
+      },
+    },
   };
   const messages = [];
   const captureCommands = [];
@@ -790,6 +827,27 @@ test("Console exposes BITE status and run routes", async () => {
       kind: "webapp",
       url: "/signalk-ajrm-marine-gps-integrity/",
       version: "0.5.15",
+    }, {
+      id: "signalk-ajrm-marine-vessel-database",
+      packageName: "signalk-ajrm-marine-vessel-database",
+      title: "AJRM Marine Vessel Database",
+      kind: "webapp",
+      url: "/signalk-ajrm-marine-vessel-database/",
+      version: "0.5.2",
+    }, {
+      id: "signalk-ajrm-marine-logger",
+      packageName: "signalk-ajrm-marine-logger",
+      title: "AJRM Marine Logger",
+      kind: "webapp",
+      url: "/signalk-ajrm-marine-logger/",
+      version: "0.5.14",
+    }, {
+      id: "signalk-ajrm-marine-pi-controller",
+      packageName: "signalk-ajrm-marine-pi-controller",
+      title: "AJRM Marine Pi Controller",
+      kind: "webapp",
+      url: "/signalk-ajrm-marine-pi-controller/",
+      version: "0.5.6",
     }]),
     ajrmMarineCaptureApi: {
       async status() {
@@ -815,6 +873,25 @@ test("Console exposes BITE status and run routes", async () => {
       async setAudioPolicy(command) {
         trafficCommands.push(command);
         return { muted: command.muted === true };
+      },
+    },
+    ajrmMarineLoggerApi: {
+      async status() {
+        return {
+          ok: true,
+          recording: { active: false },
+          playback: { active: false },
+          paths: { recordings: "/tmp/ajrm-logger" },
+        };
+      },
+      paths() {
+        return { recordings: "/tmp/ajrm-logger" };
+      },
+      async startCapture() {
+        return { ok: true };
+      },
+      async stopCapture() {
+        return { ok: true };
       },
     },
     getSelfPath(path) {
@@ -988,6 +1065,16 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "dr-plotter-availability").enabled, false);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-jump-rejection").groupId, "gps-dr");
   assert.equal(statusBody.tests.find((item) => item.id === "gps-current-contract").number, "3.16");
+  assert.equal(statusBody.tests.find((item) => item.id === "vessel-database-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "vessel-database-summary-contract").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "logger-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "logger-api-contract").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "pi-controller-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "pi-controller-telemetry-contract").enabled, true);
+  assert.deepEqual(
+    statusBody.groups.find((item) => item.id === "signalk-ajrm-marine-vessel-database").testIds,
+    ["vessel-database-availability", "vessel-database-summary-contract"],
+  );
   const harbourStatusTest = statusBody.tests.find((item) => item.id === "harbour-editor-availability");
   assert.equal(harbourStatusTest.enabled, false);
   assert.equal(harbourStatusTest.groupId, "signalk-ajrm-marine-harbour-editor");
@@ -1032,8 +1119,13 @@ test("Console exposes BITE status and run routes", async () => {
   });
   assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
   assert.equal(statusBody.tests.find((item) => item.id === "harbour-editor-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "harbour-editor-default-data-contract").enabled, true);
   assert.equal(statusBody.groups.find((item) => item.id === "signalk-ajrm-marine-harbour-editor").enabled, true);
   assert.equal(statusBody.groups.find((item) => item.id === "signalk-ajrm-marine-harbour-editor").number, "9.9");
+  assert.deepEqual(
+    statusBody.groups.find((item) => item.id === "signalk-ajrm-marine-harbour-editor").testIds,
+    ["harbour-editor-availability", "harbour-editor-default-data-contract"],
+  );
 
   let statusCode = 0;
   let runBody;
@@ -1055,6 +1147,25 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.snapshot.url, "/signalk-ajrm-marine-harbour-editor/");
   assert.equal(runBody.snapshot.status.contract, "ajrm-marine-harbour-editor-status");
   assert.equal(runBody.assertions.find((item) => item.id === "harbour-editor-status").pass, true);
+
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "harbour-editor-default-data-contract", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, true);
+  assert.equal(runBody.scenario, "harbour-editor-default-data-contract");
+  assert.equal(runBody.assertions.find((item) => item.id === "default-harbour-count").pass, true);
   app.ajrmMarineConsoleAvailableWebapps = app.ajrmMarineConsoleAvailableWebapps.filter(
     (module) => module.id !== "signalk-ajrm-marine-harbour-editor",
   );
@@ -1358,7 +1469,7 @@ test("Console exposes BITE status and run routes", async () => {
     { muted: false },
     { muted: true },
   ]);
-  assert.equal(runBody.reports.length, 47);
+  assert.equal(runBody.reports.length, 53);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "console-availability",
@@ -1406,11 +1517,17 @@ test("Console exposes BITE status and run routes", async () => {
     "gps-vector-arrow-contract",
     "gps-counter-contract",
     "gps-current-contract",
+    "vessel-database-availability",
+    "vessel-database-summary-contract",
+    "logger-availability",
+    "logger-api-contract",
+    "pi-controller-availability",
+    "pi-controller-telemetry-contract",
     "audio-output-summary",
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 46 tests passed/,
+    /Marine built in tests complete\. 52 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);

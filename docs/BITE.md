@@ -63,6 +63,12 @@ entry is only an availability check: installed, enabled, visible to Console, and
 with a webapp route. Required plugins also include their runtime/status evidence
 where available. Deeper behaviour tests remain grouped by subsystem.
 
+Optional plugin contract tests are added only where they verify suite-facing
+runtime behaviour that other apps depend on. They deliberately do not duplicate
+the plugin's own npm unit tests. For example, BITE checks that Logger exposes
+its runtime API to the live Signal K process, not how Logger parses an
+individual file internally.
+
 Run all starts with test `0`, which verifies the required AJRM Marine Suite
 plugins are installed and operational before any synthetic data is injected. It
 checks required package/webapp presence, core status projections, the Capture
@@ -102,6 +108,9 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
 - Audio accepting, queueing, rendering, skipping, or muting matching BITE audio.
 - GPS Integrity retaining vector-role, counter, and current/last-trusted-current
   fields needed by DR Plotter and voyage review.
+- Optional plugin contracts such as Vessel Database summary publication, Logger
+  runtime API availability, Harbour Editor default harbour data status, and Pi
+  Controller host telemetry.
 - Any mute condition being explicit rather than silent.
 - A final spoken BITE summary being requested so the skipper can confirm the
   selected physical/browser/player output was actually heard.
@@ -158,15 +167,19 @@ Current numbered BITE tests:
 | 3.15 | GPS Integrity counter contract | GPS Integrity counters are present, non-negative, and internally plausible. |
 | 3.16 | GPS/DR current contract | Live and retained current/set data are explicit enough for lost-GPS dead reckoning. |
 | 9.1 | Vessel Database availability | Optional Vessel Database plugin is installed, enabled, and visible to Console when present. |
+| 9.1.1 | Vessel Database summary contract | Vessel Database publishes the suite-facing summary used by capture/debugging, including vessel count, fill policy, and stats. |
 | 9.2 | Snapshot availability | Optional Snapshot plugin is installed, enabled, and visible to Console when present. |
 | 9.3 | Logger availability | Optional Logger plugin is installed, enabled, and visible to Console when present. |
+| 9.3.1 | Logger runtime API contract | Logger exposes status/start/stop/path API methods to the live Signal K process. |
 | 9.4 | Voyage Viewer availability | Optional Voyage Viewer plugin is installed, enabled, and visible to Console when present. |
 | 9.5 | Simulator availability | Optional Simulator plugin is installed, enabled, and visible to Console when present. |
 | 9.6 | Alert Panel availability | Optional Alert Panel plugin is installed, enabled, and visible to Console when present. |
 | 9.7 | Instruments availability | Optional Instruments plugin is installed, enabled, and visible to Console when present. |
 | 9.8 | Instrument Alerts availability | Optional Instrument Alerts plugin is installed, enabled, and visible to Console when present. |
 | 9.9 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
+| 9.9.1 | Harbour Editor default data contract | Harbour Editor reports enabled local/default harbour data and seed state without relying on Git storage. |
 | 9.10 | Pi Controller availability | Optional Pi Controller plugin is installed, enabled, and visible to Console when present. |
+| 9.10.1 | Pi Controller telemetry contract | Pi Controller publishes host/process telemetry useful to Capture, Logger, and Snapshot diagnostics. |
 | 99 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |
 
 Portable evaluator regression tests also cover stale audio evidence, broker-only

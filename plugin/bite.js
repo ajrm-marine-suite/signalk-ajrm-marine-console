@@ -34,6 +34,9 @@ const SAME_COURSE_TEST_TARGET_NAME = "BITE SAME COURSE TARGET";
 const AUDIO_SUMMARY_PRIORITY = 150;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
 const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
+const LOGGER_PLUGIN_ID = "signalk-ajrm-marine-logger";
+const PI_CONTROLLER_PLUGIN_ID = "signalk-ajrm-marine-pi-controller";
+const VESSEL_DATABASE_PLUGIN_ID = "signalk-ajrm-marine-vessel-database";
 const OWN_POSITION = { latitude: 56.21122, longitude: -5.55756 };
 const TARGET_POSITION = { latitude: 56.21122, longitude: -5.54756 };
 const QUIET_TARGET_POSITION = { latitude: 56.24122, longitude: -5.49756 };
@@ -74,7 +77,7 @@ const REQUIRED_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
 ]);
 const OPTIONAL_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
   pluginAvailabilityTest({
-    pluginId: "signalk-ajrm-marine-vessel-database",
+    pluginId: VESSEL_DATABASE_PLUGIN_ID,
     id: "vessel-database-availability",
     number: "9.1",
     title: "Vessel Database availability",
@@ -88,7 +91,7 @@ const OPTIONAL_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
     optional: true,
   }),
   pluginAvailabilityTest({
-    pluginId: "signalk-ajrm-marine-logger",
+    pluginId: LOGGER_PLUGIN_ID,
     id: "logger-availability",
     number: "9.3",
     title: "Logger availability",
@@ -153,11 +156,41 @@ const OPTIONAL_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
     optional: true,
   }),
   pluginAvailabilityTest({
-    pluginId: "signalk-ajrm-marine-pi-controller",
+    pluginId: PI_CONTROLLER_PLUGIN_ID,
     id: "pi-controller-availability",
     number: "9.10",
     title: "Pi Controller availability",
     optional: true,
+  }),
+]);
+const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
+  pluginContractTest({
+    pluginId: VESSEL_DATABASE_PLUGIN_ID,
+    id: "vessel-database-summary-contract",
+    number: "9.1.1",
+    title: "Vessel Database summary contract",
+    description: "Checks the optional Vessel Database publishes the suite-facing summary used by other apps and captures.",
+  }),
+  pluginContractTest({
+    pluginId: LOGGER_PLUGIN_ID,
+    id: "logger-api-contract",
+    number: "9.3.1",
+    title: "Logger runtime API contract",
+    description: "Checks the optional Logger exposes the runtime API used by BITE, Capture, and future suite orchestration.",
+  }),
+  pluginContractTest({
+    pluginId: HARBOUR_EDITOR_PLUGIN_ID,
+    id: "harbour-editor-default-data-contract",
+    number: "9.9.1",
+    title: "Harbour Editor default data contract",
+    description: "Checks Harbour Editor status reports local/default harbour data without requiring Git-backed storage.",
+  }),
+  pluginContractTest({
+    pluginId: PI_CONTROLLER_PLUGIN_ID,
+    id: "pi-controller-telemetry-contract",
+    number: "9.10.1",
+    title: "Pi Controller telemetry contract",
+    description: "Checks Pi Controller publishes host telemetry paths that Capture, Logger, and Snapshot can include.",
   }),
 ]);
 const PLUGIN_AVAILABILITY_TESTS = Object.freeze([
@@ -171,11 +204,11 @@ const OPTIONAL_PLUGIN_STATUS_PATHS = Object.freeze({
   "signalk-ajrm-marine-harbour-editor": WATCH_PATHS.harbourEditor,
   "signalk-ajrm-marine-instrument-alerts": "plugins.ajrmMarineInstrumentAlerts",
   "signalk-ajrm-marine-instruments": "plugins.ajrmMarineInstruments",
-  "signalk-ajrm-marine-logger": "plugins.ajrmMarineLogger",
-  "signalk-ajrm-marine-pi-controller": "plugins.ajrmMarinePiController",
+  [LOGGER_PLUGIN_ID]: "plugins.ajrmMarineLogger.playback",
+  [PI_CONTROLLER_PLUGIN_ID]: "plugins.ajrmMarinePiController",
   "signalk-ajrm-marine-simulator": "plugins.ajrmMarineSimulator",
   "signalk-ajrm-marine-snapshot": "plugins.ajrmMarineSnapshot",
-  "signalk-ajrm-marine-vessel-database": "plugins.ajrmMarineVesselDatabase",
+  [VESSEL_DATABASE_PLUGIN_ID]: "plugins.ajrmMarineVesselDatabase.summary",
   "signalk-ajrm-marine-voyage-viewer": "plugins.ajrmMarineVoyageViewer",
 });
 let reportFileSequence = 0;
@@ -189,6 +222,7 @@ const TESTS = [
     blocking: true,
   },
   ...PLUGIN_AVAILABILITY_TESTS,
+  ...OPTIONAL_PLUGIN_CONTRACT_TESTS,
   {
     id: "core-projections",
     number: "1.1",
@@ -503,7 +537,12 @@ const OPTIONAL_PLUGIN_BITE_GROUPS = OPTIONAL_PLUGIN_AVAILABILITY_TESTS
     title: suitePluginTitle(test.pluginId),
     description: `Optional ${suitePluginTitle(test.pluginId)} plugin availability and status check.`,
     pluginId: test.pluginId,
-    testIds: [test.id],
+    testIds: [
+      test.id,
+      ...OPTIONAL_PLUGIN_CONTRACT_TESTS
+        .filter((contractTest) => contractTest.pluginId === test.pluginId)
+        .map((contractTest) => contractTest.id),
+    ],
   }));
 const BITE_GROUP_DEFINITIONS = [
   {
@@ -617,6 +656,7 @@ const DEFAULT_REPORTS_DIRECTORY = path.join(
 const MAX_REPORTS = 50;
 const AJRM_MARINE_CAPTURE_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineCaptureApi");
 const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
+const AJRM_MARINE_LOGGER_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineLoggerApi");
 
 function createBiteController(app, { pluginId, version }) {
   let running = false;
@@ -1047,6 +1087,10 @@ function trafficApi(app) {
   return app.ajrmMarineTrafficApi || globalThis[AJRM_MARINE_TRAFFIC_API_REGISTRY] || null;
 }
 
+function loggerApi(app) {
+  return app.ajrmMarineLoggerApi || globalThis[AJRM_MARINE_LOGGER_API_REGISTRY] || null;
+}
+
 function biteCaptureStartSettleMs() {
   const value = Number(process.env.AJRM_MARINE_BITE_CAPTURE_START_SETTLE_MS);
   if (!Number.isFinite(value)) return 5000;
@@ -1091,8 +1135,20 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "audio-output-summary") {
     return runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorReports, timeoutMs });
   }
+  if (testId === "vessel-database-summary-contract") {
+    return runVesselDatabaseSummaryContractBite(app, { consoleVersion });
+  }
+  if (testId === "logger-api-contract") {
+    return runLoggerApiContractBite(app, { consoleVersion });
+  }
   if (testId === "harbour-editor-availability") {
     return runHarbourEditorAvailabilityBite(app, { consoleVersion });
+  }
+  if (testId === "harbour-editor-default-data-contract") {
+    return runHarbourEditorDefaultDataContractBite(app, { consoleVersion });
+  }
+  if (testId === "pi-controller-telemetry-contract") {
+    return runPiControllerTelemetryContractBite(app, { consoleVersion });
   }
   if (testId === "quiet-target-no-alert") {
     return runQuietTargetNoAlertBite(app, { pluginId, testId, consoleVersion, timeoutMs });
@@ -1313,6 +1369,20 @@ function pluginAvailabilityTest(options) {
 
 function pluginAvailabilityTestById(testId) {
   return PLUGIN_AVAILABILITY_TESTS.find((test) => test.id === testId) || null;
+}
+
+function pluginContractTest(options) {
+  const pluginId = String(options.pluginId || "");
+  return {
+    id: options.id,
+    number: options.number,
+    title: options.title || `${suitePluginTitle(pluginId)} contract`,
+    description: options.description || `Checks the suite-facing ${suitePluginTitle(pluginId)} runtime contract.`,
+    timeoutSeconds: options.timeoutSeconds || 5,
+    optional: true,
+    pluginId,
+    groupId: options.groupId || "",
+  };
 }
 
 function shortPluginId(pluginId) {
@@ -2022,6 +2092,275 @@ async function runHarbourEditorAvailabilityBite(app, { consoleVersion }) {
       ? "Harbour Editor optional plugin is available."
       : `Harbour Editor optional plugin check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: evidence,
+  });
+}
+
+async function runVesselDatabaseSummaryContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, VESSEL_DATABASE_PLUGIN_ID);
+  const summary = evidence.status || {};
+  const stats = summary.stats || {};
+  const assertions = [
+    assertion(
+      "vessel-database-visible",
+      evidence.installed,
+      evidence.installed
+        ? "Vessel Database is installed and visible to Console."
+        : "Vessel Database is not installed, not enabled, or not visible to Console.",
+    ),
+    assertion(
+      "summary-visible",
+      Boolean(evidence.status),
+      evidence.status
+        ? "Vessel Database summary projection is visible."
+        : "Vessel Database summary projection is missing.",
+    ),
+    assertion(
+      "summary-identity",
+      summary.plugin === VESSEL_DATABASE_PLUGIN_ID || typeof summary.version === "string",
+      "Vessel Database summary should identify the plugin or version.",
+    ),
+    assertion(
+      "vessel-count",
+      finiteNonNegative(summary.vesselCount),
+      "Vessel Database summary should include a non-negative vessel count.",
+    ),
+    assertion(
+      "fill-policy-visible",
+      typeof summary.fillMissingData === "boolean",
+      "Vessel Database summary should expose whether missing AIS fields are being filled.",
+    ),
+    assertion(
+      "stats-visible",
+      ["learned", "updated", "filled", "ignored", "errors"].some((key) => finiteNonNegative(stats[key])),
+      "Vessel Database summary should expose at least one non-negative stats counter.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "vessel-database-summary-contract",
+    testId: "vessel-database-summary-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [evidence],
+    summary: result === "pass"
+      ? "Vessel Database summary contract is available."
+      : `Vessel Database summary contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      url: evidence.url,
+      version: evidence.version,
+      summary,
+    },
+  });
+}
+
+async function runLoggerApiContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, LOGGER_PLUGIN_ID);
+  const api = loggerApi(app);
+  let status = null;
+  let statusError = "";
+  let paths = null;
+  try {
+    status = typeof api?.status === "function" ? await api.status() : null;
+  } catch (error) {
+    statusError = error?.message || String(error);
+  }
+  try {
+    paths = typeof api?.paths === "function" ? api.paths() : null;
+  } catch (_error) {
+    paths = null;
+  }
+  const assertions = [
+    assertion(
+      "logger-visible",
+      evidence.installed,
+      evidence.installed
+        ? "Logger is installed and visible to Console."
+        : "Logger is not installed, not enabled, or not visible to Console.",
+    ),
+    assertion(
+      "api-visible",
+      Boolean(api),
+      api ? "Logger runtime API is visible." : "Logger runtime API is missing.",
+    ),
+    assertion(
+      "api-methods",
+      ["status", "startCapture", "stopCapture", "paths"].every((method) => typeof api?.[method] === "function"),
+      "Logger runtime API should expose status, startCapture, stopCapture, and paths methods.",
+    ),
+    assertion(
+      "status-readable",
+      Boolean(status) && !statusError,
+      statusError ? `Logger status threw: ${statusError}` : "Logger status is readable.",
+    ),
+    assertion(
+      "status-shape",
+      status?.ok === true || Boolean(status?.recording || status?.playback || status?.paths),
+      "Logger status should expose ok/recording/playback/path state.",
+    ),
+    assertion(
+      "paths-visible",
+      Boolean(paths) || Boolean(status?.paths),
+      "Logger API should expose the configured recording paths.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "logger-api-contract",
+    testId: "logger-api-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [evidence],
+    summary: result === "pass"
+      ? "Logger runtime API contract is available."
+      : `Logger runtime API contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      url: evidence.url,
+      version: evidence.version,
+      status,
+      statusError,
+      paths,
+    },
+  });
+}
+
+async function runHarbourEditorDefaultDataContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, HARBOUR_EDITOR_PLUGIN_ID);
+  const status = evidence.status || {};
+  const assertions = [
+    assertion(
+      "harbour-editor-visible",
+      evidence.installed,
+      evidence.installed
+        ? "Harbour Editor is installed and visible to Console."
+        : "Harbour Editor is not installed, not enabled, or not visible to Console.",
+    ),
+    assertion(
+      "status-contract",
+      status.contract === "ajrm-marine-harbour-editor-status" && status.enabled === true,
+      "Harbour Editor status should be enabled and use the recognised status contract.",
+    ),
+    assertion(
+      "harbour-count",
+      finiteNonNegative(status.harbourCount),
+      "Harbour Editor status should include a non-negative local harbour count.",
+    ),
+    assertion(
+      "default-harbour-count",
+      finiteNonNegative(status.defaultHarbourCount) && Number(status.defaultHarbourCount) > 0,
+      "Harbour Editor should report a non-empty default harbour set.",
+    ),
+    assertion(
+      "seed-state-visible",
+      typeof status.seedState === "string" && status.seedState.length > 0,
+      "Harbour Editor should report local/default data seed state.",
+    ),
+    assertion(
+      "local-data-not-smaller-than-defaults",
+      !finiteNonNegative(status.harbourCount) ||
+        !finiteNonNegative(status.defaultHarbourCount) ||
+        Number(status.harbourCount) >= Number(status.defaultHarbourCount),
+      "Local harbour count should not be smaller than the installed default set.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "harbour-editor-default-data-contract",
+    testId: "harbour-editor-default-data-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [evidence],
+    summary: result === "pass"
+      ? "Harbour Editor default-data contract is available."
+      : `Harbour Editor default-data contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: evidence,
+  });
+}
+
+async function runPiControllerTelemetryContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, PI_CONTROLLER_PLUGIN_ID);
+  const telemetry = evidence.status || {};
+  const system = telemetry.system || telemetry;
+  const memory = system.memory || {};
+  const processInfo = system.process || {};
+  const assertions = [
+    assertion(
+      "pi-controller-visible",
+      evidence.installed,
+      evidence.installed
+        ? "Pi Controller is installed and visible to Console."
+        : "Pi Controller is not installed, not enabled, or not visible to Console.",
+    ),
+    assertion(
+      "telemetry-visible",
+      Boolean(evidence.status),
+      evidence.status
+        ? "Pi Controller telemetry projection is visible."
+        : "Pi Controller telemetry projection is missing.",
+    ),
+    assertion(
+      "host-identity",
+      typeof system.hostname === "string" || typeof system.platform === "string" || typeof telemetry.version === "string",
+      "Pi Controller telemetry should identify the host, platform, or plugin version.",
+    ),
+    assertion(
+      "uptime-visible",
+      finiteNonNegative(system.uptimeSeconds) || finiteNonNegative(system.uptime),
+      "Pi Controller telemetry should expose non-negative host uptime.",
+    ),
+    assertion(
+      "memory-visible",
+      finiteNonNegative(memory.totalBytes) || finiteNonNegative(memory.freeBytes) || finiteNonNegative(memory.usedBytes),
+      "Pi Controller telemetry should expose memory counters.",
+    ),
+    assertion(
+      "process-visible",
+      finiteNonNegative(processInfo.pid) || finiteNonNegative(processInfo.uptimeSeconds),
+      "Pi Controller telemetry should expose Signal K process information.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "pi-controller-telemetry-contract",
+    testId: "pi-controller-telemetry-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [evidence],
+    summary: result === "pass"
+      ? "Pi Controller telemetry contract is available."
+      : `Pi Controller telemetry contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      url: evidence.url,
+      version: evidence.version,
+      telemetry,
+    },
   });
 }
 
