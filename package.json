@@ -1,6 +1,6 @@
 {
   "name": "signalk-ajrm-marine-console",
-  "version": "0.5.87",
+  "version": "0.5.88",
   "description": "Suite entry point, navigation shell, and shared help for AJRM Marine applications.",
   "main": "plugin/index.js",
   "scripts": {
@@ -22,7 +22,7 @@
     "navigation"
   ],
   "author": "Anthony McDonald, with assistance from William McAusland",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git"

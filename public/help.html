@@ -143,6 +143,20 @@
                 <li class="nav-item" role="presentation">
                   <button
                     class="nav-link"
+                    id="help-architecture-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#help-architecture"
+                    type="button"
+                    role="tab"
+                    aria-controls="help-architecture"
+                    aria-selected="false"
+                  >
+                    Architecture
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button
+                    class="nav-link"
                     id="help-about-tab"
                     data-bs-toggle="tab"
                     data-bs-target="#help-about"
@@ -753,12 +767,72 @@
                 </div>
                 <div
                   class="tab-pane fade"
+                  id="help-architecture"
+                  role="tabpanel"
+                  aria-labelledby="help-architecture-tab"
+                  tabindex="0"
+                >
+                  <h6>Suite Architecture</h6>
+                  <p>
+                    AJRM Marine is a suite of cooperating Signal K plugins, not
+                    one large application. Backend plugins calculate and publish
+                    authoritative state; frontends render that state and send
+                    explicit user actions.
+                  </p>
+                  <ul>
+                    <li>
+                      <strong>Traffic</strong> owns AIS CPA/TCPA, encounter
+                      wording, profiles, voyage state, and traffic audio policy.
+                    </li>
+                    <li>
+                      <strong>Notifications</strong> owns active/recent alert
+                      projection, lifecycle, priority, and deduplication.
+                    </li>
+                    <li>
+                      <strong>Audio</strong> owns the audible timeline and
+                      renders the spoken announcements used by server speaker,
+                      stream, browser, and desktop-player outputs.
+                    </li>
+                    <li>
+                      <strong>Capture, Logger, Snapshot, and Voyage Viewer</strong>
+                      provide the recording and replay path used for debugging
+                      and voyage review.
+                    </li>
+                    <li>
+                      <strong>GPS Integrity and DR Plotter</strong> publish and
+                      render navigation-integrity, dead-reckoning, and plotted
+                      fix state.
+                    </li>
+                    <li>
+                      <strong>BITE</strong> exercises installed plugins through
+                      their public Signal K/API surfaces and records evidence
+                      through Capture.
+                    </li>
+                  </ul>
+                  <p>
+                    The canonical architecture documents live in the public
+                    AJRM Marine Architecture repository:
+                    <a
+                      href="https://github.com/ajrm-marine-suite/ajrm-marine-architecture"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >github.com/ajrm-marine-suite/ajrm-marine-architecture</a>.
+                  </p>
+                  <p class="text-body-secondary small">
+                    The software repositories use AGPL-3.0-or-later. The
+                    architecture documents have a separate licence: all rights
+                    reserved except for personal/non-commercial Signal K use;
+                    commercial licensing is available by arrangement.
+                  </p>
+                </div>
+                <div
+                  class="tab-pane fade"
                   id="help-about"
                   role="tabpanel"
                   aria-labelledby="help-about-tab"
                   tabindex="0"
                 >
-                  <h6>About AJRM Marine Display</h6>
+                  <h6>About AJRM Marine</h6>
                   <p>
                     AJRM Marine is authored and maintained by Anthony McDonald, with assistance from William McAusland.
                   </p>
@@ -769,12 +843,14 @@
                     on.
                   </p>
                   <p>
-                    AJRM Marine is derived from
+                    Earlier AJRM Marine traffic work was derived from
                     <code>signalk-ais-target-prioritizer</code> by Jeremy
                     Waters and from
-                    <code>signalk-ais-encounter-enricher</code>. The upstream
-                    prioritizer is MIT licensed, and AJRM Marine keeps that
-                    license.
+                    <code>signalk-ais-encounter-enricher</code>. Upstream
+                    third-party notices are preserved where required. AJRM
+                    Marine runtime repositories are licensed under
+                    AGPL-3.0-or-later, with commercial licensing available by
+                    arrangement.
                   </p>
                   <h6>Running Tests</h6>
                   <p>
