@@ -905,9 +905,9 @@ test("Console exposes BITE status and run routes", async () => {
     "plugins.ajrmMarineVoyageViewer": {
       ok: true,
       version: "0.5.14",
-      voyageDirectory: "/home/pi/CapturePlusLogs/voyages",
-      logDirectory: "/home/pi/CapturePlusLogs/buffer",
-      clipDirectory: "/home/pi/CapturePlusLogs/clips",
+      voyageDirectory: "/tmp/ajrm-capture/voyages",
+      logDirectory: "/tmp/ajrm-capture/buffer",
+      clipDirectory: "/tmp/ajrm-capture/clips",
     },
   };
   const messages = [];
