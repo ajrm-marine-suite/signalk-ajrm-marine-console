@@ -226,12 +226,12 @@ function biteTestHtml(test, group = null, testIndex = 0, groupNumber = "") {
   const available = test.enabled !== false;
   const state = !available
     ? "disabled"
-    : result
-    ? result.ok
-      ? "pass"
-      : "fail"
     : biteRunning && currentTestId === test.id
       ? "running"
+      : result
+      ? result.ok
+        ? "pass"
+        : "fail"
       : "pending";
   const stateLabel = {
     pending: "Not run",
