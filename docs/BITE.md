@@ -58,7 +58,12 @@ Optional plugin tests live under their plugin heading, for example Harbour
 Editor. This makes missing optional apps visible without turning the whole BITE
 page into a flat list of disabled checks.
 
-Run all starts with test `00`, which verifies the required AJRM Marine Suite
+Every AJRM Marine plugin has at least one BITE entry. For some plugins that
+entry is only an availability check: installed, enabled, visible to Console, and
+with a webapp route. Required plugins also include their runtime/status evidence
+where available. Deeper behaviour tests remain grouped by subsystem.
+
+Run all starts with test `0`, which verifies the required AJRM Marine Suite
 plugins are installed and operational before any synthetic data is injected. It
 checks required package/webapp presence, core status projections, the Capture
 API, simulator output state, and fresh live own-vessel data. If this preflight
@@ -95,7 +100,13 @@ Current numbered BITE tests:
 
 | No. | Test | Requirement covered |
 | --- | --- | --- |
-| 00 | Required plugins and safety isolation | Required suite plugins installed/enabled; no live feed or simulator contamination before synthetic data. |
+| 0 | Required plugins and safety isolation | Required suite plugins installed/enabled; no live feed or simulator contamination before synthetic data. |
+| 0.1 | Console availability | Console is present and exposing the BITE/webapp route. |
+| 0.2 | Display availability | Required Display plugin is installed, enabled, visible to Console, and publishing runtime status. |
+| 0.3 | Traffic availability | Required Traffic plugin is installed, enabled, visible to Console, and publishing runtime status. |
+| 0.4 | Notifications availability | Required Notifications plugin is installed, enabled, visible to Console, and publishing runtime status. |
+| 0.5 | Audio availability | Required Audio plugin is installed, enabled, visible to Console, and publishing runtime status. |
+| 0.6 | Capture availability | Required Capture plugin is installed, enabled, visible to Console, and its Capture API is available. |
 | 1.1 | Core status projections | Traffic, Display, Notifications, and Audio publish the observable state BITE needs. |
 | 1.2 | Projection contracts | Core projections retain expected contracts, versioning, sessions, sequence counters, and authority markers. |
 | 1.3 | Audio policy consistency | Traffic owns mute/automute policy and Audio consumes that policy without disagreement. |
@@ -112,6 +123,8 @@ Current numbered BITE tests:
 | 2.8 | Traffic stand-on prompt | A synthetic port-side collision must say Stand On. |
 | 2.9 | Traffic target overtaking wording | A target overtaking own vessel from astern must say it is overtaking you. |
 | 2.10 | Traffic same-course wording | A similar-course passing encounter must say same general course and give the CPA side. |
+| 3.0 | GPS Integrity availability | Optional GPS Integrity plugin is installed, enabled, and visible to Console when present. |
+| 3.0.1 | DR Plotter availability | Optional DR Plotter plugin is installed, enabled, and visible to Console when present. |
 | 3.1 | GPS Integrity health | GPS Integrity publishes trust, fix, counters, and timestamp state coherently. |
 | 3.2 | GPS lost age consistency | GPS-lost wording is checked against the freshest known GPS source timestamp. |
 | 3.3 | GPS Integrity diagnostics contract | GPS Integrity publishes the diagnostic block Voyage Viewer uses for end-of-day review. |
@@ -125,7 +138,16 @@ Current numbered BITE tests:
 | 3.11 | Lost-GPS retained current source | Lost-GPS DR must report retained-current/last-trusted-current rather than live GPS-derived current. |
 | 3.12 | GPS explicit no-fix immediate | An explicit GNSS no-fix update must produce lost GPS without waiting for stale-position timeout. |
 | 3.13 | GPS weak-signal detection | A weak GNSS sample must degrade GPS trust and increment the weak-signal counter. |
-| 9.1 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
+| 9.1 | Vessel Database availability | Optional Vessel Database plugin is installed, enabled, and visible to Console when present. |
+| 9.2 | Snapshot availability | Optional Snapshot plugin is installed, enabled, and visible to Console when present. |
+| 9.3 | Logger availability | Optional Logger plugin is installed, enabled, and visible to Console when present. |
+| 9.4 | Voyage Viewer availability | Optional Voyage Viewer plugin is installed, enabled, and visible to Console when present. |
+| 9.5 | Simulator availability | Optional Simulator plugin is installed, enabled, and visible to Console when present. |
+| 9.6 | Alert Panel availability | Optional Alert Panel plugin is installed, enabled, and visible to Console when present. |
+| 9.7 | Instruments availability | Optional Instruments plugin is installed, enabled, and visible to Console when present. |
+| 9.8 | Instrument Alerts availability | Optional Instrument Alerts plugin is installed, enabled, and visible to Console when present. |
+| 9.9 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
+| 9.10 | Pi Controller availability | Optional Pi Controller plugin is installed, enabled, and visible to Console when present. |
 | 99 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |
 
 Portable evaluator regression tests also cover stale audio evidence, broker-only

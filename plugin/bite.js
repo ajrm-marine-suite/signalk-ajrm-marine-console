@@ -54,6 +54,130 @@ const WATCH_PATHS = {
 const REQUIRED_SUITE_PLUGINS = Object.freeze(packageInfo.signalk?.requires || []);
 const PREFLIGHT_TEST_ID = "preflight-safety";
 const AUDIO_SUMMARY_TEST_ID = "audio-output-summary";
+const REQUIRED_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
+  pluginAvailabilityTest({
+    pluginId: packageInfo.name,
+    id: "console-availability",
+    number: "0.1",
+    title: "Console availability",
+    required: true,
+  }),
+  ...REQUIRED_SUITE_PLUGINS.map((pluginId, index) =>
+    pluginAvailabilityTest({
+      pluginId,
+      id: `${shortPluginId(pluginId)}-availability`,
+      number: `0.${index + 2}`,
+      title: `${suitePluginTitle(pluginId)} availability`,
+      required: true,
+    })
+  ),
+]);
+const OPTIONAL_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
+  pluginAvailabilityTest({
+    pluginId: "signalk-ajrm-marine-vessel-database",
+    id: "vessel-database-availability",
+    number: "9.1",
+    title: "Vessel Database availability",
+    optional: true,
+  }),
+  pluginAvailabilityTest({
+    pluginId: "signalk-ajrm-marine-snapshot",
+    id: "snapshot-availability",
+    number: "9.2",
+    title: "Snapshot availability",
+    optional: true,
+  }),
+  pluginAvailabilityTest({
+    pluginId: "signalk-ajrm-marine-logger",
+    id: "logger-availability",
+    number: "9.3",
+    title: "Logger availability",
+    optional: true,
+  }),
+  pluginAvailabilityTest({
+    pluginId: "signalk-ajrm-marine-voyage-viewer",
+    id: "voyage-viewer-availability",
+    number: "9.4",
+    title: "Voyage Viewer availability",
+    optional: true,
+  }),
+  pluginAvailabilityTest({
+    pluginId: "signalk-ajrm-marine-simulator",
+    id: "simulator-availability",
+    number: "9.5",
+    title: "Simulator availability",
+    optional: true,
+  }),
+  pluginAvailabilityTest({
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+    id: "gps-integrity-availability",
+    number: "3.0",
+    title: "GPS Integrity availability",
+    optional: true,
+    groupId: "gps-dr",
+  }),
+  pluginAvailabilityTest({
+    pluginId: "signalk-ajrm-marine-dr-plotter",
+    id: "dr-plotter-availability",
+    number: "3.0.1",
+    title: "DR Plotter availability",
+    optional: true,
+    groupId: "gps-dr",
+  }),
+  pluginAvailabilityTest({
+    pluginId: "signalk-ajrm-marine-alerts",
+    id: "alert-panel-availability",
+    number: "9.6",
+    title: "Alert Panel availability",
+    optional: true,
+  }),
+  pluginAvailabilityTest({
+    pluginId: "signalk-ajrm-marine-instruments",
+    id: "instruments-availability",
+    number: "9.7",
+    title: "Instruments availability",
+    optional: true,
+  }),
+  pluginAvailabilityTest({
+    pluginId: "signalk-ajrm-marine-instrument-alerts",
+    id: "instrument-alerts-availability",
+    number: "9.8",
+    title: "Instrument Alerts availability",
+    optional: true,
+  }),
+  pluginAvailabilityTest({
+    pluginId: HARBOUR_EDITOR_PLUGIN_ID,
+    id: "harbour-editor-availability",
+    number: "9.9",
+    title: "Harbour Editor availability",
+    optional: true,
+  }),
+  pluginAvailabilityTest({
+    pluginId: "signalk-ajrm-marine-pi-controller",
+    id: "pi-controller-availability",
+    number: "9.10",
+    title: "Pi Controller availability",
+    optional: true,
+  }),
+]);
+const PLUGIN_AVAILABILITY_TESTS = Object.freeze([
+  ...REQUIRED_PLUGIN_AVAILABILITY_TESTS,
+  ...OPTIONAL_PLUGIN_AVAILABILITY_TESTS,
+]);
+const OPTIONAL_PLUGIN_STATUS_PATHS = Object.freeze({
+  "signalk-ajrm-marine-alerts": "plugins.ajrmMarineAlerts",
+  "signalk-ajrm-marine-dr-plotter": "plugins.ajrmMarineDrPlotter",
+  "signalk-ajrm-marine-gps-integrity": WATCH_PATHS.gpsIntegrity,
+  "signalk-ajrm-marine-harbour-editor": WATCH_PATHS.harbourEditor,
+  "signalk-ajrm-marine-instrument-alerts": "plugins.ajrmMarineInstrumentAlerts",
+  "signalk-ajrm-marine-instruments": "plugins.ajrmMarineInstruments",
+  "signalk-ajrm-marine-logger": "plugins.ajrmMarineLogger",
+  "signalk-ajrm-marine-pi-controller": "plugins.ajrmMarinePiController",
+  "signalk-ajrm-marine-simulator": "plugins.ajrmMarineSimulator",
+  "signalk-ajrm-marine-snapshot": "plugins.ajrmMarineSnapshot",
+  "signalk-ajrm-marine-vessel-database": "plugins.ajrmMarineVesselDatabase",
+  "signalk-ajrm-marine-voyage-viewer": "plugins.ajrmMarineVoyageViewer",
+});
 let reportFileSequence = 0;
 const TESTS = [
   {
@@ -64,6 +188,7 @@ const TESTS = [
     timeoutSeconds: 5,
     blocking: true,
   },
+  ...PLUGIN_AVAILABILITY_TESTS,
   {
     id: "core-projections",
     number: "1.1",
@@ -300,22 +425,28 @@ const TESTS = [
     description: "Publishes a final spoken BITE summary so the skipper can confirm the selected audio output was actually heard.",
     timeoutSeconds: 75,
   },
-  {
-    id: "harbour-editor-availability",
-    number: "9.1",
-    title: "Harbour Editor availability",
-    description: "Optional check that AJRM Marine Harbour Editor is installed, enabled, and visible to Console.",
-    timeoutSeconds: 5,
-    optional: true,
-    pluginId: HARBOUR_EDITOR_PLUGIN_ID,
-  },
 ];
+const OPTIONAL_PLUGIN_BITE_GROUPS = OPTIONAL_PLUGIN_AVAILABILITY_TESTS
+  .filter((test) => test.groupId !== "gps-dr")
+  .map((test) => ({
+    id: test.pluginId,
+    title: suitePluginTitle(test.pluginId),
+    description: `Optional ${suitePluginTitle(test.pluginId)} plugin availability and status check.`,
+    pluginId: test.pluginId,
+    testIds: [test.id],
+  }));
 const BITE_GROUP_DEFINITIONS = [
   {
     id: "safety",
     title: "Pre-test safety",
     description: "Required plugin checks and isolation from live or simulator data before BITE injects test traffic.",
     testIds: [PREFLIGHT_TEST_ID],
+  },
+  {
+    id: "required-plugins",
+    title: "Required plugins",
+    description: "Each required AJRM Marine plugin is installed, enabled, visible to Console, and operational where a runtime check is available.",
+    testIds: REQUIRED_PLUGIN_AVAILABILITY_TESTS.map((test) => test.id),
   },
   {
     id: "core",
@@ -352,6 +483,8 @@ const BITE_GROUP_DEFINITIONS = [
     title: "GPS Integrity and DR Plotter",
     description: "GPS loss, stale fixes, weak signals, DR drift, retained current, and GPS recovery behaviour.",
     testIds: [
+      "gps-integrity-availability",
+      "dr-plotter-availability",
       "gps-integrity-health",
       "gps-lost-age-consistency",
       "gps-integrity-diagnostics-contract",
@@ -367,13 +500,7 @@ const BITE_GROUP_DEFINITIONS = [
       "gps-weak-signal-detection",
     ],
   },
-  {
-    id: "signalk-ajrm-marine-harbour-editor",
-    title: "Harbour Editor",
-    description: "Optional Harbour Editor plugin availability and status contract.",
-    pluginId: HARBOUR_EDITOR_PLUGIN_ID,
-    testIds: ["harbour-editor-availability"],
-  },
+  ...OPTIONAL_PLUGIN_BITE_GROUPS,
   {
     id: "summary",
     title: "Audible summary",
@@ -862,6 +989,10 @@ function runAllSummary({ failed, captureStart, captureStop, captureError, restor
 
 async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutMs, priorReports = [] }) {
   if (testId === PREFLIGHT_TEST_ID) return runPreflightBite(app, { consoleVersion });
+  const availabilityTest = pluginAvailabilityTestById(testId);
+  if (availabilityTest && testId !== "harbour-editor-availability") {
+    return runPluginAvailabilityBite(app, { consoleVersion, test: availabilityTest });
+  }
   if (testId === "core-projections") return runCoreProjectionBite(app, { consoleVersion });
   if (testId === "projection-contracts") return runProjectionContractsBite(app, { consoleVersion });
   if (testId === "audio-policy-consistency") return runAudioPolicyConsistencyBite(app, { consoleVersion });
@@ -1062,13 +1193,137 @@ function optionalPluginEvidence(app, pluginId) {
 }
 
 function optionalPluginStatus(app, pluginId) {
-  if (pluginId === HARBOUR_EDITOR_PLUGIN_ID) {
-    return readSelfPath(app, WATCH_PATHS.harbourEditor);
+  const pathName = OPTIONAL_PLUGIN_STATUS_PATHS[pluginId];
+  return pathName ? readSelfPath(app, pathName) : null;
+}
+
+function pluginAvailabilityTest(options) {
+  const pluginId = String(options.pluginId || "");
+  return {
+    id: options.id,
+    number: options.number,
+    title: options.title || `${suitePluginTitle(pluginId)} availability`,
+    description: `${options.optional ? "Optional" : "Required"} check that ${suitePluginTitle(pluginId)} is installed, enabled, and visible to Console.`,
+    timeoutSeconds: 5,
+    optional: options.optional === true,
+    required: options.required === true,
+    pluginId,
+    groupId: options.groupId || "",
+  };
+}
+
+function pluginAvailabilityTestById(testId) {
+  return PLUGIN_AVAILABILITY_TESTS.find((test) => test.id === testId) || null;
+}
+
+function shortPluginId(pluginId) {
+  return String(pluginId || "")
+    .replace(/^signalk-ajrm-marine-/, "")
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+}
+
+function suitePluginTitle(pluginId) {
+  const titles = {
+    "signalk-ajrm-marine-alerts": "Alert Panel",
+    "signalk-ajrm-marine-audio": "Audio",
+    "signalk-ajrm-marine-capture": "Capture",
+    "signalk-ajrm-marine-console": "Console",
+    "signalk-ajrm-marine-display": "Display",
+    "signalk-ajrm-marine-dr-plotter": "DR Plotter",
+    "signalk-ajrm-marine-gps-integrity": "GPS Integrity",
+    "signalk-ajrm-marine-harbour-editor": "Harbour Editor",
+    "signalk-ajrm-marine-instrument-alerts": "Instrument Alerts",
+    "signalk-ajrm-marine-instruments": "Instruments",
+    "signalk-ajrm-marine-logger": "Logger",
+    "signalk-ajrm-marine-notifications": "Notifications",
+    "signalk-ajrm-marine-pi-controller": "Pi Controller",
+    "signalk-ajrm-marine-simulator": "Simulator",
+    "signalk-ajrm-marine-snapshot": "Snapshot",
+    "signalk-ajrm-marine-traffic": "Traffic",
+    "signalk-ajrm-marine-vessel-database": "Vessel Database",
+    "signalk-ajrm-marine-voyage-viewer": "Voyage Viewer",
+  };
+  if (titles[pluginId]) return titles[pluginId];
+  return String(pluginId || "Plugin")
+    .replace(/^signalk-ajrm-marine-/, "")
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function pluginAvailabilityEvidence(app, pluginId) {
+  if (pluginId === packageInfo.name) {
+    return {
+      pluginId,
+      installed: true,
+      title: suitePluginTitle(pluginId),
+      version: packageInfo.version,
+      url: "/signalk-ajrm-marine-console/",
+      kind: "webapp",
+      status: readSelfPath(app, "plugins.ajrmMarineConsole"),
+    };
   }
-  if (pluginId === GPS_INTEGRITY_PLUGIN_ID) {
-    return readSelfPath(app, WATCH_PATHS.gpsIntegrity);
+  return optionalPluginEvidence(app, pluginId);
+}
+
+async function runPluginAvailabilityBite(app, { consoleVersion, test }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = pluginAvailabilityEvidence(app, test.pluginId);
+  const requiredEvidence = test.required ? requiredSuitePluginEvidence(app) : null;
+  const runtimeCheck = requiredEvidence?.runtimeChecks?.find((item) => item.id === test.pluginId) || null;
+  const assertions = [
+    assertion(
+      "plugin-visible",
+      evidence.installed,
+      evidence.installed
+        ? `${suitePluginTitle(test.pluginId)} is installed and visible to Console.`
+        : `${suitePluginTitle(test.pluginId)} is not installed, not enabled, or not visible to Console.`,
+    ),
+    assertion(
+      "webapp-route",
+      evidence.installed && evidence.url.length > 0,
+      evidence.url
+        ? `${suitePluginTitle(test.pluginId)} webapp route is ${evidence.url}.`
+        : `${suitePluginTitle(test.pluginId)} webapp route is missing.`,
+    ),
+  ];
+  if (test.required && test.pluginId !== packageInfo.name) {
+    assertions.push(assertion(
+      "required-runtime",
+      runtimeCheck?.ok === true,
+      runtimeCheck?.ok === true
+        ? `${suitePluginTitle(test.pluginId)} runtime check passed.`
+        : runtimeCheck?.message || `${suitePluginTitle(test.pluginId)} runtime check is missing or failed.`,
+    ));
   }
-  return null;
+  if (evidence.status) {
+    assertions.push(assertion(
+      "status-projection-visible",
+      true,
+      `${suitePluginTitle(test.pluginId)} status projection is visible.`,
+    ));
+  }
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: test.id,
+    testId: test.id,
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [evidence],
+    summary: result === "pass"
+      ? `${suitePluginTitle(test.pluginId)} plugin availability check passed.`
+      : `${suitePluginTitle(test.pluginId)} plugin availability check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: evidence,
+  });
 }
 
 async function runCoreProjectionBite(app, { consoleVersion }) {

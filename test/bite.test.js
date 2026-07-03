@@ -962,15 +962,24 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.running, false);
   assert.equal(Array.isArray(statusBody.tests), true);
   assert.equal(statusBody.tests[0].number, "0");
-  assert.equal(statusBody.tests[1].id, "core-projections");
+  assert.equal(statusBody.tests[1].id, "console-availability");
   assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
   assert.equal(statusBody.tests.at(-1).number, "99");
   assert.equal(statusBody.tests.at(-1).timeoutSeconds, 75);
   assert.equal(Array.isArray(statusBody.groups), true);
   assert.equal(statusBody.groups[0].id, "safety");
+  assert.equal(statusBody.groups.find((item) => item.id === "required-plugins").title, "Required plugins");
   assert.equal(statusBody.groups.find((item) => item.id === "traffic").title, "Traffic encounters");
   assert.equal(statusBody.groups.find((item) => item.id === "gps-dr").title, "GPS Integrity and DR Plotter");
+  assert.equal(statusBody.tests.find((item) => item.id === "console-availability").enabled, undefined);
+  assert.equal(statusBody.tests.find((item) => item.id === "display-availability").enabled, undefined);
+  assert.equal(statusBody.tests.find((item) => item.id === "traffic-availability").enabled, undefined);
+  assert.equal(statusBody.tests.find((item) => item.id === "notifications-availability").enabled, undefined);
+  assert.equal(statusBody.tests.find((item) => item.id === "audio-availability").enabled, undefined);
+  assert.equal(statusBody.tests.find((item) => item.id === "capture-availability").enabled, undefined);
   assert.equal(statusBody.tests.find((item) => item.id === "traffic-head-on-prompt").groupId, "traffic");
+  assert.equal(statusBody.tests.find((item) => item.id === "gps-integrity-availability").groupId, "gps-dr");
+  assert.equal(statusBody.tests.find((item) => item.id === "dr-plotter-availability").enabled, false);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-jump-rejection").groupId, "gps-dr");
   const harbourStatusTest = statusBody.tests.find((item) => item.id === "harbour-editor-availability");
   assert.equal(harbourStatusTest.enabled, false);
@@ -1332,9 +1341,15 @@ test("Console exposes BITE status and run routes", async () => {
     { muted: false },
     { muted: true },
   ]);
-  assert.equal(runBody.reports.length, 31);
+  assert.equal(runBody.reports.length, 38);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
+    "console-availability",
+    "display-availability",
+    "traffic-availability",
+    "notifications-availability",
+    "audio-availability",
+    "capture-availability",
     "core-projections",
     "projection-contracts",
     "audio-policy-consistency",
@@ -1351,6 +1366,7 @@ test("Console exposes BITE status and run routes", async () => {
     "traffic-stand-on-prompt",
     "traffic-target-overtaking-wording",
     "traffic-same-course-wording",
+    "gps-integrity-availability",
     "gps-integrity-health",
     "gps-lost-age-consistency",
     "gps-integrity-diagnostics-contract",
@@ -1368,7 +1384,7 @@ test("Console exposes BITE status and run routes", async () => {
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 30 tests passed/,
+    /Marine built in tests complete\. 37 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);
