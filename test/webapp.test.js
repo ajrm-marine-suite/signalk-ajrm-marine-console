@@ -133,7 +133,7 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.doesNotMatch(script, /event\.target\.closest\("\\[data-bite-group\\]"\)/);
   assert.match(script, /formatBiteReport/);
   assert.match(css, /\.bite-test\.disabled/);
-  assert.match(css, /\.bite-test\.running \.bite-light \{ color: #f59e0b; background: #f59e0b; \}/);
+  assert.match(css, /\.bite-test\.running \.bite-light \{ color: #38bdf8; background: #38bdf8; \}/);
   assert.match(css, /\.bite-group\.fail/);
   assert.match(css, /\.bite-group-header/);
   assert.match(css, /\.bite-group-toggle\s*\{[^}]*min-height:\s*3\.25rem;/s);
