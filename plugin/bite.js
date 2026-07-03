@@ -37,6 +37,8 @@ const CPA_DEDUP_TEST_TARGET_MMSI = "235912356";
 const CPA_DEDUP_TEST_TARGET_NAME = "BITE CPA DEDUP TARGET";
 const VISUAL_AUDIO_MATCH_TEST_TARGET_MMSI = "235912357";
 const VISUAL_AUDIO_MATCH_TEST_TARGET_NAME = "BITE WORDING MATCH TARGET";
+const SAFETY_RETENTION_TEST_TARGET_MMSI = "235912358";
+const SAFETY_RETENTION_TEST_TARGET_NAME = "BITE SAFETY RETENTION TARGET";
 const AUDIO_SUMMARY_PRIORITY = 150;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
 const ALERT_PANEL_PLUGIN_ID = "signalk-ajrm-marine-alerts";
@@ -190,6 +192,20 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     number: "9.3.1",
     title: "Logger runtime API contract",
     description: "Checks the optional Logger exposes the runtime API used by BITE, Capture, and future suite orchestration.",
+  }),
+  pluginContractTest({
+    pluginId: LOGGER_PLUGIN_ID,
+    id: "logger-replay-sanity-contract",
+    number: "9.3.2",
+    title: "Logger replay sanity contract",
+    description: "Checks Logger exposes replay state clearly enough to avoid replaying derived data or stale timestamps as live navigation.",
+  }),
+  pluginContractTest({
+    pluginId: INSTRUMENT_ALERTS_PLUGIN_ID,
+    id: "instrument-alerts-depth-callout-capability",
+    number: "9.8.1",
+    title: "Instrument Alerts depth callout capability",
+    description: "Checks Instrument Alerts advertises the anchoring depth callout capability before BITE relies on it.",
   }),
   pluginContractTest({
     pluginId: HARBOUR_EDITOR_PLUGIN_ID,
@@ -427,6 +443,13 @@ const TESTS = [
     timeoutSeconds: 5,
   },
   {
+    id: "audio-playable-output-path",
+    number: "1.11",
+    title: "Audio playable output path",
+    description: "Publishes a forced short audio check and verifies Audio exposes a recent playable MP3 URL for browser and desktop players.",
+    timeoutSeconds: 45,
+  },
+  {
     id: "gps-explicit-no-fix-immediate",
     number: "3.12",
     title: "GPS explicit no-fix immediate",
@@ -536,6 +559,20 @@ const TESTS = [
     timeoutSeconds: 30,
   },
   {
+    id: "traffic-harbour-profile-boundary",
+    number: "2.16",
+    title: "Traffic harbour/profile boundary",
+    description: "Checks Traffic exposes enough auto-profile boundary state to prove harbour/coastal transitions and stationary automute decisions.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "traffic-safety-message-retained",
+    number: "2.17",
+    title: "Traffic safety message retained",
+    description: "Publishes a collision encounter while lower-priority system audio is queued and checks the safety message remains visible to Audio.",
+    timeoutSeconds: 35,
+  },
+  {
     id: "gps-vector-arrow-contract",
     number: "3.14",
     title: "GPS/DR vector arrow contract",
@@ -561,6 +598,15 @@ const TESTS = [
     timeoutSeconds: 5,
     optional: true,
     pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "dr-plot-persistence-contract",
+    number: "3.17",
+    title: "DR plot persistence contract",
+    description: "Optional check that DR Plotter publishes server-side breadcrumb/fix persistence state so plots survive page changes and Capture can bundle them.",
+    timeoutSeconds: 5,
+    optional: true,
+    pluginId: DR_PLOTTER_PLUGIN_ID,
   },
   {
     id: AUDIO_SUMMARY_TEST_ID,
@@ -616,6 +662,7 @@ const BITE_GROUP_DEFINITIONS = [
       "traffic-api-contract",
       "audio-status-detail-contract",
       "notifications-visual-contract",
+      "audio-playable-output-path",
     ],
   },
   {
@@ -639,6 +686,8 @@ const BITE_GROUP_DEFINITIONS = [
       "traffic-advisory-no-action-prompt",
       "traffic-cpa-deduplicated-wording",
       "traffic-visual-audio-wording-alignment",
+      "traffic-harbour-profile-boundary",
+      "traffic-safety-message-retained",
     ],
   },
   {
@@ -665,6 +714,7 @@ const BITE_GROUP_DEFINITIONS = [
       "gps-vector-arrow-contract",
       "gps-counter-contract",
       "gps-current-contract",
+      "dr-plot-persistence-contract",
     ],
   },
   ...OPTIONAL_PLUGIN_BITE_GROUPS,
@@ -1181,6 +1231,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "traffic-api-contract") return runTrafficApiContractBite(app, { consoleVersion });
   if (testId === "audio-status-detail-contract") return runAudioStatusDetailContractBite(app, { consoleVersion });
   if (testId === "notifications-visual-contract") return runNotificationsVisualContractBite(app, { consoleVersion });
+  if (testId === "audio-playable-output-path") {
+    return runAudioPlayableOutputPathBite(app, { pluginId, consoleVersion, timeoutMs });
+  }
   if (testId === "audio-output-summary") {
     return runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorReports, timeoutMs });
   }
@@ -1189,6 +1242,12 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "logger-api-contract") {
     return runLoggerApiContractBite(app, { consoleVersion });
+  }
+  if (testId === "logger-replay-sanity-contract") {
+    return runLoggerReplaySanityContractBite(app, { consoleVersion });
+  }
+  if (testId === "instrument-alerts-depth-callout-capability") {
+    return runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersion });
   }
   if (testId === "harbour-editor-availability") {
     return runHarbourEditorAvailabilityBite(app, { consoleVersion });
@@ -1270,9 +1329,16 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "traffic-visual-audio-wording-alignment") {
     return runTrafficVisualAudioWordingAlignmentBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
+  if (testId === "traffic-harbour-profile-boundary") {
+    return runTrafficHarbourProfileBoundaryBite(app, { consoleVersion });
+  }
+  if (testId === "traffic-safety-message-retained") {
+    return runTrafficSafetyMessageRetainedBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
   if (testId === "gps-vector-arrow-contract") return runGpsVectorArrowContractBite(app, { consoleVersion });
   if (testId === "gps-counter-contract") return runGpsCounterContractBite(app, { consoleVersion });
   if (testId === "gps-current-contract") return runGpsCurrentContractBite(app, { consoleVersion });
+  if (testId === "dr-plot-persistence-contract") return runDrPlotPersistenceContractBite(app, { consoleVersion });
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
 
@@ -1699,6 +1765,73 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
   });
 }
 
+async function runAudioPlayableOutputPathBite(app, { pluginId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const message = "Marine built in tests audio file path check.";
+  let publishError = "";
+  try {
+    publishBiteAudioSummary(app, { pluginId, runId, message });
+  } catch (error) {
+    publishError = error.message || String(error);
+  }
+  const deliveryEvidence = publishError
+    ? null
+    : await waitForBiteAudioSummary(app, { message, startedAtMs, timeoutMs });
+  const finalAudio = readSelfPath(app, WATCH_PATHS.audio) || {};
+  const playableEvidence = playableAudioEvidence(finalAudio, { message, startedAtMs });
+  const assertions = [
+    assertion(
+      "audio-path-check-published",
+      !publishError,
+      publishError
+        ? `Could not publish audio path check: ${publishError}`
+        : "Audio path check was published to Notifications.",
+    ),
+    assertion(
+      "audio-path-check-rendered",
+      Boolean(deliveryEvidence),
+      deliveryEvidence
+        ? `Audio reports the path check reached ${deliveryEvidence.state}.`
+        : `Audio has not yet rendered the path check. ${audioProgressSummary(finalAudio)}`,
+    ),
+    assertion(
+      "playable-audio-url-visible",
+      Boolean(playableEvidence?.url),
+      playableEvidence?.url
+        ? `Playable audio URL is visible: ${playableEvidence.url}`
+        : "Audio status does not expose a recent audioUrl/publicAudioUrl/assetUrl for the rendered announcement.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "audio-playable-output-path",
+    testId: "audio-playable-output-path",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{
+      message,
+      audioEvidence: deliveryEvidence,
+      playableEvidence,
+      audioProgress: audioProgressSummary(finalAudio),
+    }],
+    summary: result === "pass"
+      ? "Audio rendered a BITE check and exposed a playable MP3 path for clients."
+      : `Audio playable output path check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      message,
+      audio: audioPolicySummary(finalAudio),
+      deliveryEvidence,
+      playableEvidence,
+    },
+  });
+}
+
 function biteSummaryAudioMessage(reports) {
   const tested = reports.filter((report) => report?.testId && report.testId !== "run-all");
   const failed = tested.filter((report) => !report.ok);
@@ -1817,6 +1950,43 @@ function biteAudioSummaryEvidence(audio, { message, startedAtMs }) {
     };
   }
   return null;
+}
+
+function playableAudioEvidence(audio, { message, startedAtMs }) {
+  if (!audio || typeof audio !== "object") return null;
+  const candidates = [];
+  if (audio.lastAnnouncement) candidates.push({ ...audio.lastAnnouncement, source: "lastAnnouncement" });
+  for (const announcement of audio.recentAnnouncements || []) {
+    candidates.push({ ...announcement, source: "recentAnnouncements" });
+  }
+  for (const event of audio.recentEvents || []) {
+    candidates.push({ ...event, source: "recentEvents" });
+  }
+  const candidate = candidates.find((entry) => {
+    const text = String(entry.message || "");
+    const timestamp = entry.renderedAt || entry.localPlaybackStartedAt || entry.localPlaybackCompletedAt ||
+      entry.queuedAt || entry.receivedAt || entry.ts || "";
+    return text.includes(message) && freshEnough(timestamp, startedAtMs) && Boolean(audioOutputUrl(entry));
+  });
+  if (!candidate) return null;
+  return {
+    source: candidate.source || "",
+    message: candidate.message || "",
+    timestamp: candidate.renderedAt || candidate.localPlaybackStartedAt || candidate.localPlaybackCompletedAt ||
+      candidate.queuedAt || candidate.receivedAt || candidate.ts || "",
+    url: audioOutputUrl(candidate),
+  };
+}
+
+function audioOutputUrl(entry = {}) {
+  return String(
+    entry.publicAudioUrl ||
+    entry.audioUrl ||
+    entry.publicAssetUrl ||
+    entry.assetUrl ||
+    entry.url ||
+    "",
+  );
 }
 
 function audioEventMatchesSummary(event, { message, startedAtMs }) {
@@ -2295,6 +2465,147 @@ async function runLoggerApiContractBite(app, { consoleVersion }) {
       statusError,
       paths,
     },
+  });
+}
+
+async function runLoggerReplaySanityContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, LOGGER_PLUGIN_ID);
+  const api = loggerApi(app);
+  let status = null;
+  let statusError = "";
+  try {
+    status = typeof api?.status === "function" ? await api.status() : null;
+  } catch (error) {
+    statusError = error?.message || String(error);
+  }
+  const playback = status?.playback || evidence.status || {};
+  const assertions = [
+    assertion(
+      "logger-visible",
+      evidence.installed,
+      evidence.installed
+        ? "Logger is installed and visible to Console."
+        : "Logger is not installed, not enabled, or not visible to Console.",
+    ),
+    assertion(
+      "playback-state-visible",
+      Boolean(playback && typeof playback === "object"),
+      "Logger should expose a playback state object.",
+    ),
+    assertion(
+      "playback-active-explicit",
+      typeof playback.active === "boolean",
+      "Logger playback state should explicitly expose whether replay is active.",
+    ),
+    assertion(
+      "playback-speed-visible",
+      playback.speed == null || Number.isFinite(Number(playback.speed)),
+      playback.speed == null
+        ? "Logger playback speed is omitted; accepting idle logger status."
+        : `Logger playback speed is ${playback.speed}.`,
+    ),
+    assertion(
+      "fresh-timestamp-policy-visible",
+      playback.active !== true ||
+        playback.freshTimestamps === true ||
+        playback.retimestamp === true ||
+        playback.timestampMode === "fresh",
+      playback.active === true
+        ? "Active Logger replay should publish fresh Signal K update timestamps."
+        : "Logger replay is idle; fresh timestamp policy is not currently exercised.",
+    ),
+    assertion(
+      "derived-data-replay-disabled-or-explicit",
+      playback.derivedDataReplay === false ||
+        playback.replayDerivedData === false ||
+        playback.excludeDerivedData === true ||
+        playback.active !== true,
+      playback.active === true
+        ? "Active Logger replay should avoid replaying derived suite data unless explicitly configured safe."
+        : "Logger replay is idle; derived data replay is not currently active.",
+    ),
+  ];
+  if (statusError) {
+    assertions.push(assertion("status-readable", false, `Logger status threw: ${statusError}`));
+  }
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "logger-replay-sanity-contract",
+    testId: "logger-replay-sanity-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ evidence, playback }],
+    summary: result === "pass"
+      ? "Logger replay state is explicit enough for safe voyage replay."
+      : `Logger replay sanity contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { status, playback, statusError },
+  });
+}
+
+async function runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, INSTRUMENT_ALERTS_PLUGIN_ID);
+  const status = evidence.status || {};
+  const capabilities = status.capabilities || {};
+  const depthCallout = status.depthCallout || capabilities.depthCallout || {};
+  const supported = depthCallout === true ||
+    depthCallout.supported === true ||
+    depthCallout.available === true ||
+    capabilities.anchoringDepthCallout === true;
+  const assertions = [
+    assertion(
+      "instrument-alerts-visible",
+      evidence.installed,
+      evidence.installed
+        ? "Instrument Alerts is installed and visible to Console."
+        : "Instrument Alerts is not installed, not enabled, or not visible to Console.",
+    ),
+    assertion(
+      "depth-callout-capability-visible",
+      supported,
+      supported
+        ? "Instrument Alerts advertises anchoring depth callout support."
+        : "Instrument Alerts does not yet advertise anchoring depth callout support.",
+    ),
+    assertion(
+      "depth-source-visible",
+      !supported || Boolean(depthCallout.path || depthCallout.sourcePath || status.monitors),
+      supported
+        ? "Depth callout exposes a depth path/source or monitor list."
+        : "Depth callout capability is not available.",
+    ),
+    assertion(
+      "depth-callout-audio-policy-visible",
+      !supported || depthCallout.audio !== false,
+      supported
+        ? "Depth callout is able to request audio output."
+        : "Depth callout capability is not available.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "instrument-alerts-depth-callout-capability",
+    testId: "instrument-alerts-depth-callout-capability",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ evidence, depthCallout }],
+    summary: result === "pass"
+      ? "Instrument Alerts advertises the anchoring depth callout capability."
+      : `Instrument Alerts depth callout capability failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { status, depthCallout },
   });
 }
 
@@ -4078,6 +4389,70 @@ async function runGpsCurrentContractBite(app, { consoleVersion }) {
   });
 }
 
+async function runDrPlotPersistenceContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, DR_PLOTTER_PLUGIN_ID);
+  const status = evidence.status || {};
+  const plotPersistence = status.plotFixPersistence || status.plotFixes || status.fixes || {};
+  const trackPersistence = status.trackPersistence || status.track || status.breadcrumbs || {};
+  const assertions = [
+    assertion(
+      "dr-plotter-visible",
+      evidence.installed,
+      evidence.installed
+        ? "DR Plotter is installed and visible to Console."
+        : "DR Plotter is not installed, not enabled, or not visible to Console.",
+    ),
+    assertion(
+      "plot-fixes-server-side",
+      plotPersistence.serverSide === true ||
+        plotPersistence.persisted === true ||
+        plotPersistence.storage === "server" ||
+        Number.isFinite(Number(plotPersistence.count)),
+      "DR Plotter should expose server-side persisted plot-fix state.",
+    ),
+    assertion(
+      "breadcrumb-track-server-side",
+      trackPersistence.serverSide === true ||
+        trackPersistence.persisted === true ||
+        trackPersistence.storage === "server" ||
+        Number.isFinite(Number(trackPersistence.count)),
+      "DR Plotter should expose server-side persisted breadcrumb/track state.",
+    ),
+    assertion(
+      "plot-retention-visible",
+      status.plotFixIntervalMinutes != null ||
+        status.retentionHours != null ||
+        plotPersistence.retentionHours != null ||
+        plotPersistence.maxCount != null,
+      "DR Plotter status should expose plot interval or retention/pruning policy.",
+    ),
+    assertion(
+      "capture-bundle-path-visible",
+      Boolean(status.capturePath || status.dataDirectory || plotPersistence.file || trackPersistence.file),
+      "DR Plotter should expose where persisted plot/track data is stored for Capture bundles.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "dr-plot-persistence-contract",
+    testId: "dr-plot-persistence-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ evidence, plotPersistence, trackPersistence }],
+    summary: result === "pass"
+      ? "DR Plotter exposes persisted fix/track state for page refreshes and voyage bundles."
+      : `DR Plotter persistence contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { status, plotPersistence, trackPersistence },
+  });
+}
+
 async function runTrafficOvertakingWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
   return runTrafficMessageScenarioBite(app, {
     pluginId,
@@ -4562,6 +4937,192 @@ async function runTrafficAudioPolicyContractBite(app, { consoleVersion }) {
       ? "Traffic audio policy contract is coherent."
       : `Traffic audio policy contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: trafficPolicySummary(policy),
+  });
+}
+
+async function runTrafficHarbourProfileBoundaryBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const traffic = snapshot.traffic || {};
+  const policy = snapshot.trafficAudioPolicy || {};
+  const profile = policy.profile || traffic.profile || "";
+  const autoProfile = policy.autoProfile || traffic.autoProfile || traffic.profileAutomation || {};
+  const boundary = policy.harbourBoundary || traffic.harbourBoundary || traffic.harbour || {};
+  const assertions = [
+    assertion(
+      "traffic-profile-visible",
+      typeof profile === "string" && profile.length > 0,
+      profile ? `Traffic profile is ${profile}.` : "Traffic profile is missing.",
+    ),
+    assertion(
+      "auto-profile-state-visible",
+      autoProfile && typeof autoProfile === "object" &&
+        (typeof autoProfile.enabled === "boolean" || typeof autoProfile.active === "boolean"),
+      "Traffic should expose whether auto-profile switching is enabled/active.",
+    ),
+    assertion(
+      "harbour-boundary-state-visible",
+      Boolean(
+        boundary.name ||
+        boundary.region ||
+        boundary.inside != null ||
+        autoProfile.harbourName ||
+        autoProfile.regionName ||
+        policy.status,
+      ),
+      "Traffic should expose harbour/boundary status used to explain harbour/coastal transitions.",
+    ),
+    assertion(
+      "stationary-automute-bound-to-profile",
+      typeof policy.automuteStationary === "boolean" && typeof policy.automuteAllowed === "boolean",
+      "Traffic audio policy should expose stationary automute setting and whether the current profile allows it.",
+    ),
+    assertion(
+      "auto-profile-debounce-visible",
+      autoProfile.enterDistanceMeters != null ||
+        autoProfile.exitDistanceMeters != null ||
+        autoProfile.enterDistance != null ||
+        autoProfile.exitDistance != null ||
+        autoProfile.refreshRegionsSeconds != null ||
+        autoProfile.reason,
+      "Traffic auto-profile status should expose a boundary threshold, refresh cadence, or reason.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "traffic-harbour-profile-boundary",
+    testId: "traffic-harbour-profile-boundary",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ profile, autoProfile, boundary, trafficAudioPolicy: trafficPolicySummary(policy) }],
+    summary: result === "pass"
+      ? "Traffic exposes harbour/profile boundary state clearly enough for BITE and debugging."
+      : `Traffic harbour/profile boundary check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { trafficProfile: traffic.profile, audioPolicy: trafficPolicySummary(policy), autoProfile, boundary },
+  });
+}
+
+async function runTrafficSafetyMessageRetainedBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const systemMessage = "Marine built in tests low priority queue marker.";
+  const target = {
+    mmsi: SAFETY_RETENTION_TEST_TARGET_MMSI,
+    name: SAFETY_RETENTION_TEST_TARGET_NAME,
+    position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 0 }),
+    speedMps: 5 * KNOTS_TO_MPS,
+    courseRad: (3 * Math.PI) / 2,
+    lengthMeters: 22,
+    beamMeters: 6,
+    aisClass: "A",
+  };
+  const own = {
+    position: OWN_POSITION,
+    speedMps: 5 * KNOTS_TO_MPS,
+    courseRad: Math.PI / 2,
+  };
+  const observations = [];
+  let lastRefreshAt = 0;
+  let finalSnapshot = null;
+  let evaluation = null;
+  let publishError = "";
+  try {
+    try {
+      publishBiteAudioSummary(app, { pluginId, runId, message: systemMessage });
+    } catch (error) {
+      publishError = error.message || String(error);
+    }
+    publishSyntheticTrafficScenario(app, { pluginId, runId, target, own });
+    while (Date.now() - startedAtMs <= timeoutMs) {
+      if (Date.now() - lastRefreshAt >= REFRESH_MS) {
+        publishSyntheticTrafficScenario(app, { pluginId, runId, target, own });
+        lastRefreshAt = Date.now();
+      }
+      finalSnapshot = collectSnapshot(app);
+      evaluation = evaluateTrafficMessageScenarioSnapshot(finalSnapshot, {
+        startedAtMs,
+        targetName: target.name,
+        targetMmsi: target.mmsi,
+        expectedPatterns: [/Collision alarm/i, /Risk of collision|Head-on|CPA/i],
+        forbiddenPatterns: [],
+        strict: true,
+      });
+      const safetyEvidence = findAudioEvidence(finalSnapshot.audio || {}, {
+        startedAtMs,
+        targetName: target.name,
+        targetMmsi: target.mmsi,
+        strict: true,
+      });
+      if (evaluation.observation || safetyEvidence) {
+        observations.push({
+          ...(evaluation.observation || {}),
+          safetyAudioState: safetyEvidence?.state || "",
+          safetyAudioMessage: safetyEvidence?.message || "",
+        });
+      }
+      if (evaluation.complete && safetyEvidence) break;
+      await delay(POLL_MS);
+    }
+    if (!evaluation) {
+      finalSnapshot = collectSnapshot(app);
+      evaluation = evaluateTrafficMessageScenarioSnapshot(finalSnapshot, {
+        startedAtMs,
+        targetName: target.name,
+        targetMmsi: target.mmsi,
+        expectedPatterns: [/Collision alarm/i, /Risk of collision|Head-on|CPA/i],
+        forbiddenPatterns: [],
+        strict: true,
+      });
+    }
+  } finally {
+    await clearSyntheticScenarioTarget(app, { pluginId, runId, target });
+  }
+  const safetyEvidence = findAudioEvidence(finalSnapshot?.audio || {}, {
+    startedAtMs,
+    targetName: target.name,
+    targetMmsi: target.mmsi,
+    strict: true,
+  });
+  const assertions = [
+    assertion(
+      "low-priority-marker-published",
+      !publishError,
+      publishError
+        ? `Could not publish low-priority marker: ${publishError}`
+        : "A lower-priority marker was queued before the safety scenario.",
+    ),
+    ...(evaluation?.assertions || []),
+    assertion(
+      "safety-audio-retained-after-marker",
+      Boolean(safetyEvidence),
+      safetyEvidence
+        ? `Audio retained the safety message as ${safetyEvidence.state}: ${safetyEvidence.message}`
+        : "Audio did not show retained/queued/rendered evidence for the safety message after a lower-priority marker.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: testId,
+    testId,
+    result,
+    startedAt,
+    startedAtMs,
+    target: { mmsi: target.mmsi, name: target.name },
+    assertions,
+    observations: observations.slice(-12),
+    summary: result === "pass"
+      ? "Collision-level safety audio remained visible after lower-priority queue activity."
+      : trafficScenarioFailureSummary("Traffic safety message retention check failed", { assertions }, finalSnapshot, target),
+    snapshot: finalSnapshot ? summarizeSnapshot(finalSnapshot) : null,
   });
 }
 

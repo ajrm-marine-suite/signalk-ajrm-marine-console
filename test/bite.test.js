@@ -669,6 +669,19 @@ test("Console exposes BITE status and run routes", async () => {
     manualOverride: false,
     profile: "coastal",
     status: "Sound enabled.",
+    autoProfile: {
+      enabled: true,
+      active: true,
+      harbourName: "Harbour: Craobh",
+      enterDistanceMeters: 50,
+      exitDistanceMeters: 100,
+      refreshRegionsSeconds: 60,
+    },
+    harbourBoundary: {
+      name: "Harbour: Craobh",
+      inside: false,
+      distanceMeters: 140,
+    },
   };
   const values = {
     "plugins.ajrmMarineTraffic.targets": trafficProjection("alarm"),
@@ -730,6 +743,18 @@ test("Console exposes BITE status and run routes", async () => {
         event: "queued",
         message: `Collision alarm. ${TEST_TARGET_NAME}.`,
       }],
+      recentAnnouncements: [{
+        renderedAt: new Date(startedAtMs).toISOString(),
+        message: `Collision alarm. ${TEST_TARGET_NAME}.`,
+        audioUrl: "/signalk/v1/api/ajrmMarineAudio/audio/bite-test.mp3",
+        publicAudioUrl: "https://localhost:3445/audio/bite-test.mp3",
+      }],
+      lastAnnouncement: {
+        renderedAt: new Date(startedAtMs).toISOString(),
+        message: `Collision alarm. ${TEST_TARGET_NAME}.`,
+        audioUrl: "/signalk/v1/api/ajrmMarineAudio/audio/bite-test.mp3",
+        publicAudioUrl: "https://localhost:3445/audio/bite-test.mp3",
+      },
     },
     "plugins.ajrmMarineGpsIntegrity.navigationIntegrity": gpsIntegrityProjection,
     "plugins.ajrmMarineVesselDatabase.summary": {
@@ -750,6 +775,8 @@ test("Console exposes BITE status and run routes", async () => {
       active: false,
       speed: 1,
       fileName: "",
+      freshTimestamps: true,
+      excludeDerivedData: true,
     },
     "plugins.ajrmMarineAlerts": {
       ok: true,
@@ -770,6 +797,20 @@ test("Console exposes BITE status and run routes", async () => {
       coordinateFormat: "dms",
       plotFixIntervalMinutes: 10,
       noAisTargets: true,
+      dataDirectory: "/tmp/ajrm-dr-plotter",
+      plotFixPersistence: {
+        serverSide: true,
+        persisted: true,
+        count: 12,
+        file: "/tmp/ajrm-dr-plotter/plot-fixes.json",
+        retentionHours: 24,
+      },
+      trackPersistence: {
+        serverSide: true,
+        persisted: true,
+        count: 80,
+        file: "/tmp/ajrm-dr-plotter/track.json",
+      },
       ajrmMarineGpsIntegrityStatePath: "vessels.self.plugins.ajrmMarineGpsIntegrity.navigationIntegrity",
       ajrmMarineGpsIntegrity: gpsIntegrityProjection,
     },
@@ -806,6 +847,19 @@ test("Console exposes BITE status and run routes", async () => {
           lastValue: 8.6,
         },
       }],
+      capabilities: {
+        depthCallout: {
+          supported: true,
+          path: "environment.depth.belowKeel",
+          audio: true,
+          mode: "anchoring",
+        },
+      },
+      depthCallout: {
+        supported: true,
+        path: "environment.depth.belowKeel",
+        audio: true,
+      },
       recentEvents: [],
     },
     "plugins.ajrmMarinePiController": {
@@ -897,6 +951,18 @@ test("Console exposes BITE status and run routes", async () => {
         event: "queued",
         message: audioMessage,
       }],
+      recentAnnouncements: [{
+        renderedAt: now,
+        message: audioMessage,
+        audioUrl: "/signalk/v1/api/ajrmMarineAudio/audio/bite-target.mp3",
+        publicAudioUrl: "https://localhost:3445/audio/bite-target.mp3",
+      }],
+      lastAnnouncement: {
+        renderedAt: now,
+        message: audioMessage,
+        audioUrl: "/signalk/v1/api/ajrmMarineAudio/audio/bite-target.mp3",
+        publicAudioUrl: "https://localhost:3445/audio/bite-target.mp3",
+      },
     };
   }
   const app = {
@@ -1017,6 +1083,8 @@ test("Console exposes BITE status and run routes", async () => {
           ok: true,
           recording: { active: false },
           playback: { active: false },
+          freshTimestamps: true,
+          excludeDerivedData: true,
           paths: { recordings: "/tmp/ajrm-logger" },
         };
       },
@@ -1051,6 +1119,12 @@ test("Console exposes BITE status and run routes", async () => {
       }
       if (path === "plugins.ajrmMarineAudio") {
         values[path].recentEvents[0].ts = new Date().toISOString();
+        if (values[path].recentAnnouncements?.[0]) {
+          values[path].recentAnnouncements[0].renderedAt = new Date().toISOString();
+        }
+        if (values[path].lastAnnouncement) {
+          values[path].lastAnnouncement.renderedAt = new Date().toISOString();
+        }
       }
       if (path === "plugins.ajrmMarineGpsIntegrity.navigationIntegrity") {
         const now = new Date();
@@ -1077,6 +1151,14 @@ test("Console exposes BITE status and run routes", async () => {
             updateValues,
           );
         }
+      }
+      if (String(message?.context || "").includes("235912345")) {
+        injectScenarioMessage({
+          mmsi: "235912345",
+          name: "BITE TEST TARGET",
+          visualMessage: "Collision alarm. Large vessel BITE TEST TARGET at 12 o'clock. Risk of collision. CPA 0 meters in 2 minutes.",
+          state: "alarm",
+        });
       }
       if (String(message?.context || "").includes("235912347")) {
         injectScenarioMessage({
@@ -1161,6 +1243,14 @@ test("Console exposes BITE status and run routes", async () => {
           state: "alarm",
         });
       }
+      if (String(message?.context || "").includes("235912358")) {
+        injectScenarioMessage({
+          mmsi: "235912358",
+          name: "BITE SAFETY RETENTION TARGET",
+          visualMessage: "Collision alarm. Large vessel BITE SAFETY RETENTION TARGET at 12 o'clock. Risk of collision. CPA 0 meters in 2 minutes.",
+          state: "alarm",
+        });
+      }
       for (const update of message?.updates || []) {
         for (const value of update.values || []) {
           if (value.path === "plugins.ajrmMarineNotifications.audio") {
@@ -1176,7 +1266,15 @@ test("Console exposes BITE status and run routes", async () => {
                 recentAnnouncements: [{
                   renderedAt: new Date().toISOString(),
                   message: value.value.audioRequest.message,
+                  audioUrl: "/signalk/v1/api/ajrmMarineAudio/audio/bite-summary.mp3",
+                  publicAudioUrl: "https://localhost:3445/audio/bite-summary.mp3",
                 }],
+                lastAnnouncement: {
+                  renderedAt: new Date().toISOString(),
+                  message: value.value.audioRequest.message,
+                  audioUrl: "/signalk/v1/api/ajrmMarineAudio/audio/bite-summary.mp3",
+                  publicAudioUrl: "https://localhost:3445/audio/bite-summary.mp3",
+                },
               };
             }
           }
@@ -1239,6 +1337,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "vessel-database-summary-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "logger-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "logger-api-contract").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "logger-replay-sanity-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-api-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-availability").enabled, true);
@@ -1246,6 +1345,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "alert-panel-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "instruments-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-depth-callout-capability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "pi-controller-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "pi-controller-telemetry-contract").enabled, true);
   assert.deepEqual(
@@ -1269,6 +1369,7 @@ test("Console exposes BITE status and run routes", async () => {
       "gps-vector-arrow-contract",
       "gps-counter-contract",
       "gps-current-contract",
+      "dr-plot-persistence-contract",
     ],
   );
   assert.deepEqual(
@@ -1281,7 +1382,7 @@ test("Console exposes BITE status and run routes", async () => {
     ["signalk-ajrm-marine-simulator", ["simulator-availability"]],
     ["signalk-ajrm-marine-alerts", ["alert-panel-availability"]],
     ["signalk-ajrm-marine-instruments", ["instruments-availability"]],
-    ["signalk-ajrm-marine-instrument-alerts", ["instrument-alerts-availability"]],
+    ["signalk-ajrm-marine-instrument-alerts", ["instrument-alerts-availability", "instrument-alerts-depth-callout-capability"]],
   ]) {
     assert.deepEqual(statusBody.groups.find((item) => item.id === groupId).testIds, expectedIds);
   }
@@ -1730,7 +1831,7 @@ test("Console exposes BITE status and run routes", async () => {
     { muted: false },
     { muted: true },
   ]);
-  assert.equal(runBody.reports.length, 64);
+  assert.equal(runBody.reports.length, 70);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "console-availability",
@@ -1749,6 +1850,7 @@ test("Console exposes BITE status and run routes", async () => {
     "traffic-api-contract",
     "audio-status-detail-contract",
     "notifications-visual-contract",
+    "audio-playable-output-path",
     "collision-audio-chain",
     "quiet-target-no-alert",
     "traffic-overtaking-wording",
@@ -1764,6 +1866,8 @@ test("Console exposes BITE status and run routes", async () => {
     "traffic-advisory-no-action-prompt",
     "traffic-cpa-deduplicated-wording",
     "traffic-visual-audio-wording-alignment",
+    "traffic-harbour-profile-boundary",
+    "traffic-safety-message-retained",
     "gps-integrity-availability",
     "dr-plotter-availability",
     "gps-integrity-health",
@@ -1782,24 +1886,27 @@ test("Console exposes BITE status and run routes", async () => {
     "gps-vector-arrow-contract",
     "gps-counter-contract",
     "gps-current-contract",
+    "dr-plot-persistence-contract",
     "vessel-database-availability",
     "vessel-database-summary-contract",
     "snapshot-availability",
     "snapshot-api-contract",
     "logger-availability",
     "logger-api-contract",
+    "logger-replay-sanity-contract",
     "voyage-viewer-availability",
     "simulator-availability",
     "alert-panel-availability",
     "instruments-availability",
     "instrument-alerts-availability",
+    "instrument-alerts-depth-callout-capability",
     "pi-controller-availability",
     "pi-controller-telemetry-contract",
     "audio-output-summary",
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 63 tests passed/,
+    /Marine built in tests complete\. 69 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);
@@ -1855,6 +1962,7 @@ test("Console exposes BITE status and run routes", async () => {
     "traffic-api-contract",
     "audio-status-detail-contract",
     "notifications-visual-contract",
+    "audio-playable-output-path",
     "audio-output-summary",
   ]);
 
