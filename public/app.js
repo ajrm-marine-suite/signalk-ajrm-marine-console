@@ -175,7 +175,7 @@ function biteGroups() {
 function biteGroupHtml(group, allTests) {
   const tests = group.testIds.map((testId) => allTests.find((test) => test.id === testId)).filter(Boolean);
   const state = biteGroupState(group, tests);
-  const expanded = biteExpandedGroups.has(group.id) || state === "fail" || state === "running";
+  const expanded = biteExpandedGroups.has(group.id) || state === "running";
   const enabled = tests.some((test) => test.enabled !== false);
   const summary = biteGroupSummary(group, tests, state);
   return `<section class="bite-group ${state}" data-bite-group-section="${escapeHtml(group.id)}">
@@ -188,7 +188,7 @@ function biteGroupHtml(group, allTests) {
           <span>${escapeHtml(summary)}</span>
         </span>
       </button>
-      <button class="bite-run bite-run-group" type="button" data-bite-group="${escapeHtml(group.id)}" ${biteRunning || !enabled ? "disabled" : ""}>Run group</button>
+      <button class="bite-run bite-run-group" type="button" data-bite-run-group="${escapeHtml(group.id)}" ${biteRunning || !enabled ? "disabled" : ""}>Run group</button>
     </div>
     <div class="bite-group-tests" ${expanded ? "" : "hidden"}>
       ${tests.map((test) => biteTestHtml(test)).join("")}
@@ -409,8 +409,9 @@ function setBiteLog(value) {
 }
 
 function biteTestNumber(test) {
-  const number = Number(test?.number);
-  return Number.isFinite(number) ? String(number).padStart(2, "0") : "--";
+  const label = String(test?.number || "").trim();
+  if (!label) return "--";
+  return label === "0" ? "00" : label;
 }
 
 function formatBiteReport(report) {
@@ -878,17 +879,17 @@ els.moduleCards.addEventListener("click", (event) => {
   if (button) selectModule(button.dataset.module);
 });
 els.biteTests.addEventListener("click", (event) => {
-  const groupButton = event.target.closest("[data-bite-group]");
-  if (groupButton) {
-    runBiteGroup(groupButton.dataset.biteGroup);
-    return;
-  }
   const toggle = event.target.closest("[data-bite-group-toggle]");
   if (toggle) {
     const groupId = toggle.dataset.biteGroupToggle;
     if (biteExpandedGroups.has(groupId)) biteExpandedGroups.delete(groupId);
     else biteExpandedGroups.add(groupId);
     renderBitePanel();
+    return;
+  }
+  const groupButton = event.target.closest("[data-bite-run-group]");
+  if (groupButton) {
+    runBiteGroup(groupButton.dataset.biteRunGroup);
     return;
   }
   const button = event.target.closest("[data-bite-test]");

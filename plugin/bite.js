@@ -58,7 +58,7 @@ let reportFileSequence = 0;
 const TESTS = [
   {
     id: PREFLIGHT_TEST_ID,
-    number: 0,
+    number: "0",
     title: "Required plugins and safety isolation",
     description: "Checks that required AJRM Marine plugins are installed/enabled and that simulator or live feeds are not active before BITE injects test data.",
     timeoutSeconds: 5,
@@ -66,56 +66,56 @@ const TESTS = [
   },
   {
     id: "core-projections",
-    number: 1,
+    number: "1.1",
     title: "Core status projections",
     description: "Checks that Traffic, Display, Notifications, and Audio are publishing the status paths BITE needs to observe.",
     timeoutSeconds: 10,
   },
   {
     id: "projection-contracts",
-    number: 2,
+    number: "1.2",
     title: "Projection contracts",
     description: "Checks that core projections carry the expected contract names, versions, sessions, and sequence fields.",
     timeoutSeconds: 5,
   },
   {
     id: "audio-policy-consistency",
-    number: 3,
+    number: "1.3",
     title: "Audio policy consistency",
     description: "Checks that Traffic's authoritative mute policy is visible to Audio without disagreement.",
     timeoutSeconds: 5,
   },
   {
     id: "audio-renderer-readiness",
-    number: 4,
+    number: "1.4",
     title: "Audio renderer readiness",
     description: "Checks that Audio is enabled and its Piper/FFmpeg/rendering dependencies are either ready or explicitly reported unavailable.",
     timeoutSeconds: 5,
   },
   {
     id: "notifications-broker-health",
-    number: 5,
+    number: "1.5",
     title: "Notifications broker health",
     description: "Checks that Notifications exposes broker state, audio sequence state, and bounded history/active arrays.",
     timeoutSeconds: 5,
   },
   {
     id: "collision-audio-chain",
-    number: 6,
+    number: "2.1",
     title: "Collision visual/audio chain",
     description: "Publishes a temporary crossing target and checks Traffic, Display, Notifications, and Audio all react.",
     timeoutSeconds: 45,
   },
   {
     id: "quiet-target-no-alert",
-    number: 7,
+    number: "2.2",
     title: "Quiet target no-alert",
     description: "Publishes a stopped/far-away target and checks the suite does not create a fresh visual or audible alert for it.",
     timeoutSeconds: 15,
   },
   {
     id: "gps-integrity-health",
-    number: 8,
+    number: "3.1",
     title: "GPS Integrity health",
     description: "Optional check that GPS Integrity is publishing trust, fix, counter, and timestamp state in a coherent form.",
     timeoutSeconds: 5,
@@ -124,7 +124,7 @@ const TESTS = [
   },
   {
     id: "gps-lost-age-consistency",
-    number: 9,
+    number: "3.2",
     title: "GPS lost age consistency",
     description: "Optional check that GPS-lost wording and timestamps do not come from a stale cached source when a fresher loss is known.",
     timeoutSeconds: 5,
@@ -133,7 +133,7 @@ const TESTS = [
   },
   {
     id: "gps-integrity-diagnostics-contract",
-    number: 9.5,
+    number: "3.3",
     title: "GPS Integrity diagnostics contract",
     description: "Optional check that GPS Integrity publishes the diagnostic block Voyage Viewer uses for end-of-day review.",
     timeoutSeconds: 5,
@@ -142,7 +142,7 @@ const TESTS = [
   },
   {
     id: "dead-reckoning-projection",
-    number: 10,
+    number: "3.4",
     title: "Dead reckoning projection",
     description: "Optional check that operational and independent DR projections expose positions, ages, uncertainty, and vector roles coherently.",
     timeoutSeconds: 5,
@@ -151,7 +151,7 @@ const TESTS = [
   },
   {
     id: "dead-reckoning-loss-exercise",
-    number: 11,
+    number: "3.5",
     title: "DR GPS-loss exercise",
     description: "Optional active test that injects a trusted GPS/current baseline, removes GPS and current, and checks operational DR moves using the retained current vector.",
     timeoutSeconds: 25,
@@ -160,7 +160,7 @@ const TESTS = [
   },
   {
     id: "gps-recovery-realigns-dr",
-    number: 12,
+    number: "3.6",
     title: "GPS recovery realigns DR",
     description: "Optional active test that lets retained-current DR drift after GPS loss, restores GPS, and checks operational DR locks back to GPS.",
     timeoutSeconds: 30,
@@ -169,7 +169,7 @@ const TESTS = [
   },
   {
     id: "gps-jump-rejection",
-    number: 13,
+    number: "3.7",
     title: "GPS jump rejection",
     description: "Optional active test that injects an impossible GPS jump and checks GPS Integrity rejects it without moving the trusted baseline.",
     timeoutSeconds: 20,
@@ -178,7 +178,7 @@ const TESTS = [
   },
   {
     id: "gps-intermittent-outage-count",
-    number: 14,
+    number: "3.8",
     title: "GPS intermittent outage count",
     description: "Optional active test that repeats missing-GPS samples and checks a continuous outage is counted once rather than once per update.",
     timeoutSeconds: 25,
@@ -187,7 +187,7 @@ const TESTS = [
   },
   {
     id: "docked-no-dr-drift",
-    number: 15,
+    number: "3.9",
     title: "Docked no-DR-drift",
     description: "Optional active test that injects a stationary healthy GPS fix with tide running and checks independent DR does not drift away.",
     timeoutSeconds: 25,
@@ -196,7 +196,7 @@ const TESTS = [
   },
   {
     id: "gps-recovery-fresh-fix",
-    number: 16,
+    number: "3.10",
     title: "GPS recovery fresh fix",
     description: "Optional active test that loses GPS, restores it, and checks the restored GPS fix timestamp is fresh rather than inherited from an old cache.",
     timeoutSeconds: 25,
@@ -205,7 +205,7 @@ const TESTS = [
   },
   {
     id: "lost-gps-retained-current-source",
-    number: 17,
+    number: "3.11",
     title: "Lost-GPS retained current source",
     description: "Optional active test that removes GPS and live current together and checks DR explicitly uses the last trusted current vector.",
     timeoutSeconds: 25,
@@ -214,14 +214,14 @@ const TESTS = [
   },
   {
     id: "stationary-automute-policy-shape",
-    number: 18,
+    number: "1.6",
     title: "Stationary automute policy shape",
     description: "Checks that Traffic's shared audio policy exposes enough state to prove whether stationary automute is armed, allowed, and active.",
     timeoutSeconds: 5,
   },
   {
     id: "gps-explicit-no-fix-immediate",
-    number: 19,
+    number: "3.12",
     title: "GPS explicit no-fix immediate",
     description: "Optional active test that injects an explicit GNSS no-fix update and checks GPS Integrity reports lost without waiting for a stale-position timeout.",
     timeoutSeconds: 15,
@@ -230,7 +230,7 @@ const TESTS = [
   },
   {
     id: "gps-weak-signal-detection",
-    number: 19.5,
+    number: "3.13",
     title: "GPS weak-signal detection",
     description: "Optional active test that injects a weak GNSS sample and checks GPS Integrity reports degraded signal and increments the weak-signal counter.",
     timeoutSeconds: 20,
@@ -239,70 +239,70 @@ const TESTS = [
   },
   {
     id: "traffic-overtaking-wording",
-    number: 20,
+    number: "2.3",
     title: "Traffic overtaking wording",
     description: "Publishes an overtaking encounter and checks the visual/audio wording includes the overtaking phrase and CPA direction.",
     timeoutSeconds: 30,
   },
   {
     id: "traffic-close-quarters-wording",
-    number: 21,
+    number: "2.4",
     title: "Traffic close-quarters wording",
     description: "Publishes a close-quarters encounter and checks the visual/audio wording says close quarters through the alert chain.",
     timeoutSeconds: 30,
   },
   {
     id: "traffic-unnamed-spoken-name",
-    number: 22,
+    number: "2.5",
     title: "Traffic unnamed spoken name",
     description: "Publishes an MMSI-only target and checks spoken audio does not attempt to read the MMSI as the vessel name.",
     timeoutSeconds: 30,
   },
   {
     id: "traffic-head-on-prompt",
-    number: 23,
+    number: "2.6",
     title: "Traffic head-on prompt",
     description: "Publishes a head-on collision encounter and checks the alert/audio chain says alter starboard, pass port-to-port.",
     timeoutSeconds: 30,
   },
   {
     id: "traffic-give-way-prompt",
-    number: 24,
+    number: "2.7",
     title: "Traffic give-way prompt",
     description: "Publishes a starboard-bow collision encounter and checks the alert/audio chain says Give Way.",
     timeoutSeconds: 30,
   },
   {
     id: "traffic-stand-on-prompt",
-    number: 25,
+    number: "2.8",
     title: "Traffic stand-on prompt",
     description: "Publishes a port-side collision encounter and checks the alert/audio chain says Stand On.",
     timeoutSeconds: 30,
   },
   {
     id: "traffic-target-overtaking-wording",
-    number: 26,
+    number: "2.9",
     title: "Traffic target overtaking wording",
     description: "Publishes a target overtaking own vessel from astern and checks the alert/audio chain says it is overtaking you.",
     timeoutSeconds: 30,
   },
   {
     id: "traffic-same-course-wording",
-    number: 27,
+    number: "2.10",
     title: "Traffic same-course wording",
-    description: "Publishes a same-speed parallel encounter and checks the alert/audio chain says same general course with a CPA side.",
+    description: "Publishes a similar-course passing encounter and checks the alert/audio chain says same general course with a CPA side.",
     timeoutSeconds: 30,
   },
   {
     id: AUDIO_SUMMARY_TEST_ID,
-    number: 99,
+    number: "99",
     title: "Audible summary output",
     description: "Publishes a final spoken BITE summary so the skipper can confirm the selected audio output was actually heard.",
     timeoutSeconds: 75,
   },
   {
     id: "harbour-editor-availability",
-    number: 90,
+    number: "9.1",
     title: "Harbour Editor availability",
     description: "Optional check that AJRM Marine Harbour Editor is installed, enabled, and visible to Console.",
     timeoutSeconds: 5,
@@ -766,7 +766,7 @@ function biteTestsForApp(app) {
         ? ""
         : `${test.title} is disabled because ${test.pluginId} is not installed, not enabled, or not visible to Console.`,
     };
-  }).sort((left, right) => Number(left.number || 0) - Number(right.number || 0));
+  }).sort((left, right) => biteTestOrder(left) - biteTestOrder(right));
 }
 
 function biteGroupsForApp(app) {
@@ -809,8 +809,15 @@ function runnableBiteTestsForApp(app, { groupId = "" } = {}) {
     .sort((left, right) => {
       if (left.id === AUDIO_SUMMARY_TEST_ID) return 1;
       if (right.id === AUDIO_SUMMARY_TEST_ID) return -1;
-      return Number(left.number || 0) - Number(right.number || 0);
+      return biteTestOrder(left) - biteTestOrder(right);
     });
+}
+
+function biteTestOrder(test) {
+  const raw = String(test?.number || "");
+  const parts = raw.split(".").map((part) => Number(part));
+  if (!parts.length || parts.some((part) => !Number.isFinite(part))) return Number.MAX_SAFE_INTEGER;
+  return parts.reduce((total, part, index) => total + part * (index === 0 ? 1000 : 1000 / (100 ** index)), 0);
 }
 
 function preflightReason(report) {

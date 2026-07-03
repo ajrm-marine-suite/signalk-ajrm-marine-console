@@ -96,36 +96,36 @@ Current numbered BITE tests:
 | No. | Test | Requirement covered |
 | --- | --- | --- |
 | 00 | Required plugins and safety isolation | Required suite plugins installed/enabled; no live feed or simulator contamination before synthetic data. |
-| 01 | Core status projections | Traffic, Display, Notifications, and Audio publish the observable state BITE needs. |
-| 02 | Projection contracts | Core projections retain expected contracts, versioning, sessions, sequence counters, and authority markers. |
-| 03 | Audio policy consistency | Traffic owns mute/automute policy and Audio consumes that policy without disagreement. |
-| 04 | Audio renderer readiness | Piper/FFmpeg/rendering dependencies and output availability are explicit. |
-| 05 | Notifications broker health | Broker active/history/audio sequence state is visible and bounded. |
-| 06 | Collision visual/audio chain | Synthetic collision reaches Traffic, Display-facing visual alerts, Notifications audio delivery, and Audio acceptance. |
-| 07 | Quiet target no-alert | Stopped/far-away synthetic target does not create a fresh visual or audible alert. |
-| 08 | GPS Integrity health | GPS Integrity publishes trust, fix, counters, and timestamp state coherently. |
-| 09 | GPS lost age consistency | GPS-lost wording is checked against the freshest known GPS source timestamp. |
-| 09.5 | GPS Integrity diagnostics contract | GPS Integrity publishes the diagnostic block Voyage Viewer uses for end-of-day review. |
-| 10 | Dead reckoning projection | Operational and independent DR projections expose positions, uncertainty, ages, and vector roles. |
-| 11 | DR GPS-loss exercise | GPS and current are removed, and operational DR must continue using retained current. |
-| 12 | GPS recovery realigns DR | GPS restoration must lock operational DR back to the fresh GPS fix. |
-| 13 | GPS jump rejection | An impossible GPS jump must be rejected without moving the trusted baseline. |
-| 14 | GPS intermittent outage count | A continuous GPS outage must count once rather than once per missing update. |
-| 15 | Docked no-DR-drift | Healthy stationary GPS with tide running must not let independent DR drift away. |
-| 16 | GPS recovery fresh fix | A restored GPS fix must refresh trusted and received timestamps. |
-| 17 | Lost-GPS retained current source | Lost-GPS DR must report retained-current/last-trusted-current rather than live GPS-derived current. |
-| 18 | Stationary automute policy shape | Traffic audio policy exposes whether stationary automute is armed, allowed, and active. |
-| 19 | GPS explicit no-fix immediate | An explicit GNSS no-fix update must produce lost GPS without waiting for stale-position timeout. |
-| 19.5 | GPS weak-signal detection | A weak GNSS sample must degrade GPS trust and increment the weak-signal counter. |
-| 20 | Traffic overtaking wording | A synthetic overtaking encounter must include overtaking and CPA-direction wording through the alert chain. |
-| 21 | Traffic close-quarters wording | A synthetic close-quarters encounter must say close quarters through the visual/audio alert chain. |
-| 22 | Traffic unnamed spoken name | An MMSI-only target must not have its MMSI read aloud as the vessel name. |
-| 23 | Traffic head-on prompt | A synthetic head-on collision must say alter starboard and pass port-to-port. |
-| 24 | Traffic give-way prompt | A synthetic starboard-bow collision must say Give Way. |
-| 25 | Traffic stand-on prompt | A synthetic port-side collision must say Stand On. |
-| 26 | Traffic target overtaking wording | A target overtaking own vessel from astern must say it is overtaking you. |
-| 27 | Traffic same-course wording | A same-speed parallel encounter must say same general course and give the CPA side. |
-| 90 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
+| 1.1 | Core status projections | Traffic, Display, Notifications, and Audio publish the observable state BITE needs. |
+| 1.2 | Projection contracts | Core projections retain expected contracts, versioning, sessions, sequence counters, and authority markers. |
+| 1.3 | Audio policy consistency | Traffic owns mute/automute policy and Audio consumes that policy without disagreement. |
+| 1.4 | Audio renderer readiness | Piper/FFmpeg/rendering dependencies and output availability are explicit. |
+| 1.5 | Notifications broker health | Broker active/history/audio sequence state is visible and bounded. |
+| 1.6 | Stationary automute policy shape | Traffic audio policy exposes whether stationary automute is armed, allowed, and active. |
+| 2.1 | Collision visual/audio chain | Synthetic collision reaches Traffic, Display-facing visual alerts, Notifications audio delivery, and Audio acceptance. |
+| 2.2 | Quiet target no-alert | Stopped/far-away synthetic target does not create a fresh visual or audible alert. |
+| 2.3 | Traffic overtaking wording | A synthetic overtaking encounter must include overtaking and CPA-direction wording through the alert chain. |
+| 2.4 | Traffic close-quarters wording | A synthetic close-quarters encounter must say close quarters through the visual/audio alert chain. |
+| 2.5 | Traffic unnamed spoken name | An MMSI-only target must not have its MMSI read aloud as the vessel name. |
+| 2.6 | Traffic head-on prompt | A synthetic head-on collision must say alter starboard and pass port-to-port. |
+| 2.7 | Traffic give-way prompt | A synthetic starboard-bow collision must say Give Way. |
+| 2.8 | Traffic stand-on prompt | A synthetic port-side collision must say Stand On. |
+| 2.9 | Traffic target overtaking wording | A target overtaking own vessel from astern must say it is overtaking you. |
+| 2.10 | Traffic same-course wording | A similar-course passing encounter must say same general course and give the CPA side. |
+| 3.1 | GPS Integrity health | GPS Integrity publishes trust, fix, counters, and timestamp state coherently. |
+| 3.2 | GPS lost age consistency | GPS-lost wording is checked against the freshest known GPS source timestamp. |
+| 3.3 | GPS Integrity diagnostics contract | GPS Integrity publishes the diagnostic block Voyage Viewer uses for end-of-day review. |
+| 3.4 | Dead reckoning projection | Operational and independent DR projections expose positions, uncertainty, ages, and vector roles. |
+| 3.5 | DR GPS-loss exercise | GPS and current are removed, and operational DR must continue using retained current. |
+| 3.6 | GPS recovery realigns DR | GPS restoration must lock operational DR back to the fresh GPS fix. |
+| 3.7 | GPS jump rejection | An impossible GPS jump must be rejected without moving the trusted baseline. |
+| 3.8 | GPS intermittent outage count | A continuous GPS outage must count once rather than once per missing update. |
+| 3.9 | Docked no-DR-drift | Healthy stationary GPS with tide running must not let independent DR drift away. |
+| 3.10 | GPS recovery fresh fix | A restored GPS fix must refresh trusted and received timestamps. |
+| 3.11 | Lost-GPS retained current source | Lost-GPS DR must report retained-current/last-trusted-current rather than live GPS-derived current. |
+| 3.12 | GPS explicit no-fix immediate | An explicit GNSS no-fix update must produce lost GPS without waiting for stale-position timeout. |
+| 3.13 | GPS weak-signal detection | A weak GNSS sample must degrade GPS trust and increment the weak-signal counter. |
+| 9.1 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
 | 99 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |
 
 Portable evaluator regression tests also cover stale audio evidence, broker-only

@@ -961,10 +961,10 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.ok, true);
   assert.equal(statusBody.running, false);
   assert.equal(Array.isArray(statusBody.tests), true);
-  assert.equal(statusBody.tests[0].number, 0);
+  assert.equal(statusBody.tests[0].number, "0");
   assert.equal(statusBody.tests[1].id, "core-projections");
   assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
-  assert.equal(statusBody.tests.at(-1).number, 99);
+  assert.equal(statusBody.tests.at(-1).number, "99");
   assert.equal(statusBody.tests.at(-1).timeoutSeconds, 75);
   assert.equal(Array.isArray(statusBody.groups), true);
   assert.equal(statusBody.groups[0].id, "safety");
@@ -1340,8 +1340,17 @@ test("Console exposes BITE status and run routes", async () => {
     "audio-policy-consistency",
     "audio-renderer-readiness",
     "notifications-broker-health",
+    "stationary-automute-policy-shape",
     "collision-audio-chain",
     "quiet-target-no-alert",
+    "traffic-overtaking-wording",
+    "traffic-close-quarters-wording",
+    "traffic-unnamed-spoken-name",
+    "traffic-head-on-prompt",
+    "traffic-give-way-prompt",
+    "traffic-stand-on-prompt",
+    "traffic-target-overtaking-wording",
+    "traffic-same-course-wording",
     "gps-integrity-health",
     "gps-lost-age-consistency",
     "gps-integrity-diagnostics-contract",
@@ -1353,17 +1362,8 @@ test("Console exposes BITE status and run routes", async () => {
     "docked-no-dr-drift",
     "gps-recovery-fresh-fix",
     "lost-gps-retained-current-source",
-    "stationary-automute-policy-shape",
     "gps-explicit-no-fix-immediate",
     "gps-weak-signal-detection",
-    "traffic-overtaking-wording",
-    "traffic-close-quarters-wording",
-    "traffic-unnamed-spoken-name",
-    "traffic-head-on-prompt",
-    "traffic-give-way-prompt",
-    "traffic-stand-on-prompt",
-    "traffic-target-overtaking-wording",
-    "traffic-same-course-wording",
     "audio-output-summary",
   ]);
   assert.match(

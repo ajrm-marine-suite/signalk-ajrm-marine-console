@@ -113,8 +113,14 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /disabledReason/);
   assert.match(script, /Running BITE pre-test checks/);
   assert.match(script, /data-bite-test/);
-  assert.match(script, /data-bite-group/);
+  assert.match(script, /data-bite-run-group/);
   assert.match(script, /data-bite-group-toggle/);
+  assert.ok(
+    script.indexOf('event.target.closest("[data-bite-group-toggle]")') <
+      script.indexOf('event.target.closest("[data-bite-run-group]")'),
+    "BITE group toggle clicks must be handled before group-run clicks",
+  );
+  assert.doesNotMatch(script, /event\.target\.closest\("\\[data-bite-group\\]"\)/);
   assert.match(script, /formatBiteReport/);
   assert.match(css, /\.bite-test\.disabled/);
   assert.match(css, /\.bite-group\.fail/);
