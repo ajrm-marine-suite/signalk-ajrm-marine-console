@@ -345,6 +345,34 @@ const TESTS = [
     timeoutSeconds: 5,
   },
   {
+    id: "capture-api-contract",
+    number: "1.7",
+    title: "Capture API contract",
+    description: "Checks that Capture exposes the start/stop/status/automatic-recording API BITE relies on for diagnostic bundles.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "traffic-api-contract",
+    number: "1.8",
+    title: "Traffic API contract",
+    description: "Checks that Traffic exposes status and shared audio-policy control so BITE can unmute safely and restore the prior state.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "audio-status-detail-contract",
+    number: "1.9",
+    title: "Audio status detail contract",
+    description: "Checks that Audio exposes queue, recent-event, output, dependency, and mute-state details for debugging delayed speech.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "notifications-visual-contract",
+    number: "1.10",
+    title: "Notifications visual contract",
+    description: "Checks that Notifications active visual events carry presentation, delivery, priority, and timestamp fields.",
+    timeoutSeconds: 5,
+  },
+  {
     id: "gps-explicit-no-fix-immediate",
     number: "3.12",
     title: "GPS explicit no-fix immediate",
@@ -419,6 +447,47 @@ const TESTS = [
     timeoutSeconds: 30,
   },
   {
+    id: "traffic-target-projection-contract",
+    number: "2.11",
+    title: "Traffic target projection contract",
+    description: "Checks that Traffic target projections include target identity, encounter state, and useful debugging fields.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "traffic-audio-policy-contract",
+    number: "2.12",
+    title: "Traffic audio policy contract",
+    description: "Checks that Traffic's shared mute/automute policy carries voyage/profile/manual-override state explicitly.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "gps-vector-arrow-contract",
+    number: "3.14",
+    title: "GPS/DR vector arrow contract",
+    description: "Optional check that GPS Integrity publishes the classic single/double/triple vector roles used by DR Plotter.",
+    timeoutSeconds: 5,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "gps-counter-contract",
+    number: "3.15",
+    title: "GPS Integrity counter contract",
+    description: "Optional check that GPS Integrity event counters are present, non-negative, and internally plausible.",
+    timeoutSeconds: 5,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
+    id: "gps-current-contract",
+    number: "3.16",
+    title: "GPS/DR current contract",
+    description: "Optional check that live and retained current/set data are explicit enough for lost-GPS dead reckoning.",
+    timeoutSeconds: 5,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
     id: AUDIO_SUMMARY_TEST_ID,
     number: "99",
     title: "Audible summary output",
@@ -463,6 +532,10 @@ const BITE_GROUP_DEFINITIONS = [
       "audio-renderer-readiness",
       "notifications-broker-health",
       "stationary-automute-policy-shape",
+      "capture-api-contract",
+      "traffic-api-contract",
+      "audio-status-detail-contract",
+      "notifications-visual-contract",
     ],
   },
   {
@@ -481,6 +554,8 @@ const BITE_GROUP_DEFINITIONS = [
       "traffic-stand-on-prompt",
       "traffic-target-overtaking-wording",
       "traffic-same-course-wording",
+      "traffic-target-projection-contract",
+      "traffic-audio-policy-contract",
     ],
   },
   {
@@ -504,6 +579,9 @@ const BITE_GROUP_DEFINITIONS = [
       "lost-gps-retained-current-source",
       "gps-explicit-no-fix-immediate",
       "gps-weak-signal-detection",
+      "gps-vector-arrow-contract",
+      "gps-counter-contract",
+      "gps-current-contract",
     ],
   },
   ...OPTIONAL_PLUGIN_BITE_GROUPS,
@@ -1006,6 +1084,10 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "audio-policy-consistency") return runAudioPolicyConsistencyBite(app, { consoleVersion });
   if (testId === "audio-renderer-readiness") return runAudioRendererReadinessBite(app, { consoleVersion });
   if (testId === "notifications-broker-health") return runNotificationsBrokerHealthBite(app, { consoleVersion });
+  if (testId === "capture-api-contract") return runCaptureApiContractBite(app, { consoleVersion });
+  if (testId === "traffic-api-contract") return runTrafficApiContractBite(app, { consoleVersion });
+  if (testId === "audio-status-detail-contract") return runAudioStatusDetailContractBite(app, { consoleVersion });
+  if (testId === "notifications-visual-contract") return runNotificationsVisualContractBite(app, { consoleVersion });
   if (testId === "audio-output-summary") {
     return runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorReports, timeoutMs });
   }
@@ -1065,6 +1147,15 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "traffic-same-course-wording") {
     return runTrafficSameCourseWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
+  if (testId === "traffic-target-projection-contract") {
+    return runTrafficTargetProjectionContractBite(app, { consoleVersion });
+  }
+  if (testId === "traffic-audio-policy-contract") {
+    return runTrafficAudioPolicyContractBite(app, { consoleVersion });
+  }
+  if (testId === "gps-vector-arrow-contract") return runGpsVectorArrowContractBite(app, { consoleVersion });
+  if (testId === "gps-counter-contract") return runGpsCounterContractBite(app, { consoleVersion });
+  if (testId === "gps-current-contract") return runGpsCurrentContractBite(app, { consoleVersion });
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
 
@@ -1990,6 +2081,253 @@ async function runNotificationsBrokerHealthBite(app, { consoleVersion }) {
       recentActivityCount: Array.isArray(notifications.recentActivity) ? notifications.recentActivity.length : null,
       audioSequence: notifications.audioSequence,
       latestAudioDeliveryContract: audioDelivery.contract || "",
+    },
+  });
+}
+
+async function runCaptureApiContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const capture = captureApi(app);
+  let status = null;
+  let statusError = "";
+  if (capture?.status) {
+    try {
+      status = await capture.status();
+    } catch (error) {
+      statusError = error.message || String(error);
+    }
+  }
+  const assertions = [
+    assertion(
+      "capture-api-present",
+      Boolean(capture),
+      capture ? "Capture API registry is present." : "Capture API registry is missing.",
+    ),
+    assertion(
+      "capture-control-methods",
+      Boolean(capture?.status && capture?.start && capture?.stop && capture?.setAutomaticRecordingEnabled),
+      "Capture API should expose status, start, stop, and setAutomaticRecordingEnabled methods.",
+    ),
+    assertion(
+      "capture-status-readable",
+      Boolean(status && typeof status === "object"),
+      status
+        ? "Capture status is readable."
+        : `Capture status is not readable${statusError ? `: ${statusError}` : "."}`,
+    ),
+    assertion(
+      "capture-enabled-state-explicit",
+      !status || typeof status.enabled === "boolean" || typeof status.automaticRecordingEnabled === "boolean",
+      "Capture status should expose whether automatic recording is enabled.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "capture-api-contract",
+    testId: "capture-api-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ statusError }],
+    summary: result === "pass"
+      ? "Capture API contract is usable for BITE diagnostic bundles."
+      : `Capture API contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: status,
+  });
+}
+
+async function runTrafficApiContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const traffic = trafficApi(app);
+  let status = null;
+  let statusError = "";
+  if (traffic?.status) {
+    try {
+      status = await traffic.status();
+    } catch (error) {
+      statusError = error.message || String(error);
+    }
+  }
+  const assertions = [
+    assertion(
+      "traffic-api-present",
+      Boolean(traffic),
+      traffic ? "Traffic API registry is present." : "Traffic API registry is missing.",
+    ),
+    assertion(
+      "traffic-control-methods",
+      Boolean(traffic?.status && traffic?.setAudioPolicy),
+      "Traffic API should expose status and setAudioPolicy methods.",
+    ),
+    assertion(
+      "traffic-status-readable",
+      Boolean(status && typeof status === "object"),
+      status
+        ? "Traffic status is readable."
+        : `Traffic status is not readable${statusError ? `: ${statusError}` : "."}`,
+    ),
+    assertion(
+      "traffic-status-audio-policy",
+      !status || Boolean(status.audioPolicy || status.trafficAudioPolicy || status.profile),
+      "Traffic status should expose audio policy and/or profile state.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "traffic-api-contract",
+    testId: "traffic-api-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ statusError }],
+    summary: result === "pass"
+      ? "Traffic API contract is usable for shared audio-policy control."
+      : `Traffic API contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: status,
+  });
+}
+
+async function runAudioStatusDetailContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const audio = snapshot.audio || {};
+  const dependencies = audio.dependencies || {};
+  const recentEvents = Array.isArray(audio.recentEvents) ? audio.recentEvents : [];
+  const hasOutputState = ["localPlayback", "liveStream", "publicHttpStream", "browserPlayback"].some((key) =>
+    Object.prototype.hasOwnProperty.call(audio, key)
+  );
+  const assertions = [
+    assertion(
+      "audio-contract",
+      audio.contract === "ajrm-marine-audio-status",
+      audio.contract ? `Audio status contract is ${audio.contract}.` : "Audio status projection is missing.",
+    ),
+    assertion(
+      "audio-mute-booleans",
+      ["enabled", "muted", "pluginMuted", "engineMuted"].every((key) => typeof audio[key] === "boolean"),
+      "Audio status should expose enabled, muted, pluginMuted, and engineMuted booleans.",
+    ),
+    assertion(
+      "audio-queue-length",
+      finiteNonNegative(audio.queueLength ?? 0),
+      `Audio queue length is ${audio.queueLength ?? 0}.`,
+    ),
+    assertion(
+      "audio-recent-events-array",
+      Array.isArray(audio.recentEvents),
+      "Audio status should expose recentEvents for delayed/interrupted audio debugging.",
+    ),
+    assertion(
+      "audio-recent-events-shaped",
+      recentEvents.length === 0 || recentEvents.every((event) => event && typeof event.event === "string" && (event.ts || event.timestamp)),
+      "Audio recent events should include event names and timestamps.",
+    ),
+    assertion(
+      "audio-dependencies-explicit",
+      typeof dependencies === "object" && (Object.prototype.hasOwnProperty.call(dependencies, "ok") || typeof dependencies.summary === "string"),
+      "Audio dependency readiness should be explicit.",
+    ),
+    assertion(
+      "audio-output-state-explicit",
+      hasOutputState,
+      "Audio status should expose selected output paths.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "audio-status-detail-contract",
+    testId: "audio-status-detail-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [],
+    summary: result === "pass"
+      ? "Audio status details are sufficient for queue and output debugging."
+      : `Audio status detail contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      audio: audioPolicySummary(audio),
+      dependencies,
+      recentEvents: recentEvents.slice(0, 8),
+    },
+  });
+}
+
+async function runNotificationsVisualContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const notifications = snapshot.notifications || {};
+  const active = Array.isArray(notifications.active) ? notifications.active : [];
+  const visualEvents = active.filter((event) => event?.delivery?.visual !== false);
+  const assertions = [
+    assertion(
+      "notifications-contract",
+      notifications.contract === "notifications-plus-projection",
+      notifications.contract ? `Notifications contract is ${notifications.contract}.` : "Notifications projection is missing.",
+    ),
+    assertion(
+      "notifications-active-array",
+      Array.isArray(notifications.active),
+      "Notifications active list should be an array.",
+    ),
+    assertion(
+      "notifications-history-arrays",
+      Array.isArray(notifications.history) && Array.isArray(notifications.recentActivity),
+      "Notifications should expose history and recentActivity arrays.",
+    ),
+    assertion(
+      "visual-events-shaped",
+      visualEvents.length === 0 || visualEvents.every((event) =>
+        Boolean(event.timestamp) &&
+        Boolean(event.presentation?.message || event.message) &&
+        Boolean(event.priority) &&
+        Boolean(event.delivery)
+      ),
+      "Active visual events should include timestamp, presentation message, priority, and delivery policy.",
+    ),
+    assertion(
+      "audio-sequence-numeric",
+      Number.isFinite(Number(notifications.audioSequence)),
+      "Notifications should expose numeric audioSequence for audio-chain debugging.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "notifications-visual-contract",
+    testId: "notifications-visual-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ activeCount: active.length, visualCount: visualEvents.length }],
+    summary: result === "pass"
+      ? "Notifications visual event contract is coherent."
+      : `Notifications visual contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      contract: notifications.contract,
+      sequence: notifications.sequence,
+      active: active.slice(0, 8),
+      historyCount: Array.isArray(notifications.history) ? notifications.history.length : null,
+      recentActivityCount: Array.isArray(notifications.recentActivity) ? notifications.recentActivity.length : null,
+      audioSequence: notifications.audioSequence,
     },
   });
 }
@@ -3104,6 +3442,181 @@ function gpsWeakSignalObserved(state = {}) {
   );
 }
 
+async function runGpsVectorArrowContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const gpsIntegrity = snapshot.gpsIntegrity || {};
+  const vectors = gpsIntegrity.vectors || {};
+  const heading = vectors.headingThroughWater || vectors.heading || {};
+  const cog = vectors.courseOverGround || vectors.cog || {};
+  const tide = vectors.tide || vectors.current || {};
+  const assertions = [
+    assertion(
+      "gps-vectors-present",
+      Boolean(vectors && Object.keys(vectors).length),
+      "GPS Integrity should publish vector role metadata for DR Plotter.",
+    ),
+    assertion(
+      "heading-single-arrow",
+      !heading.available || /single/i.test(String(heading.role || heading.arrow || heading.label || "")),
+      "Heading/STW vector should identify the single-arrow convention when available.",
+    ),
+    assertion(
+      "cog-double-arrow",
+      !cog.available || /double/i.test(String(cog.role || cog.arrow || cog.label || "")),
+      "COG/SOG vector should identify the double-arrow convention when available.",
+    ),
+    assertion(
+      "tide-triple-arrow",
+      !tide.available || /triple/i.test(String(tide.role || tide.arrow || tide.label || "")),
+      "Tide/current vector should identify the triple-arrow convention when available.",
+    ),
+    assertion(
+      "navigation-vector-roles-coherent",
+      vectorRolesCoherent(vectors),
+      "Published navigation vector roles should be recognisable.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-vector-arrow-contract",
+    testId: "gps-vector-arrow-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ vectorKeys: Object.keys(vectors) }],
+    summary: result === "pass"
+      ? "GPS/DR vector arrow contract is coherent."
+      : `GPS/DR vector arrow contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { gpsIntegrity: gpsIntegritySummary(gpsIntegrity), vectors },
+  });
+}
+
+async function runGpsCounterContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const gpsIntegrity = snapshot.gpsIntegrity || {};
+  const counters = gpsIntegrity.counters || {};
+  const counterKeys = [
+    "evaluations",
+    "acceptedFixes",
+    "rejectedFixes",
+    "positionJumps",
+    "lostFixes",
+    "degradedSignals",
+    "drDiscrepancies",
+  ];
+  const numeric = counterKeys.every((key) => finiteNonNegative(counters[key]));
+  const evaluations = Number(counters.evaluations);
+  const accepted = Number(counters.acceptedFixes || 0);
+  const rejected = Number(counters.rejectedFixes || 0);
+  const assertions = [
+    assertion(
+      "gps-counter-object",
+      counters && typeof counters === "object",
+      "GPS Integrity should expose a counters object.",
+    ),
+    assertion(
+      "gps-counters-non-negative",
+      numeric,
+      "GPS Integrity counters should be present and non-negative.",
+    ),
+    assertion(
+      "gps-counter-evaluations-plausible",
+      !Number.isFinite(evaluations) || accepted + rejected <= evaluations,
+      `GPS counter totals accepted=${accepted}, rejected=${rejected}, evaluations=${Number.isFinite(evaluations) ? evaluations : "unknown"}.`,
+    ),
+    assertion(
+      "gps-counter-losses-not-overcounted",
+      !Number.isFinite(evaluations) || Number(counters.lostFixes || 0) <= evaluations,
+      `GPS outage counter is ${counters.lostFixes ?? "unknown"} for ${Number.isFinite(evaluations) ? evaluations : "unknown"} evaluations.`,
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-counter-contract",
+    testId: "gps-counter-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ counters }],
+    summary: result === "pass"
+      ? "GPS Integrity counters are coherent."
+      : `GPS Integrity counter contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { gpsIntegrity: gpsIntegritySummary(gpsIntegrity) },
+  });
+}
+
+async function runGpsCurrentContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const gpsIntegrity = snapshot.gpsIntegrity || {};
+  const current = gpsIntegrity.current || {};
+  const lastTrustedCurrent = gpsIntegrity.lastTrustedCurrent || {};
+  const currentIsAvailable = currentAvailable(current);
+  const lastTrustedAvailable = currentAvailable(lastTrustedCurrent);
+  const assertions = [
+    assertion(
+      "current-availability-explicit",
+      typeof current.available === "boolean" || currentIsAvailable,
+      "GPS Integrity current state should explicitly say whether live current is available.",
+    ),
+    assertion(
+      "current-source-explicit",
+      !currentIsAvailable || typeof current.source === "string",
+      current.source ? `Current source is ${current.source}.` : "Available current has no source label.",
+    ),
+    assertion(
+      "current-set-drift-numeric",
+      !currentIsAvailable || (
+        (Number.isFinite(Number(current.setTrueDegrees)) || Number.isFinite(Number(current.setTrue))) &&
+        (Number.isFinite(Number(current.driftKnots)) || Number.isFinite(Number(current.drift)))
+      ),
+      "Available current should expose numeric set and drift.",
+    ),
+    assertion(
+      "last-trusted-current-retained",
+      !lastTrustedAvailable || Boolean(lastTrustedCurrent.timestamp || lastTrustedCurrent.source || lastTrustedCurrent.setTrueDegrees != null),
+      "Last trusted current should retain timestamp/source/set data for lost-GPS DR.",
+    ),
+    assertion(
+      "lost-gps-current-source-safe",
+      gpsIntegrity.trust !== "lost" || !currentIsAvailable || /last|trusted|retained|manual|config|estimated|live/i.test(String(current.source || "")),
+      gpsIntegrity.trust === "lost"
+        ? `Lost-GPS current source is ${current.source || "missing"}.`
+        : "GPS is not lost; retained-current source check is advisory.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-current-contract",
+    testId: "gps-current-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ current: currentSummary(current), lastTrustedCurrent: currentSummary(lastTrustedCurrent) }],
+    summary: result === "pass"
+      ? "GPS/DR current contract is coherent."
+      : `GPS/DR current contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { gpsIntegrity: gpsIntegritySummary(gpsIntegrity), current, lastTrustedCurrent },
+  });
+}
+
 async function runTrafficOvertakingWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
   return runTrafficMessageScenarioBite(app, {
     pluginId,
@@ -3327,6 +3840,128 @@ async function runTrafficSameCourseWordingBite(app, { pluginId, testId, consoleV
     forbiddenPatterns: [/CPA will be ahead\. CPA /i],
     passSummary: "Same-course passing wording was present in the Traffic alert chain.",
     failSummary: "Traffic same-course wording check failed",
+  });
+}
+
+async function runTrafficTargetProjectionContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const traffic = snapshot.traffic || {};
+  const targets = Array.isArray(traffic.targets) ? traffic.targets : [];
+  const targetAssertions = targets.map((target) =>
+    Boolean(target && (target.id || target.mmsi || target.name) && target.encounter && typeof target.encounter.state === "string")
+  );
+  const assertions = [
+    assertion(
+      "traffic-target-contract",
+      traffic.contract === "ajrm-marine-traffic-targets" && traffic.authoritative === true,
+      traffic.contract
+        ? `Traffic target contract is ${traffic.contract}; authoritative=${traffic.authoritative === true}.`
+        : "Traffic target projection is missing.",
+    ),
+    assertion(
+      "traffic-target-array",
+      Array.isArray(traffic.targets),
+      "Traffic target projection should expose a targets array.",
+    ),
+    assertion(
+      "traffic-target-identity",
+      targets.length === 0 || targetAssertions.every(Boolean),
+      targets.length === 0
+        ? "No current Traffic targets; accepting an empty projection."
+        : "Every projected target should expose identity and encounter state.",
+    ),
+    assertion(
+      "traffic-debug-sequence",
+      Boolean(traffic.sessionId) && Number.isFinite(Number(traffic.sequence)),
+      "Traffic target projection should expose sessionId and sequence for replay/debug correlation.",
+    ),
+    assertion(
+      "traffic-profile-visible",
+      typeof traffic.profile === "string" && traffic.profile.length > 0,
+      traffic.profile ? `Traffic profile is ${traffic.profile}.` : "Traffic profile is missing.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "traffic-target-projection-contract",
+    testId: "traffic-target-projection-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ targetCount: targets.length }],
+    summary: result === "pass"
+      ? "Traffic target projection contract is coherent."
+      : `Traffic target projection contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      contract: traffic.contract,
+      sessionId: traffic.sessionId,
+      sequence: traffic.sequence,
+      profile: traffic.profile,
+      targets: targets.slice(0, 12),
+    },
+  });
+}
+
+async function runTrafficAudioPolicyContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const policy = snapshot.trafficAudioPolicy || {};
+  const assertions = [
+    assertion(
+      "traffic-audio-policy-contract",
+      policy.contract === "ajrm-marine-traffic-audio-policy" && policy.authoritative === true,
+      policy.contract
+        ? `Traffic audio policy contract is ${policy.contract}; authoritative=${policy.authoritative === true}.`
+        : "Traffic audio policy projection is missing.",
+    ),
+    assertion(
+      "traffic-audio-policy-booleans",
+      ["muted", "automuteStationary", "automuteAllowed", "automaticMuteActive", "manualOverride"].every((key) =>
+        typeof policy[key] === "boolean"
+      ),
+      "Traffic audio policy should expose mute, automute, and manual-override booleans.",
+    ),
+    assertion(
+      "traffic-audio-policy-identity",
+      Boolean(policy.sessionId) && Number.isFinite(Number(policy.sequence)) && Boolean(policy.correlationId),
+      "Traffic audio policy should expose session, sequence, and correlation identifiers.",
+    ),
+    assertion(
+      "traffic-voyage-profile-state",
+      typeof policy.profile === "string" && typeof policy.status === "string",
+      policy.profile
+        ? `Traffic profile=${policy.profile}; status=${policy.status || "missing"}.`
+        : "Traffic audio policy profile/status is missing.",
+    ),
+    assertion(
+      "traffic-audio-policy-mode",
+      !policy.mode || policy.mode === "traffic",
+      policy.mode ? `Traffic audio policy mode is ${policy.mode}.` : "Traffic audio policy mode is omitted; accepting older status.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "traffic-audio-policy-contract",
+    testId: "traffic-audio-policy-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ trafficAudioPolicy: trafficPolicySummary(policy) }],
+    summary: result === "pass"
+      ? "Traffic audio policy contract is coherent."
+      : `Traffic audio policy contract check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: trafficPolicySummary(policy),
   });
 }
 

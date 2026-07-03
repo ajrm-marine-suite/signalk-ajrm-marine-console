@@ -87,11 +87,21 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
 - Audio renderer dependencies and selected output paths being ready or
   explicitly reported unavailable.
 - Notifications broker active/history/audio-sequence state being coherent.
+- Capture and Traffic APIs exposing the control methods BITE needs for
+  diagnostic recording and shared audio-policy restore.
+- Audio status exposing queue/recent-event/output/dependency detail for delayed
+  speech debugging.
+- Notifications visual events carrying presentation, priority, delivery, and
+  timestamp fields.
 - Traffic publishing a `warn`, `alarm`, or `emergency` for the BITE target.
+- Traffic target and audio-policy projections retaining identity, encounter,
+  profile, mute/automute, and correlation fields.
 - Display publishing its status projection, and the Display-facing visual alert
   projection containing the BITE target.
 - Notifications publishing matching audio delivery.
 - Audio accepting, queueing, rendering, skipping, or muting matching BITE audio.
+- GPS Integrity retaining vector-role, counter, and current/last-trusted-current
+  fields needed by DR Plotter and voyage review.
 - Any mute condition being explicit rather than silent.
 - A final spoken BITE summary being requested so the skipper can confirm the
   selected physical/browser/player output was actually heard.
@@ -113,6 +123,10 @@ Current numbered BITE tests:
 | 1.4 | Audio renderer readiness | Piper/FFmpeg/rendering dependencies and output availability are explicit. |
 | 1.5 | Notifications broker health | Broker active/history/audio sequence state is visible and bounded. |
 | 1.6 | Stationary automute policy shape | Traffic audio policy exposes whether stationary automute is armed, allowed, and active. |
+| 1.7 | Capture API contract | Capture exposes status, start, stop, and automatic-recording controls used to produce BITE diagnostic bundles. |
+| 1.8 | Traffic API contract | Traffic exposes status and shared audio-policy control so BITE can unmute safely and restore the prior state. |
+| 1.9 | Audio status detail contract | Audio exposes queue, recent-event, output, dependency, and mute-state detail for debugging delayed speech. |
+| 1.10 | Notifications visual contract | Notifications active visual events carry presentation, delivery, priority, timestamp, and audio-sequence fields. |
 | 2.1 | Collision visual/audio chain | Synthetic collision reaches Traffic, Display-facing visual alerts, Notifications audio delivery, and Audio acceptance. |
 | 2.2 | Quiet target no-alert | Stopped/far-away synthetic target does not create a fresh visual or audible alert. |
 | 2.3 | Traffic overtaking wording | A synthetic overtaking encounter must include overtaking and CPA-direction wording through the alert chain. |
@@ -123,6 +137,8 @@ Current numbered BITE tests:
 | 2.8 | Traffic stand-on prompt | A synthetic port-side collision must say Stand On. |
 | 2.9 | Traffic target overtaking wording | A target overtaking own vessel from astern must say it is overtaking you. |
 | 2.10 | Traffic same-course wording | A similar-course passing encounter must say same general course and give the CPA side. |
+| 2.11 | Traffic target projection contract | Traffic target projections include identity, encounter state, profile, session, and sequence fields. |
+| 2.12 | Traffic audio policy contract | Traffic's shared mute/automute policy carries voyage/profile/manual-override state explicitly. |
 | 3.0 | GPS Integrity availability | Optional GPS Integrity plugin is installed, enabled, and visible to Console when present. |
 | 3.0.1 | DR Plotter availability | Optional DR Plotter plugin is installed, enabled, and visible to Console when present. |
 | 3.1 | GPS Integrity health | GPS Integrity publishes trust, fix, counters, and timestamp state coherently. |
@@ -138,6 +154,9 @@ Current numbered BITE tests:
 | 3.11 | Lost-GPS retained current source | Lost-GPS DR must report retained-current/last-trusted-current rather than live GPS-derived current. |
 | 3.12 | GPS explicit no-fix immediate | An explicit GNSS no-fix update must produce lost GPS without waiting for stale-position timeout. |
 | 3.13 | GPS weak-signal detection | A weak GNSS sample must degrade GPS trust and increment the weak-signal counter. |
+| 3.14 | GPS/DR vector arrow contract | GPS Integrity publishes recognisable single/double/triple vector-role metadata for DR Plotter. |
+| 3.15 | GPS Integrity counter contract | GPS Integrity counters are present, non-negative, and internally plausible. |
+| 3.16 | GPS/DR current contract | Live and retained current/set data are explicit enough for lost-GPS dead reckoning. |
 | 9.1 | Vessel Database availability | Optional Vessel Database plugin is installed, enabled, and visible to Console when present. |
 | 9.2 | Snapshot availability | Optional Snapshot plugin is installed, enabled, and visible to Console when present. |
 | 9.3 | Logger availability | Optional Logger plugin is installed, enabled, and visible to Console when present. |

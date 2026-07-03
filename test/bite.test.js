@@ -981,10 +981,13 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "notifications-availability").enabled, undefined);
   assert.equal(statusBody.tests.find((item) => item.id === "audio-availability").enabled, undefined);
   assert.equal(statusBody.tests.find((item) => item.id === "capture-availability").enabled, undefined);
+  assert.equal(statusBody.tests.find((item) => item.id === "capture-api-contract").groupId, "core");
+  assert.equal(statusBody.tests.find((item) => item.id === "traffic-target-projection-contract").number, "2.11");
   assert.equal(statusBody.tests.find((item) => item.id === "traffic-head-on-prompt").groupId, "traffic");
   assert.equal(statusBody.tests.find((item) => item.id === "gps-integrity-availability").groupId, "gps-dr");
   assert.equal(statusBody.tests.find((item) => item.id === "dr-plotter-availability").enabled, false);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-jump-rejection").groupId, "gps-dr");
+  assert.equal(statusBody.tests.find((item) => item.id === "gps-current-contract").number, "3.16");
   const harbourStatusTest = statusBody.tests.find((item) => item.id === "harbour-editor-availability");
   assert.equal(harbourStatusTest.enabled, false);
   assert.equal(harbourStatusTest.groupId, "signalk-ajrm-marine-harbour-editor");
@@ -1171,18 +1174,27 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.assertions.find((item) => item.id === "dr-position-moved").pass, true);
   values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
 
-		  for (const testId of [
-		    "gps-integrity-diagnostics-contract",
-		    "gps-recovery-realigns-dr",
-		    "gps-jump-rejection",
-		    "gps-intermittent-outage-count",
-		    "docked-no-dr-drift",
-		    "gps-recovery-fresh-fix",
-		    "lost-gps-retained-current-source",
-		    "stationary-automute-policy-shape",
-		    "gps-explicit-no-fix-immediate",
-		    "gps-weak-signal-detection",
-		  ]) {
+  for (const testId of [
+    "capture-api-contract",
+    "traffic-api-contract",
+    "audio-status-detail-contract",
+    "notifications-visual-contract",
+    "traffic-target-projection-contract",
+    "traffic-audio-policy-contract",
+    "gps-integrity-diagnostics-contract",
+    "gps-recovery-realigns-dr",
+    "gps-jump-rejection",
+    "gps-intermittent-outage-count",
+    "docked-no-dr-drift",
+    "gps-recovery-fresh-fix",
+    "lost-gps-retained-current-source",
+    "stationary-automute-policy-shape",
+    "gps-explicit-no-fix-immediate",
+    "gps-weak-signal-detection",
+    "gps-vector-arrow-contract",
+    "gps-counter-contract",
+    "gps-current-contract",
+  ]) {
     statusCode = 0;
     runBody = null;
     await routes.get("POST /ajrmMarineConsole/bite/run")(
@@ -1197,11 +1209,11 @@ test("Console exposes BITE status and run routes", async () => {
         },
       },
     );
-	    assert.equal(statusCode, 200);
-	    assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
-	    assert.equal(runBody.scenario, testId);
-	    values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
-	  }
+    assert.equal(statusCode, 200);
+    assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+    assert.equal(runBody.scenario, testId);
+    values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
+  }
 
   for (const trafficWordingTestId of [
     "traffic-overtaking-wording",
@@ -1346,7 +1358,7 @@ test("Console exposes BITE status and run routes", async () => {
     { muted: false },
     { muted: true },
   ]);
-  assert.equal(runBody.reports.length, 38);
+  assert.equal(runBody.reports.length, 47);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
     "console-availability",
@@ -1361,6 +1373,10 @@ test("Console exposes BITE status and run routes", async () => {
     "audio-renderer-readiness",
     "notifications-broker-health",
     "stationary-automute-policy-shape",
+    "capture-api-contract",
+    "traffic-api-contract",
+    "audio-status-detail-contract",
+    "notifications-visual-contract",
     "collision-audio-chain",
     "quiet-target-no-alert",
     "traffic-overtaking-wording",
@@ -1371,6 +1387,8 @@ test("Console exposes BITE status and run routes", async () => {
     "traffic-stand-on-prompt",
     "traffic-target-overtaking-wording",
     "traffic-same-course-wording",
+    "traffic-target-projection-contract",
+    "traffic-audio-policy-contract",
     "gps-integrity-availability",
     "gps-integrity-health",
     "gps-lost-age-consistency",
@@ -1385,11 +1403,14 @@ test("Console exposes BITE status and run routes", async () => {
     "lost-gps-retained-current-source",
     "gps-explicit-no-fix-immediate",
     "gps-weak-signal-detection",
+    "gps-vector-arrow-contract",
+    "gps-counter-contract",
+    "gps-current-contract",
     "audio-output-summary",
   ]);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 37 tests passed/,
+    /Marine built in tests complete\. 46 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);
@@ -1441,6 +1462,10 @@ test("Console exposes BITE status and run routes", async () => {
     "audio-renderer-readiness",
     "notifications-broker-health",
     "stationary-automute-policy-shape",
+    "capture-api-contract",
+    "traffic-api-contract",
+    "audio-status-detail-contract",
+    "notifications-visual-contract",
     "audio-output-summary",
   ]);
 
