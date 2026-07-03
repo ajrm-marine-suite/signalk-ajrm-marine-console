@@ -968,8 +968,12 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.at(-1).timeoutSeconds, 75);
   assert.equal(Array.isArray(statusBody.groups), true);
   assert.equal(statusBody.groups[0].id, "safety");
+  assert.equal(statusBody.groups[0].number, "0");
+  assert.equal(statusBody.groups.find((item) => item.id === "required-plugins").number, "0.x");
   assert.equal(statusBody.groups.find((item) => item.id === "required-plugins").title, "Required plugins");
+  assert.equal(statusBody.groups.find((item) => item.id === "traffic").number, "2");
   assert.equal(statusBody.groups.find((item) => item.id === "traffic").title, "Traffic encounters");
+  assert.equal(statusBody.groups.find((item) => item.id === "gps-dr").number, "3");
   assert.equal(statusBody.groups.find((item) => item.id === "gps-dr").title, "GPS Integrity and DR Plotter");
   assert.equal(statusBody.tests.find((item) => item.id === "console-availability").enabled, undefined);
   assert.equal(statusBody.tests.find((item) => item.id === "display-availability").enabled, undefined);
@@ -1026,6 +1030,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
   assert.equal(statusBody.tests.find((item) => item.id === "harbour-editor-availability").enabled, true);
   assert.equal(statusBody.groups.find((item) => item.id === "signalk-ajrm-marine-harbour-editor").enabled, true);
+  assert.equal(statusBody.groups.find((item) => item.id === "signalk-ajrm-marine-harbour-editor").number, "9.9");
 
   let statusCode = 0;
   let runBody;

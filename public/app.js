@@ -178,13 +178,14 @@ function biteGroupHtml(group, allTests) {
   const expanded = biteExpandedGroups.has(group.id) || state === "running";
   const enabled = tests.some((test) => test.enabled !== false);
   const summary = biteGroupSummary(group, tests, state);
+  const groupTitle = [group.number, group.title || group.id].filter(Boolean).join(" ");
   return `<section class="bite-group ${state}" data-bite-group-section="${escapeHtml(group.id)}">
     <div class="bite-group-header">
       <button class="bite-group-toggle" type="button" data-bite-group-toggle="${escapeHtml(group.id)}" aria-expanded="${expanded ? "true" : "false"}">
         <span class="bite-caret">${expanded ? "▾" : "▸"}</span>
         <span class="bite-light" aria-label="${escapeHtml(biteStateLabel(state))}"></span>
         <span class="bite-group-title">
-          <strong>${escapeHtml(group.title || group.id)}</strong>
+          <strong>${escapeHtml(groupTitle)}</strong>
           <span>${escapeHtml(summary)}</span>
         </span>
       </button>
@@ -275,6 +276,9 @@ async function runBiteTest(testId) {
     renderBitePanel();
     return;
   }
+  const group = biteGroups().find((candidate) => (candidate.testIds || []).includes(testId)) || null;
+  const autoExpandedGroupId = group && !biteExpandedGroups.has(group.id) ? group.id : "";
+  if (autoExpandedGroupId) biteExpandedGroups.add(autoExpandedGroupId);
   biteRunning = true;
   biteRunningTestId = testId;
   setBiteLog(`Running BITE ${biteTestNumber(test)} ${test.title || testId}...`);
@@ -300,6 +304,7 @@ async function runBiteTest(testId) {
   } finally {
     biteRunning = false;
     biteRunningTestId = null;
+    if (autoExpandedGroupId) biteExpandedGroups.delete(autoExpandedGroupId);
     await refreshBiteStatus();
     renderBitePanel();
   }

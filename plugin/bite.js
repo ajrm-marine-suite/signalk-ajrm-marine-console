@@ -430,6 +430,7 @@ const OPTIONAL_PLUGIN_BITE_GROUPS = OPTIONAL_PLUGIN_AVAILABILITY_TESTS
   .filter((test) => test.groupId !== "gps-dr")
   .map((test) => ({
     id: test.pluginId,
+    number: test.number,
     title: suitePluginTitle(test.pluginId),
     description: `Optional ${suitePluginTitle(test.pluginId)} plugin availability and status check.`,
     pluginId: test.pluginId,
@@ -438,18 +439,21 @@ const OPTIONAL_PLUGIN_BITE_GROUPS = OPTIONAL_PLUGIN_AVAILABILITY_TESTS
 const BITE_GROUP_DEFINITIONS = [
   {
     id: "safety",
+    number: "0",
     title: "Pre-test safety",
     description: "Required plugin checks and isolation from live or simulator data before BITE injects test traffic.",
     testIds: [PREFLIGHT_TEST_ID],
   },
   {
     id: "required-plugins",
+    number: "0.x",
     title: "Required plugins",
     description: "Each required AJRM Marine plugin is installed, enabled, visible to Console, and operational where a runtime check is available.",
     testIds: REQUIRED_PLUGIN_AVAILABILITY_TESTS.map((test) => test.id),
   },
   {
     id: "core",
+    number: "1",
     title: "Core suite readiness",
     description: "Console, Traffic, Display, Notifications, and Audio contracts needed by the suite.",
     testIds: [
@@ -463,6 +467,7 @@ const BITE_GROUP_DEFINITIONS = [
   },
   {
     id: "traffic",
+    number: "2",
     title: "Traffic encounters",
     description: "Collision/advisory generation, action prompts, passing wording, and spoken target names.",
     testIds: [
@@ -480,6 +485,7 @@ const BITE_GROUP_DEFINITIONS = [
   },
   {
     id: "gps-dr",
+    number: "3",
     title: "GPS Integrity and DR Plotter",
     description: "GPS loss, stale fixes, weak signals, DR drift, retained current, and GPS recovery behaviour.",
     testIds: [
@@ -503,6 +509,7 @@ const BITE_GROUP_DEFINITIONS = [
   ...OPTIONAL_PLUGIN_BITE_GROUPS,
   {
     id: "summary",
+    number: "99",
     title: "Audible summary",
     description: "Final spoken check that confirms the selected audio output can be heard.",
     testIds: [AUDIO_SUMMARY_TEST_ID],
@@ -905,6 +912,7 @@ function biteGroupsForApp(app) {
     return {
       id: group.id,
       title: group.title,
+      number: group.number || "",
       description: group.description,
       pluginId: group.pluginId || "",
       testIds: groupTests.map((test) => test.id),

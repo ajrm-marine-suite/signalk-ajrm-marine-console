@@ -174,19 +174,28 @@ h1, h2, p { margin-top: 0; }
 }
 .bite-group-toggle {
   display: grid;
-  grid-template-columns: 1rem 1.3rem minmax(0, 1fr);
+  grid-template-columns: 2.2rem 1.3rem minmax(0, 1fr);
   align-items: center;
   gap: .6rem;
   min-width: 0;
   border: 0;
-  padding: 0;
+  min-height: 3.25rem;
+  padding: .35rem .2rem;
   background: transparent;
   color: inherit;
   text-align: left;
   cursor: pointer;
 }
 .bite-caret {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(169, 197, 214, .35);
+  border-radius: .45rem;
+  background: rgba(255, 255, 255, .05);
   color: #a9c5d6;
+  font-size: 1.05rem;
   font-weight: 900;
 }
 .bite-group-title {
