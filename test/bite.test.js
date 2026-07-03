@@ -904,7 +904,7 @@ test("Console exposes BITE status and run routes", async () => {
         injectScenarioMessage({
           mmsi: "235912353",
           name: "BITE TARGET OVERTAKING",
-          visualMessage: "Traffic advisory. Medium vessel BITE TARGET OVERTAKING at 6 o'clock. It is overtaking you. CPA will be astern. 80 meters in 2 minutes.",
+          visualMessage: "Traffic advisory. Medium vessel BITE TARGET OVERTAKING at 6 o'clock. It is overtaking you. CPA will be on your starboard side. 80 meters in 2 minutes.",
         });
       }
       if (String(message?.context || "").includes("235912354")) {

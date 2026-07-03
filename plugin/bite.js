@@ -2999,7 +2999,7 @@ async function runTrafficTargetOvertakingWordingBite(app, { pluginId, testId, co
     target: {
       mmsi: TARGET_OVERTAKING_TEST_TARGET_MMSI,
       name: TARGET_OVERTAKING_TEST_TARGET_NAME,
-      position: offsetPositionMeters(OWN_POSITION, { eastMeters: -180, northMeters: 0 }),
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: -180, northMeters: -80 }),
       speedMps: 7 * KNOTS_TO_MPS,
       courseRad: Math.PI / 2,
       lengthMeters: 18,
@@ -3011,7 +3011,7 @@ async function runTrafficTargetOvertakingWordingBite(app, { pluginId, testId, co
       speedMps: 4 * KNOTS_TO_MPS,
       courseRad: Math.PI / 2,
     },
-    expectedPatterns: [/It is overtaking you/i, /CPA will be astern/i],
+    expectedPatterns: [/It is overtaking you/i, /CPA will be on your (port|starboard) side/i],
     forbiddenPatterns: [/CPA will be ahead\. CPA /i],
     passSummary: "Target-overtaking wording was present in the Traffic alert chain.",
     failSummary: "Traffic target-overtaking wording check failed",
@@ -3027,9 +3027,9 @@ async function runTrafficSameCourseWordingBite(app, { pluginId, testId, consoleV
     target: {
       mmsi: SAME_COURSE_TEST_TARGET_MMSI,
       name: SAME_COURSE_TEST_TARGET_NAME,
-      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 70, northMeters: 180 }),
-      speedMps: 5 * KNOTS_TO_MPS,
-      courseRad: Math.PI / 2,
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: -40, northMeters: -80 }),
+      speedMps: 4 * KNOTS_TO_MPS,
+      courseRad: (80 * Math.PI) / 180,
       lengthMeters: 18,
       beamMeters: 5,
       aisClass: "B",
@@ -3083,6 +3083,7 @@ async function runTrafficMessageScenarioBite(app, {
         forbiddenPatterns,
         expectedAudioPatterns,
         forbiddenAudioPatterns,
+        strict: true,
       });
       if (evaluation.observation) observations.push(evaluation.observation);
       if (evaluation.complete) break;
@@ -3098,6 +3099,7 @@ async function runTrafficMessageScenarioBite(app, {
         forbiddenPatterns,
         expectedAudioPatterns,
         forbiddenAudioPatterns,
+        strict: true,
       });
     }
   } finally {
@@ -3548,22 +3550,26 @@ function evaluateTrafficMessageScenarioSnapshot(snapshot, {
   forbiddenPatterns = [],
   expectedAudioPatterns = [],
   forbiddenAudioPatterns = [],
+  strict = false,
 }) {
   const trafficAlert = findTrafficAlert(snapshot.traffic, targetName, targetMmsi);
   const displayEvidence = findDisplayAlertEvidence(snapshot.notifications, {
     startedAtMs,
     targetName,
     targetMmsi,
+    strict,
   });
   let brokerEvidence = findBrokerAudioEvidence(snapshot.notificationsAudio, {
     startedAtMs,
     targetName,
     targetMmsi,
+    strict,
   });
   let audioEvidence = findAudioEvidence(snapshot.audio || {}, {
     startedAtMs,
     targetName,
     targetMmsi,
+    strict,
   });
   if (!targetName && expectedAudioPatterns.length) {
     brokerEvidence = brokerEvidence || findBrokerAudioEvidenceByPatterns(snapshot.notificationsAudio, {
