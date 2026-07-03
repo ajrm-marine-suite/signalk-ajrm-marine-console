@@ -94,6 +94,20 @@ module.exports = function ajrmMarineConsole(app) {
           });
         }
       });
+      router.post(`${prefix}/bite/run-group`, async (req, res) => {
+        try {
+          const report = await bite.runGroup(req.body || {});
+          res.set?.("Cache-Control", "no-store");
+          res.status?.(200);
+          res.json(report);
+        } catch (error) {
+          res.status?.(error.statusCode || 500);
+          res.json({
+            ok: false,
+            error: error.message || String(error),
+          });
+        }
+      });
     }
   }
 

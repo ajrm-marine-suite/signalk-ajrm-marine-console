@@ -44,6 +44,20 @@ curl -sk -X POST https://localhost:3443/plugins/signalk-ajrm-marine-console/bite
   -d '{"timeoutSeconds":45}'
 ```
 
+The Console BITE tab groups tests by subsystem. Each group can be expanded or
+collapsed, and its heading LED shows the worst state in that group: amber for
+not run, blue for running, green when all enabled tests pass, red when any
+enabled test fails, and grey when an optional plugin is not installed, not
+enabled, or not visible to Console. The group run button uses the same safety
+harness as Run all: it runs preflight first, disables Capture automatic
+recording, starts a BITE Capture bundle, unmutes Traffic audio for the run,
+runs only that group's enabled tests, finishes with the audible summary test,
+stops Capture, and restores the prior Capture/Traffic audio settings.
+
+Optional plugin tests live under their plugin heading, for example Harbour
+Editor. This makes missing optional apps visible without turning the whole BITE
+page into a flat list of disabled checks.
+
 Run all starts with test `00`, which verifies the required AJRM Marine Suite
 plugins are installed and operational before any synthetic data is injected. It
 checks required package/webapp presence, core status projections, the Capture

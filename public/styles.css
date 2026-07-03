@@ -158,6 +158,66 @@ h1, h2, p { margin-top: 0; }
   gap: .55rem;
   margin-bottom: .8rem;
 }
+.bite-group {
+  border: 1px solid #23495f;
+  border-radius: .75rem;
+  background: #071723;
+  overflow: hidden;
+}
+.bite-group-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .7rem;
+  padding: .55rem .65rem;
+  background: #0b2434;
+}
+.bite-group-toggle {
+  display: grid;
+  grid-template-columns: 1rem 1.3rem minmax(0, 1fr);
+  align-items: center;
+  gap: .6rem;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bite-caret {
+  color: #a9c5d6;
+  font-weight: 900;
+}
+.bite-group-title {
+  min-width: 0;
+}
+.bite-group-title strong {
+  display: block;
+}
+.bite-group-title span {
+  display: block;
+  color: #a9c5d6;
+  font-size: .82rem;
+  line-height: 1.3;
+}
+.bite-group-tests {
+  display: grid;
+  gap: .45rem;
+  padding: .55rem;
+}
+.bite-group.pending > .bite-group-header .bite-light { color: #f59e0b; background: #f59e0b; }
+.bite-group.running > .bite-group-header .bite-light { color: #38bdf8; background: #38bdf8; }
+.bite-group.pass > .bite-group-header .bite-light { color: #22c55e; background: #22c55e; }
+.bite-group.fail > .bite-group-header .bite-light { color: #ef4444; background: #ef4444; }
+.bite-group.disabled {
+  opacity: .72;
+}
+.bite-group.disabled > .bite-group-header .bite-light {
+  color: #64748b;
+  background: #64748b;
+  box-shadow: 0 0 0 .18rem rgba(255, 255, 255, .04);
+}
 .bite-test {
   display: grid;
   grid-template-columns: 1.4rem minmax(0, 1fr) auto;
@@ -208,6 +268,7 @@ h1, h2, p { margin-top: 0; }
   font-weight: 800;
 }
 .bite-run:disabled,
+.bite-group-toggle:disabled,
 .bite-header button:disabled {
   cursor: not-allowed;
   opacity: .55;
@@ -299,8 +360,10 @@ h1, h2, p { margin-top: 0; }
   .tab { padding: .42rem .55rem; font-size: .82rem; }
   .hero { align-items: stretch; flex-direction: column; }
   .bite-header { align-items: stretch; flex-direction: column; }
+  .bite-group-header { grid-template-columns: minmax(0, 1fr); }
   .bite-test { grid-template-columns: 1.2rem minmax(0, 1fr); }
   .bite-run { grid-column: 2; }
+  .bite-run-group { grid-column: 1; }
   .overview-actions { flex-direction: column; }
   .large { width: 100%; min-height: 3.3rem; }
 }

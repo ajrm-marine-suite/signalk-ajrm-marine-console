@@ -89,10 +89,15 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /BITE_STATUS_URL/);
   assert.match(script, /BITE_RUN_URL/);
   assert.match(script, /BITE_RUN_ALL_URL/);
+  assert.match(script, /BITE_RUN_GROUP_URL/);
   assert.match(script, /function runBiteTest\(testId\)/);
   assert.match(script, /function runAllBiteTests\(\)/);
+  assert.match(script, /function runBiteGroup\(groupId\)/);
+  assert.match(script, /function biteGroupHtml\(group, allTests\)/);
   assert.match(script, /BITE_STATUS_REFRESH_MS/);
   assert.match(script, /let biteRunningTestId = null/);
+  assert.match(script, /let biteRunningGroupId = null/);
+  assert.match(script, /const biteExpandedGroups = new Set\(\)/);
   assert.match(script, /function startBiteStatusPolling\(\)/);
   assert.match(script, /function stopBiteStatusPolling\(\)/);
   assert.match(script, /biteStatus\.currentRunAll\?\.reports/);
@@ -108,8 +113,12 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /disabledReason/);
   assert.match(script, /Running BITE pre-test checks/);
   assert.match(script, /data-bite-test/);
+  assert.match(script, /data-bite-group/);
+  assert.match(script, /data-bite-group-toggle/);
   assert.match(script, /formatBiteReport/);
   assert.match(css, /\.bite-test\.disabled/);
+  assert.match(css, /\.bite-group\.fail/);
+  assert.match(css, /\.bite-group-header/);
   assert.match(script, /error\.status = response\.status/);
   assert.match(script, /status\.muted === true && announcement\.force !== true/);
   assert.match(script, /announcement\.audioUrl \|\| announcement\.publicAudioUrl/);

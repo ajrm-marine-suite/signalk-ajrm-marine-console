@@ -4,6 +4,7 @@ const CONSOLE_STATUS_URL = "/signalk/v1/api/ajrmMarineConsole/status";
 const BITE_STATUS_URL = "/signalk/v1/api/ajrmMarineConsole/bite/status";
 const BITE_RUN_URL = "/signalk/v1/api/ajrmMarineConsole/bite/run";
 const BITE_RUN_ALL_URL = "/signalk/v1/api/ajrmMarineConsole/bite/run-all";
+const BITE_RUN_GROUP_URL = "/signalk/v1/api/ajrmMarineConsole/bite/run-group";
 const AUDIO_STATUS_URL = "/signalk/v1/api/ajrmMarineAudio/status";
 const ACTIVE_MODULE_KEY = "ajrmMarineConsole.activeModule";
 const AUDIO_ACCESS_TOKEN_STORAGE_KEY = "ajrmMarineAudio.accessToken";
@@ -29,7 +30,9 @@ let biteStatus = null;
 let biteResults = {};
 let biteRunning = false;
 let biteRunningTestId = null;
+let biteRunningGroupId = null;
 let biteStatusPollTimer = null;
+const biteExpandedGroups = new Set();
 
 const els = {
   version: document.getElementById("version"),
@@ -117,7 +120,7 @@ function renderBitePanel() {
   const tests = biteTests();
   const enabledTests = tests.filter((test) => test.enabled !== false);
   els.biteRunAll.disabled = biteRunning || enabledTests.length === 0;
-  els.biteTests.innerHTML = tests.map((test) => biteTestHtml(test)).join("")
+  els.biteTests.innerHTML = biteGroups().map((group) => biteGroupHtml(group, tests)).join("")
     || '<p class="empty-note">No BITE tests are available.</p>';
   if (biteRunning && biteStatus?.currentRunAll) {
     setBiteLog(formatBiteRunAllProgress(biteStatus.currentRunAll));
@@ -148,6 +151,71 @@ function biteTests() {
       timeoutSeconds: 45,
     },
   ];
+}
+
+function biteGroups() {
+  const tests = biteTests();
+  if (Array.isArray(biteStatus?.groups) && biteStatus.groups.length) {
+    return biteStatus.groups.map((group) => ({
+      ...group,
+      testIds: Array.isArray(group.testIds) ? group.testIds : [],
+    }));
+  }
+  return [{
+    id: "bite",
+    title: "Built-in tests",
+    description: "Available BITE checks.",
+    testIds: tests.map((test) => test.id),
+    count: tests.length,
+    enabledCount: tests.filter((test) => test.enabled !== false).length,
+    enabled: true,
+  }];
+}
+
+function biteGroupHtml(group, allTests) {
+  const tests = group.testIds.map((testId) => allTests.find((test) => test.id === testId)).filter(Boolean);
+  const state = biteGroupState(group, tests);
+  const expanded = biteExpandedGroups.has(group.id) || state === "fail" || state === "running";
+  const enabled = tests.some((test) => test.enabled !== false);
+  const summary = biteGroupSummary(group, tests, state);
+  return `<section class="bite-group ${state}" data-bite-group-section="${escapeHtml(group.id)}">
+    <div class="bite-group-header">
+      <button class="bite-group-toggle" type="button" data-bite-group-toggle="${escapeHtml(group.id)}" aria-expanded="${expanded ? "true" : "false"}">
+        <span class="bite-caret">${expanded ? "▾" : "▸"}</span>
+        <span class="bite-light" aria-label="${escapeHtml(biteStateLabel(state))}"></span>
+        <span class="bite-group-title">
+          <strong>${escapeHtml(group.title || group.id)}</strong>
+          <span>${escapeHtml(summary)}</span>
+        </span>
+      </button>
+      <button class="bite-run bite-run-group" type="button" data-bite-group="${escapeHtml(group.id)}" ${biteRunning || !enabled ? "disabled" : ""}>Run group</button>
+    </div>
+    <div class="bite-group-tests" ${expanded ? "" : "hidden"}>
+      ${tests.map((test) => biteTestHtml(test)).join("")}
+    </div>
+  </section>`;
+}
+
+function biteGroupState(group, tests) {
+  const currentTestId = biteStatus?.currentRunAll?.currentTestId || biteRunningTestId || null;
+  if (biteRunning && (biteRunningGroupId === group.id || tests.some((test) => test.id === currentTestId))) return "running";
+  const available = tests.filter((test) => test.enabled !== false);
+  if (!available.length) return "disabled";
+  const results = available.map((test) => biteResults[test.id]).filter(Boolean);
+  if (results.some((result) => result.ok === false)) return "fail";
+  if (results.length === available.length && results.every((result) => result.ok === true)) return "pass";
+  return "pending";
+}
+
+function biteGroupSummary(group, tests, state) {
+  const available = tests.filter((test) => test.enabled !== false);
+  const passed = available.filter((test) => biteResults[test.id]?.ok === true).length;
+  const failed = available.filter((test) => biteResults[test.id]?.ok === false).length;
+  if (state === "disabled") return `${group.description || "Optional checks"} Not installed, not enabled, or not visible.`;
+  if (state === "running") return `Running ${group.title || group.id} checks...`;
+  if (failed) return `${failed} failed, ${passed} passed. ${group.description || ""}`.trim();
+  if (passed && passed === available.length) return `${passed} passed. ${group.description || ""}`.trim();
+  return `${passed}/${available.length} passed. ${group.description || ""}`.trim();
 }
 
 function biteTestHtml(test) {
@@ -183,6 +251,16 @@ function biteTestHtml(test) {
     </div>
     <button class="bite-run" type="button" data-bite-test="${escapeHtml(test.id)}" ${biteRunning || !available ? "disabled" : ""}>Run</button>
   </article>`;
+}
+
+function biteStateLabel(state) {
+  return {
+    pending: "Not run",
+    running: "Running",
+    pass: "Pass",
+    fail: "Fail",
+    disabled: "Disabled",
+  }[state] || "Not run";
 }
 
 function renderBiteError(error) {
@@ -230,6 +308,7 @@ async function runBiteTest(testId) {
 async function runAllBiteTests() {
   biteRunning = true;
   biteRunningTestId = null;
+  biteRunningGroupId = null;
   biteResults = {};
   setBiteLog("Running BITE pre-test checks...");
   renderBitePanel();
@@ -257,6 +336,52 @@ async function runAllBiteTests() {
   } finally {
     biteRunning = false;
     biteRunningTestId = null;
+    stopBiteStatusPolling();
+    await refreshBiteStatus();
+    renderBitePanel();
+  }
+}
+
+async function runBiteGroup(groupId) {
+  const group = biteGroups().find((candidate) => candidate.id === groupId);
+  if (!group) {
+    setBiteLog(`BITE group ${groupId} is not available.`);
+    return;
+  }
+  biteRunning = true;
+  biteRunningTestId = null;
+  biteRunningGroupId = groupId;
+  for (const testId of group.testIds || []) {
+    delete biteResults[testId];
+  }
+  delete biteResults[`run-group:${groupId}`];
+  setBiteLog(`Running BITE ${group.title || groupId} checks...`);
+  renderBitePanel();
+  startBiteStatusPolling();
+  try {
+    const report = await jsonRequest(BITE_RUN_GROUP_URL, {
+      method: "POST",
+      body: JSON.stringify({ groupId }),
+    });
+    for (const child of report.reports || []) {
+      biteResults[child.testId || child.scenario] = child;
+    }
+    biteResults[report.testId || `run-group:${groupId}`] = report;
+    setBiteLog(formatBiteReport(report));
+  } catch (error) {
+    if (error.body?.contract === "ajrm-marine-console-bite-run-all-report") {
+      for (const child of error.body.reports || []) {
+        biteResults[child.testId || child.scenario] = child;
+      }
+      biteResults[error.body.testId || `run-group:${groupId}`] = error.body;
+      setBiteLog(formatBiteReport(error.body));
+    } else {
+      setBiteLog(`BITE ${group.title || groupId} group failed to run: ${error.message}`);
+    }
+  } finally {
+    biteRunning = false;
+    biteRunningTestId = null;
+    biteRunningGroupId = null;
     stopBiteStatusPolling();
     await refreshBiteStatus();
     renderBitePanel();
@@ -336,7 +461,8 @@ function formatBiteReport(report) {
 }
 
 function formatBiteRunAllProgress(progress) {
-  const lines = ["RUNNING BITE Run all"];
+  const heading = progress.groupTitle ? `${progress.groupTitle} group` : "Run all";
+  const lines = [`RUNNING BITE ${heading}`];
   const currentTest = biteTestById(progress.currentTestId);
   const phase = String(progress.phase || "running");
   if (currentTest) {
@@ -752,6 +878,19 @@ els.moduleCards.addEventListener("click", (event) => {
   if (button) selectModule(button.dataset.module);
 });
 els.biteTests.addEventListener("click", (event) => {
+  const groupButton = event.target.closest("[data-bite-group]");
+  if (groupButton) {
+    runBiteGroup(groupButton.dataset.biteGroup);
+    return;
+  }
+  const toggle = event.target.closest("[data-bite-group-toggle]");
+  if (toggle) {
+    const groupId = toggle.dataset.biteGroupToggle;
+    if (biteExpandedGroups.has(groupId)) biteExpandedGroups.delete(groupId);
+    else biteExpandedGroups.add(groupId);
+    renderBitePanel();
+    return;
+  }
   const button = event.target.closest("[data-bite-test]");
   if (button) runBiteTest(button.dataset.biteTest);
 });

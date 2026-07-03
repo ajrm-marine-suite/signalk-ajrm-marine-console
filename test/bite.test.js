@@ -966,8 +966,15 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
   assert.equal(statusBody.tests.at(-1).number, 99);
   assert.equal(statusBody.tests.at(-1).timeoutSeconds, 75);
+  assert.equal(Array.isArray(statusBody.groups), true);
+  assert.equal(statusBody.groups[0].id, "safety");
+  assert.equal(statusBody.groups.find((item) => item.id === "traffic").title, "Traffic encounters");
+  assert.equal(statusBody.groups.find((item) => item.id === "gps-dr").title, "GPS Integrity and DR Plotter");
+  assert.equal(statusBody.tests.find((item) => item.id === "traffic-head-on-prompt").groupId, "traffic");
+  assert.equal(statusBody.tests.find((item) => item.id === "gps-jump-rejection").groupId, "gps-dr");
   const harbourStatusTest = statusBody.tests.find((item) => item.id === "harbour-editor-availability");
   assert.equal(harbourStatusTest.enabled, false);
+  assert.equal(harbourStatusTest.groupId, "signalk-ajrm-marine-harbour-editor");
   assert.match(harbourStatusTest.disabledReason, /signalk-ajrm-marine-harbour-editor/);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-integrity-health").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-lost-age-consistency").enabled, true);
@@ -1009,6 +1016,7 @@ test("Console exposes BITE status and run routes", async () => {
   });
   assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
   assert.equal(statusBody.tests.find((item) => item.id === "harbour-editor-availability").enabled, true);
+  assert.equal(statusBody.groups.find((item) => item.id === "signalk-ajrm-marine-harbour-editor").enabled, true);
 
   let statusCode = 0;
   let runBody;
@@ -1382,6 +1390,38 @@ test("Console exposes BITE status and run routes", async () => {
     ),
     "run-all summary is written before Capture stops so it is included in the voyage zip",
   );
+
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run-group")(
+    { body: { groupId: "core", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.scenario, "run-group");
+  assert.equal(runBody.testId, "run-group:core");
+  assert.equal(runBody.groupId, "core");
+  assert.equal(runBody.groupTitle, "Core suite readiness");
+  assert.match(runBody.capture.comment, /AJRM Marine BITE Core suite readiness group/);
+  assert.deepEqual(runBody.reports.map((report) => report.testId), [
+    "preflight-safety",
+    "core-projections",
+    "projection-contracts",
+    "audio-policy-consistency",
+    "audio-renderer-readiness",
+    "notifications-broker-health",
+    "stationary-automute-policy-shape",
+    "audio-output-summary",
+  ]);
 
   values["navigation.position"] = {
     value: { latitude: 56, longitude: -5 },

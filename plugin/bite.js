@@ -53,6 +53,7 @@ const WATCH_PATHS = {
 };
 const REQUIRED_SUITE_PLUGINS = Object.freeze(packageInfo.signalk?.requires || []);
 const PREFLIGHT_TEST_ID = "preflight-safety";
+const AUDIO_SUMMARY_TEST_ID = "audio-output-summary";
 let reportFileSequence = 0;
 const TESTS = [
   {
@@ -293,7 +294,7 @@ const TESTS = [
     timeoutSeconds: 30,
   },
   {
-    id: "audio-output-summary",
+    id: AUDIO_SUMMARY_TEST_ID,
     number: 99,
     title: "Audible summary output",
     description: "Publishes a final spoken BITE summary so the skipper can confirm the selected audio output was actually heard.",
@@ -307,6 +308,77 @@ const TESTS = [
     timeoutSeconds: 5,
     optional: true,
     pluginId: HARBOUR_EDITOR_PLUGIN_ID,
+  },
+];
+const BITE_GROUP_DEFINITIONS = [
+  {
+    id: "safety",
+    title: "Pre-test safety",
+    description: "Required plugin checks and isolation from live or simulator data before BITE injects test traffic.",
+    testIds: [PREFLIGHT_TEST_ID],
+  },
+  {
+    id: "core",
+    title: "Core suite readiness",
+    description: "Console, Traffic, Display, Notifications, and Audio contracts needed by the suite.",
+    testIds: [
+      "core-projections",
+      "projection-contracts",
+      "audio-policy-consistency",
+      "audio-renderer-readiness",
+      "notifications-broker-health",
+      "stationary-automute-policy-shape",
+    ],
+  },
+  {
+    id: "traffic",
+    title: "Traffic encounters",
+    description: "Collision/advisory generation, action prompts, passing wording, and spoken target names.",
+    testIds: [
+      "collision-audio-chain",
+      "quiet-target-no-alert",
+      "traffic-overtaking-wording",
+      "traffic-close-quarters-wording",
+      "traffic-unnamed-spoken-name",
+      "traffic-head-on-prompt",
+      "traffic-give-way-prompt",
+      "traffic-stand-on-prompt",
+      "traffic-target-overtaking-wording",
+      "traffic-same-course-wording",
+    ],
+  },
+  {
+    id: "gps-dr",
+    title: "GPS Integrity and DR Plotter",
+    description: "GPS loss, stale fixes, weak signals, DR drift, retained current, and GPS recovery behaviour.",
+    testIds: [
+      "gps-integrity-health",
+      "gps-lost-age-consistency",
+      "gps-integrity-diagnostics-contract",
+      "dead-reckoning-projection",
+      "dead-reckoning-loss-exercise",
+      "gps-recovery-realigns-dr",
+      "gps-jump-rejection",
+      "gps-intermittent-outage-count",
+      "docked-no-dr-drift",
+      "gps-recovery-fresh-fix",
+      "lost-gps-retained-current-source",
+      "gps-explicit-no-fix-immediate",
+      "gps-weak-signal-detection",
+    ],
+  },
+  {
+    id: "signalk-ajrm-marine-harbour-editor",
+    title: "Harbour Editor",
+    description: "Optional Harbour Editor plugin availability and status contract.",
+    pluginId: HARBOUR_EDITOR_PLUGIN_ID,
+    testIds: ["harbour-editor-availability"],
+  },
+  {
+    id: "summary",
+    title: "Audible summary",
+    description: "Final spoken check that confirms the selected audio output can be heard.",
+    testIds: [AUDIO_SUMMARY_TEST_ID],
   },
 ];
 const LIVE_FEED_PATHS = [
@@ -355,6 +427,7 @@ function createBiteController(app, { pluginId, version }) {
         reports: reports.slice(-MAX_REPORTS),
         reportsDirectory: reportsDirectory(),
         tests: biteTestsForApp(app),
+        groups: biteGroupsForApp(app),
         watchPaths: WATCH_PATHS,
       };
     },
@@ -405,6 +478,37 @@ function createBiteController(app, { pluginId, version }) {
           pluginId,
           consoleVersion: version,
           timeoutSeconds: options.timeoutSeconds,
+          groupId: options.groupId,
+          onProgress: (progress) => {
+            currentRunAll = progress;
+          },
+          recordReport: async (report) => {
+            reports = [...reports, report].slice(-MAX_REPORTS);
+            await saveReport(report);
+          },
+        });
+        reports = [...reports, lastRunAllReport].slice(-MAX_REPORTS);
+        await saveReport(lastRunAllReport);
+        return lastRunAllReport;
+      } finally {
+        running = false;
+        currentRunAll = null;
+      }
+    },
+    async runGroup(options = {}) {
+      if (running) {
+        const error = new Error("BITE run already in progress");
+        error.statusCode = 409;
+        throw error;
+      }
+      running = true;
+      currentRunAll = null;
+      try {
+        lastRunAllReport = await runAllBiteTests(app, {
+          pluginId,
+          consoleVersion: version,
+          timeoutSeconds: options.timeoutSeconds,
+          groupId: options.groupId,
           onProgress: (progress) => {
             currentRunAll = progress;
           },
@@ -424,13 +528,21 @@ function createBiteController(app, { pluginId, version }) {
   };
 }
 
-async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, recordReport, onProgress }) {
+async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, groupId = "", recordReport, onProgress }) {
   const runId = randomUUID();
   const startedAt = new Date().toISOString();
   const reports = [];
   const capture = captureApi(app);
   const traffic = trafficApi(app);
-  const captureComment = `AJRM Marine BITE ${new Date().toISOString()}`;
+  const group = groupId ? biteGroupByIdForApp(app, groupId) : null;
+  if (groupId && !group) {
+    const error = new Error(`Unknown BITE group: ${groupId}`);
+    error.statusCode = 400;
+    throw error;
+  }
+  const selectedTests = runnableBiteTestsForApp(app, { groupId });
+  const runLabel = group ? `${group.title} group` : "Run all";
+  const captureComment = `AJRM Marine BITE ${runLabel} ${new Date().toISOString()}`;
   let captureStart = null;
   let captureStop = null;
   let captureError = null;
@@ -446,6 +558,9 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       consoleVersion,
       runId,
       startedAt,
+      groupId: group?.id || "",
+      groupTitle: group?.title || "",
+      testIds: selectedTests.map((test) => test.id),
       capture: {
         comment: captureComment,
         started: Boolean(captureStart),
@@ -481,6 +596,8 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
         captureStart,
         captureStop,
         captureError,
+        captureComment,
+        group,
         stoppedByPreflight: true,
       });
     }
@@ -513,7 +630,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       captureError = "AJRM Marine Capture API is unavailable; BITE reports will still be written but no voyage bundle will be created.";
       progress({ phase: "capture-unavailable", currentTestId: null });
     }
-    for (const test of runnableBiteTestsForApp(app)) {
+    for (const test of selectedTests) {
       progress({ phase: "running", currentTestId: test.id });
       const report = await runBiteTestById(app, {
         pluginId,
@@ -537,6 +654,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
         captureError,
         captureComment,
         restoreError,
+        group,
         phase: "before-capture-stop",
       }));
     }
@@ -580,6 +698,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
     captureError,
     captureComment,
     restoreError,
+    group,
   });
 }
 
@@ -593,6 +712,7 @@ function runAllReport({
   captureError,
   captureComment,
   restoreError,
+  group = null,
   stoppedByPreflight = false,
   phase = "complete",
 }) {
@@ -605,8 +725,10 @@ function runAllReport({
     contractVersion: 1,
     consoleVersion,
     runId,
-    testId: "run-all",
-    scenario: "run-all",
+    testId: group ? `run-group:${group.id}` : "run-all",
+    scenario: group ? "run-group" : "run-all",
+    groupId: group?.id || "",
+    groupTitle: group?.title || "",
     phase,
     result: ok ? "pass" : "fail",
     startedAt,
@@ -629,10 +751,16 @@ function runAllReport({
 
 function biteTestsForApp(app) {
   return TESTS.map((test) => {
-    if (!test.optional) return test;
+    const group = biteGroupForTest(test);
+    const groupedTest = {
+      ...test,
+      groupId: group?.id || "other",
+      groupTitle: group?.title || "Other checks",
+    };
+    if (!test.optional) return groupedTest;
     const evidence = optionalPluginEvidence(app, test.pluginId);
     return {
-      ...test,
+      ...groupedTest,
       enabled: evidence.installed,
       disabledReason: evidence.installed
         ? ""
@@ -641,12 +769,46 @@ function biteTestsForApp(app) {
   }).sort((left, right) => Number(left.number || 0) - Number(right.number || 0));
 }
 
-function runnableBiteTestsForApp(app) {
+function biteGroupsForApp(app) {
+  const tests = biteTestsForApp(app);
+  const byId = new Map(tests.map((test) => [test.id, test]));
+  return BITE_GROUP_DEFINITIONS.map((group) => {
+    const groupTests = group.testIds.map((testId) => byId.get(testId)).filter(Boolean);
+    const enabledCount = groupTests.filter((test) => test.enabled !== false).length;
+    return {
+      id: group.id,
+      title: group.title,
+      description: group.description,
+      pluginId: group.pluginId || "",
+      testIds: groupTests.map((test) => test.id),
+      count: groupTests.length,
+      enabledCount,
+      enabled: enabledCount > 0,
+    };
+  }).filter((group) => group.count > 0);
+}
+
+function biteGroupForTest(test) {
+  return BITE_GROUP_DEFINITIONS.find((group) => group.testIds.includes(test.id)) || null;
+}
+
+function biteGroupByIdForApp(app, groupId) {
+  return biteGroupsForApp(app).find((group) => group.id === groupId) || null;
+}
+
+function runnableBiteTestsForApp(app, { groupId = "" } = {}) {
+  const group = groupId ? biteGroupByIdForApp(app, groupId) : null;
+  const selectedIds = group ? new Set(group.testIds) : null;
   return biteTestsForApp(app)
-    .filter((item) => item.id !== PREFLIGHT_TEST_ID && item.enabled !== false)
+    .filter((item) => {
+      if (item.id === PREFLIGHT_TEST_ID) return false;
+      if (item.enabled === false) return false;
+      if (group && item.id === AUDIO_SUMMARY_TEST_ID) return true;
+      return !selectedIds || selectedIds.has(item.id);
+    })
     .sort((left, right) => {
-      if (left.id === "audio-output-summary") return 1;
-      if (right.id === "audio-output-summary") return -1;
+      if (left.id === AUDIO_SUMMARY_TEST_ID) return 1;
+      if (right.id === AUDIO_SUMMARY_TEST_ID) return -1;
       return Number(left.number || 0) - Number(right.number || 0);
     });
 }
