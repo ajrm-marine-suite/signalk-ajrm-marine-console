@@ -669,29 +669,35 @@ test("Console exposes BITE status and run routes", async () => {
     manualOverride: false,
     profile: "coastal",
     status: "Sound enabled.",
-    autoProfile: {
-      enabled: true,
-      profile: "coastal",
-      settings: {
-        enabled: true,
-        enterDistanceMeters: 50,
-        exitDistanceMeters: 100,
-        refreshRegionsSeconds: 60,
-      },
-      status: "outside Harbour: Craobh",
-      insideRegionName: "",
-      nearestRegionName: "Harbour: Craobh",
-      distanceMeters: 140,
-    },
     harbourBoundary: {
       name: "Harbour: Craobh",
       inside: false,
       distanceMeters: 140,
     },
   };
+  const trafficAutoProfile = {
+    contract: "ajrm-marine-traffic-auto-profile",
+    contractVersion: 1,
+    sessionId: "traffic-session",
+    sequence: 3,
+    generatedAt: new Date(startedAtMs).toISOString(),
+    enabled: true,
+    profile: "coastal",
+    settings: {
+      enabled: true,
+      enterDistanceMeters: 50,
+      exitDistanceMeters: 100,
+      refreshRegionsSeconds: 60,
+    },
+    status: "outside Harbour: Craobh",
+    insideRegionName: "",
+    nearestRegionName: "Harbour: Craobh",
+    distanceMeters: 140,
+  };
   const values = {
     "plugins.ajrmMarineTraffic.targets": trafficProjection("alarm"),
     "plugins.ajrmMarineTraffic.audioPolicy": trafficAudioPolicy,
+    "plugins.ajrmMarineTraffic.autoProfile": trafficAutoProfile,
     "plugins.ajrmMarineDisplay": {
       contract: "ajrm-marine-display-status",
       contractVersion: 1,

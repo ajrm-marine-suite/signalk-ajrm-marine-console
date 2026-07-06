@@ -61,6 +61,7 @@ const DR_EXERCISE_CURRENT_DRIFT_MPS = 1 * KNOTS_TO_MPS;
 const WATCH_PATHS = {
   traffic: "plugins.ajrmMarineTraffic.targets",
   trafficAudioPolicy: "plugins.ajrmMarineTraffic.audioPolicy",
+  trafficAutoProfile: "plugins.ajrmMarineTraffic.autoProfile",
   notifications: "plugins.ajrmMarineNotifications",
   notificationsAudio: "plugins.ajrmMarineNotifications.audio",
   audio: "plugins.ajrmMarineAudio",
@@ -4948,7 +4949,7 @@ async function runTrafficHarbourProfileBoundaryBite(app, { consoleVersion }) {
   const traffic = snapshot.traffic || {};
   const policy = snapshot.trafficAudioPolicy || {};
   const profile = policy.profile || traffic.profile || "";
-  const autoProfile = policy.autoProfile || traffic.autoProfile || traffic.profileAutomation || {};
+  const autoProfile = snapshot.trafficAutoProfile || policy.autoProfile || traffic.autoProfile || traffic.profileAutomation || {};
   const autoProfileSettings = autoProfile.settings || autoProfile.options || {};
   const autoProfileStatus = autoProfile.status || autoProfile.reason || "";
   const boundary = policy.harbourBoundary || traffic.harbourBoundary || traffic.harbour || {};
@@ -6088,6 +6089,7 @@ function collectSnapshot(app) {
     collectedAt: new Date().toISOString(),
     traffic: readSelfPath(app, WATCH_PATHS.traffic),
     trafficAudioPolicy: readSelfPath(app, WATCH_PATHS.trafficAudioPolicy),
+    trafficAutoProfile: readSelfPath(app, WATCH_PATHS.trafficAutoProfile),
     notifications: readSelfPath(app, WATCH_PATHS.notifications),
     notificationsAudio: readSelfPath(app, WATCH_PATHS.notificationsAudio),
     audio: readSelfPath(app, WATCH_PATHS.audio),
