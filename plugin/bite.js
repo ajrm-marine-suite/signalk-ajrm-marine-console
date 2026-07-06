@@ -39,7 +39,8 @@ const VISUAL_AUDIO_MATCH_TEST_TARGET_MMSI = "235912357";
 const VISUAL_AUDIO_MATCH_TEST_TARGET_NAME = "BITE WORDING MATCH TARGET";
 const SAFETY_RETENTION_TEST_TARGET_MMSI = "235912358";
 const SAFETY_RETENTION_TEST_TARGET_NAME = "BITE SAFETY RETENTION TARGET";
-const AUDIO_SUMMARY_PRIORITY = 150;
+const AUDIO_SUMMARY_PRIORITY = 500;
+const AUDIO_SUMMARY_EXPIRES_SECONDS = 600;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
 const ALERT_PANEL_PLUGIN_ID = "signalk-ajrm-marine-alerts";
 const DR_PLOTTER_PLUGIN_ID = "signalk-ajrm-marine-dr-plotter";
@@ -708,7 +709,7 @@ const TESTS = [
     number: "99",
     title: "Audible summary output",
     description: "Publishes a final spoken BITE summary so the skipper can confirm the selected audio output was actually heard.",
-    timeoutSeconds: 75,
+    timeoutSeconds: 180,
   },
 ];
 const OPTIONAL_PLUGIN_BITE_GROUPS = OPTIONAL_PLUGIN_AVAILABILITY_TESTS
@@ -2515,13 +2516,13 @@ function publishBiteAudioSummary(app, { pluginId, runId, message }) {
       force: true,
       localPlayback: true,
       streamOutput: true,
-      expiresSeconds: 60,
+      expiresSeconds: AUDIO_SUMMARY_EXPIRES_SECONDS,
     },
     history: {
       policy: "always",
     },
-    expiresAt: new Date(Date.now() + 60_000).toISOString(),
-    audioExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+    expiresAt: new Date(Date.now() + AUDIO_SUMMARY_EXPIRES_SECONDS * 1000).toISOString(),
+    audioExpiresAt: new Date(Date.now() + AUDIO_SUMMARY_EXPIRES_SECONDS * 1000).toISOString(),
   };
   app.handleMessage(pluginId, {
     context: "vessels.self",

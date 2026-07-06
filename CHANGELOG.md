@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.100
+
+- Extend the final BITE audible summary freshness window so it does not expire
+  while waiting behind generated safety announcements.
+- Raise the BITE summary to a mid-level priority that remains below collision
+  alarms but no longer sits behind ordinary housekeeping speech.
+
 ## 0.5.62
 
 - Correct the Docked no-DR-drift BITE assertion to compare independent DR

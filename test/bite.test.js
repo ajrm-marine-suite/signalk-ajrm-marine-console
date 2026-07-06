@@ -1423,7 +1423,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests[1].id, "console-availability");
   assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
   assert.equal(statusBody.tests.at(-1).number, "99");
-  assert.equal(statusBody.tests.at(-1).timeoutSeconds, 75);
+  assert.equal(statusBody.tests.at(-1).timeoutSeconds, 180);
   assert.equal(Array.isArray(statusBody.groups), true);
   assert.equal(statusBody.groups[0].id, "safety");
   assert.equal(statusBody.groups[0].number, "0");
@@ -1966,7 +1966,7 @@ test("Console exposes BITE status and run routes", async () => {
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
     /Marine built in tests complete\. 2 tests passed/,
   );
-  assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
+  assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 500);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.force, true);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].event.delivery.force, true);
