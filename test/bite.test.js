@@ -920,6 +920,15 @@ test("Console exposes BITE status and run routes", async () => {
       voyageDirectory: "/tmp/ajrm-capture/voyages",
       logDirectory: "/tmp/ajrm-capture/buffer",
       clipDirectory: "/tmp/ajrm-capture/clips",
+      capabilities: {
+        plot: true,
+        download: true,
+        review: true,
+      },
+      review: {
+        supported: true,
+        schemaVersion: 2,
+      },
     },
   };
   const messages = [];
@@ -1145,7 +1154,16 @@ test("Console exposes BITE status and run routes", async () => {
     }]),
     ajrmMarineCaptureApi: {
       async status() {
-        return { enabled: true };
+        return {
+          enabled: true,
+          currentVoyage: {
+            id: "voyage-bite",
+            startedAt: new Date(startedAtMs).toISOString(),
+            comment: "AJRM Marine BITE test voyage",
+            captureMode: "diagnostic",
+            captureFileMode: "portable",
+          },
+        };
       },
       async setAutomaticRecordingEnabled(enabled) {
         captureCommands.push({ enabled });
@@ -1194,7 +1212,13 @@ test("Console exposes BITE status and run routes", async () => {
       async status() {
         return {
           ok: true,
-          recording: { active: false },
+          recording: {
+            active: true,
+            fileName: "capture-bite.jsonl",
+            startedAt: new Date(startedAtMs).toISOString(),
+            lines: 42,
+            bytes: 12345,
+          },
           playback: { active: false },
           freshTimestamps: true,
           excludeDerivedData: true,
@@ -1483,6 +1507,7 @@ test("Console exposes BITE status and run routes", async () => {
       "gps-counter-contract",
       "gps-current-contract",
       "dr-plot-persistence-contract",
+      "gps-voyage-review-readiness",
     ],
   );
   assert.deepEqual(
@@ -1491,7 +1516,7 @@ test("Console exposes BITE status and run routes", async () => {
   );
   for (const [groupId, expectedIds] of [
     ["signalk-ajrm-marine-snapshot", ["snapshot-availability", "snapshot-api-contract"]],
-    ["signalk-ajrm-marine-voyage-viewer", ["voyage-viewer-availability"]],
+    ["signalk-ajrm-marine-voyage-viewer", ["voyage-viewer-availability", "voyage-viewer-review-contract"]],
     ["signalk-ajrm-marine-simulator", ["simulator-availability"]],
     ["signalk-ajrm-marine-alerts", ["alert-panel-availability"]],
     ["signalk-ajrm-marine-instruments", ["instruments-availability"]],
@@ -2033,6 +2058,9 @@ test("Console exposes BITE status and run routes", async () => {
     "audio-status-detail-contract",
     "notifications-visual-contract",
     "audio-playable-output-path",
+    "capture-active-voyage-contract",
+    "bite-bundled-report-contract",
+    "audio-diagnostics-contract",
     "audio-output-summary",
   ]);
 

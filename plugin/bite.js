@@ -290,6 +290,20 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     description: "Checks Logger exposes replay state clearly enough to avoid replaying derived data or stale timestamps as live navigation.",
   }),
   pluginContractTest({
+    pluginId: LOGGER_PLUGIN_ID,
+    id: "logger-capture-recording-contract",
+    number: "9.3.3",
+    title: "Logger capture recording contract",
+    description: "Checks Logger exposes active capture recording timestamps, filename, and line/byte counters when Capture/BITE is recording.",
+  }),
+  pluginContractTest({
+    pluginId: VOYAGE_VIEWER_PLUGIN_ID,
+    id: "voyage-viewer-review-contract",
+    number: "9.4.1",
+    title: "Voyage Viewer review contract",
+    description: "Checks Voyage Viewer advertises voyage-review capability and can see the Capture directories it needs for post-voyage analysis.",
+  }),
+  pluginContractTest({
     pluginId: INSTRUMENT_ALERTS_PLUGIN_ID,
     id: "instrument-alerts-depth-callout-capability",
     number: "9.8.1",
@@ -546,6 +560,27 @@ const TESTS = [
     timeoutSeconds: 45,
   },
   {
+    id: "capture-active-voyage-contract",
+    number: "1.12",
+    title: "Capture active voyage contract",
+    description: "Checks that Capture exposes active voyage metadata while BITE is recording, or explicitly reports that no voyage is active.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "bite-bundled-report-contract",
+    number: "1.13",
+    title: "BITE bundled report contract",
+    description: "Checks completed BITE child reports have the fields Voyage Viewer needs for offline review before Capture closes the bundle.",
+    timeoutSeconds: 5,
+  },
+  {
+    id: "audio-diagnostics-contract",
+    number: "1.14",
+    title: "Audio diagnostics contract",
+    description: "Checks Audio exposes queue, timeline, recent announcements, and recent events clearly enough to debug delayed or missing speech.",
+    timeoutSeconds: 5,
+  },
+  {
     id: "gps-explicit-no-fix-immediate",
     number: "3.12",
     title: "GPS explicit no-fix immediate",
@@ -705,6 +740,15 @@ const TESTS = [
     pluginId: DR_PLOTTER_PLUGIN_ID,
   },
   {
+    id: "gps-voyage-review-readiness",
+    number: "3.18",
+    title: "GPS voyage review readiness",
+    description: "Optional check that GPS Integrity data is rich enough for Voyage Viewer to produce a useful end-of-day GPS/DR summary.",
+    timeoutSeconds: 5,
+    optional: true,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
+  },
+  {
     id: AUDIO_SUMMARY_TEST_ID,
     number: "99",
     title: "Audible summary output",
@@ -759,6 +803,9 @@ const BITE_GROUP_DEFINITIONS = [
       "audio-status-detail-contract",
       "notifications-visual-contract",
       "audio-playable-output-path",
+      "capture-active-voyage-contract",
+      "bite-bundled-report-contract",
+      "audio-diagnostics-contract",
     ],
   },
   {
@@ -811,6 +858,7 @@ const BITE_GROUP_DEFINITIONS = [
       "gps-counter-contract",
       "gps-current-contract",
       "dr-plot-persistence-contract",
+      "gps-voyage-review-readiness",
     ],
   },
   ...OPTIONAL_PLUGIN_BITE_GROUPS,
@@ -1455,6 +1503,15 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "audio-playable-output-path") {
     return runAudioPlayableOutputPathBite(app, { pluginId, consoleVersion, timeoutMs });
   }
+  if (testId === "capture-active-voyage-contract") {
+    return runCaptureActiveVoyageContractBite(app, { consoleVersion });
+  }
+  if (testId === "bite-bundled-report-contract") {
+    return runBiteBundledReportContractBite(app, { consoleVersion, priorReports });
+  }
+  if (testId === "audio-diagnostics-contract") {
+    return runAudioDiagnosticsContractBite(app, { consoleVersion });
+  }
   if (testId === "audio-output-summary") {
     return runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorReports, timeoutMs });
   }
@@ -1466,6 +1523,12 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "logger-replay-sanity-contract") {
     return runLoggerReplaySanityContractBite(app, { consoleVersion });
+  }
+  if (testId === "logger-capture-recording-contract") {
+    return runLoggerCaptureRecordingContractBite(app, { consoleVersion });
+  }
+  if (testId === "voyage-viewer-review-contract") {
+    return runVoyageViewerReviewContractBite(app, { consoleVersion });
   }
   if (testId === "instrument-alerts-depth-callout-capability") {
     return runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersion });
@@ -1560,6 +1623,7 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "gps-counter-contract") return runGpsCounterContractBite(app, { consoleVersion });
   if (testId === "gps-current-contract") return runGpsCurrentContractBite(app, { consoleVersion });
   if (testId === "dr-plot-persistence-contract") return runDrPlotPersistenceContractBite(app, { consoleVersion });
+  if (testId === "gps-voyage-review-readiness") return runGpsVoyageReviewReadinessBite(app, { consoleVersion });
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
 
@@ -2403,6 +2467,232 @@ async function runAudioPlayableOutputPathBite(app, { pluginId, consoleVersion, t
   });
 }
 
+async function runCaptureActiveVoyageContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const api = captureApi(app);
+  let status = null;
+  let statusError = "";
+  try {
+    status = typeof api?.status === "function" ? await api.status() : null;
+  } catch (error) {
+    statusError = error?.message || String(error);
+  }
+  const voyage = status?.currentVoyage || status?.activeVoyage || status?.voyage || status?.recording || null;
+  const active = Boolean(
+    voyage?.active === true ||
+    status?.recordingActive === true ||
+    status?.active === true ||
+    voyage?.id ||
+    voyage?.fileName
+  );
+  const assertions = [
+    assertion(
+      "capture-api-visible",
+      Boolean(api),
+      api ? "Capture runtime API is visible." : "Capture runtime API is missing.",
+    ),
+    assertion(
+      "capture-status-readable",
+      Boolean(status) && !statusError,
+      statusError ? `Capture status threw: ${statusError}` : "Capture status is readable.",
+    ),
+    assertion(
+      "capture-enabled-visible",
+      typeof status?.enabled === "boolean" || status?.configuration?.enabled != null,
+      "Capture status should expose whether Capture is enabled.",
+    ),
+    assertion(
+      "active-voyage-state-explicit",
+      active || status?.currentVoyage === null || status?.activeVoyage === null || typeof status?.recordingActive === "boolean" || typeof status?.active === "boolean",
+      active
+        ? "Capture exposes the active voyage/recording."
+        : "Capture is idle and explicitly exposes that no voyage is active.",
+    ),
+    assertion(
+      "active-voyage-start-time-visible",
+      !active || Boolean(voyage?.startedAt || voyage?.startTime || voyage?.createdAt || status?.startedAt),
+      active
+        ? "Active voyage should expose a start timestamp for ordering BITE/capture evidence."
+        : "Capture is idle; no active voyage timestamp required.",
+    ),
+    assertion(
+      "active-voyage-comment-visible",
+      !active || voyage?.comment != null || status?.comment != null,
+      active
+        ? "Active voyage should expose the comment that will appear in Capture/Voyage Viewer."
+        : "Capture is idle; no active voyage comment required.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "capture-active-voyage-contract",
+    testId: "capture-active-voyage-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ active, voyage }],
+    summary: result === "pass"
+      ? "Capture exposes active/idle voyage state clearly enough for BITE and voyage review."
+      : `Capture active voyage contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { status, statusError, active, voyage },
+  });
+}
+
+async function runBiteBundledReportContractBite(_app, { consoleVersion, priorReports = [] }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const reports = Array.isArray(priorReports) ? priorReports.filter((report) => report?.testId) : [];
+  const malformed = reports.filter((report) =>
+    !report.contract ||
+    report.contract !== "ajrm-marine-console-bite-report" ||
+    !report.testId ||
+    typeof report.ok !== "boolean" ||
+    !["pass", "fail", "skip"].includes(String(report.result || "")) ||
+    !Array.isArray(report.assertions) ||
+    !report.summary ||
+    !report.startedAt ||
+    !report.finishedAt
+  );
+  const assertions = [
+    assertion(
+      "prior-report-context-available",
+      reports.length > 0 || priorReports.length === 0,
+      reports.length
+        ? `${reports.length} prior BITE reports are available for bundle checking.`
+        : "No prior reports were supplied; accepting individual test run.",
+    ),
+    assertion(
+      "bite-report-contract-stable",
+      malformed.length === 0,
+      malformed.length
+        ? `Malformed BITE reports: ${malformed.map((report) => report.testId || report.scenario || "unknown").join(", ")}.`
+        : "Prior BITE reports use the expected stable report contract.",
+    ),
+    assertion(
+      "bite-report-review-fields-visible",
+      reports.length === 0 || reports.every((report) => report.snapshot !== undefined && report.observations !== undefined),
+      "BITE reports should include snapshot and observations fields for offline voyage review.",
+    ),
+    assertion(
+      "bite-report-timing-visible",
+      reports.length === 0 || reports.every((report) => Number.isFinite(Number(report.durationSeconds))),
+      "BITE reports should include durationSeconds so Voyage Viewer can flag slow paths.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "bite-bundled-report-contract",
+    testId: "bite-bundled-report-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{
+      priorReportCount: reports.length,
+      malformed: malformed.map((report) => ({ testId: report.testId, scenario: report.scenario })),
+    }],
+    summary: result === "pass"
+      ? "BITE report records are shaped for Capture bundles and Voyage Viewer review."
+      : `BITE bundled report contract failed: ${assertions.filter((item) => !item.pass).map((item) => !item.pass && item.id).filter(Boolean).join(", ")}.`,
+    snapshot: {
+      priorReportCount: reports.length,
+      checkedReports: reports.slice(-12).map((report) => ({
+        testId: report.testId,
+        result: report.result,
+        assertionCount: Array.isArray(report.assertions) ? report.assertions.length : null,
+        durationSeconds: report.durationSeconds,
+      })),
+    },
+  });
+}
+
+async function runAudioDiagnosticsContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const audio = collectSnapshot(app).audio || {};
+  const recentEvents = Array.isArray(audio.recentEvents) ? audio.recentEvents : [];
+  const recentAnnouncements = Array.isArray(audio.recentAnnouncements) ? audio.recentAnnouncements : [];
+  const hasTimeline = Boolean(audio.timeline || audio.timelineState || audio.active || audio.preparing);
+  const assertions = [
+    assertion(
+      "audio-status-contract",
+      audio.contract === "ajrm-marine-audio-status" || audio.enabled != null,
+      "Audio should publish its status contract/status object.",
+    ),
+    assertion(
+      "audio-queue-length-visible",
+      audio.queueLength == null || finiteNonNegative(audio.queueLength),
+      audio.queueLength == null
+        ? "Audio queue length is omitted; accepting older Audio status."
+        : `Audio queue length is ${audio.queueLength}.`,
+    ),
+    assertion(
+      "audio-event-history-visible",
+      recentEvents.length > 0 || recentAnnouncements.length > 0 || Boolean(audio.lastAnnouncement),
+      "Audio should expose recent events or announcements so a voyage can explain what was spoken.",
+    ),
+    assertion(
+      "audio-mute-policy-visible",
+      typeof audio.muted === "boolean" ||
+        typeof audio.pluginMuted === "boolean" ||
+        typeof audio.engineMuted === "boolean" ||
+        Boolean(audio.engineAudioPolicy),
+      "Audio should expose mute/policy state for diagnosing missed announcements.",
+    ),
+    assertion(
+      "audio-dependency-status-visible",
+      Boolean(audio.dependencies) || Boolean(audio.localPlaybackUnavailableReason) || Boolean(audio.liveStream != null),
+      "Audio should expose dependency/output status for diagnosing player and Piper paths.",
+    ),
+    assertion(
+      "audio-progress-state-visible",
+      hasTimeline || recentEvents.length > 0 || Boolean(audio.lastAnnouncement),
+      "Audio should expose timeline/active/recent state so delayed audio can be diagnosed.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "audio-diagnostics-contract",
+    testId: "audio-diagnostics-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{
+      recentEvents: recentEvents.slice(0, 5),
+      recentAnnouncements: recentAnnouncements.slice(0, 5),
+      audioProgress: audioProgressSummary(audio),
+    }],
+    summary: result === "pass"
+      ? "Audio exposes queue, mute, output, and recent-event diagnostics for voyage review."
+      : `Audio diagnostics contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      audio: audioPolicySummary(audio),
+      dependencies: audio.dependencies || null,
+      output: {
+        localPlayback: audio.localPlayback,
+        localPlaybackAvailable: audio.localPlaybackAvailable,
+        liveStream: audio.liveStream,
+        publicHttpStream: audio.publicHttpStream,
+      },
+      recentEventCount: recentEvents.length,
+      recentAnnouncementCount: recentAnnouncements.length,
+      lastAnnouncement: audio.lastAnnouncement || null,
+    },
+  });
+}
+
 function biteSummaryAudioMessage(reports) {
   const tested = reports.filter((report) => report?.testId && report.testId !== "run-all");
   const failed = tested.filter((report) => !report.ok);
@@ -3130,6 +3420,161 @@ async function runLoggerReplaySanityContractBite(app, { consoleVersion }) {
       ? "Logger replay state is explicit enough for safe voyage replay."
       : `Logger replay sanity contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: { status, playback, statusError },
+  });
+}
+
+async function runLoggerCaptureRecordingContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, LOGGER_PLUGIN_ID);
+  const api = loggerApi(app);
+  let status = null;
+  let statusError = "";
+  try {
+    status = typeof api?.status === "function" ? await api.status() : null;
+  } catch (error) {
+    statusError = error?.message || String(error);
+  }
+  const recording = status?.recording || status?.capture || evidence.status?.recording || {};
+  const active = recording.active === true;
+  const lineCount = recording.lines ?? recording.lineCount ?? recording.records ?? recording.recordCount;
+  const byteCount = recording.bytes ?? recording.byteCount ?? recording.sizeBytes;
+  const assertions = [
+    assertion(
+      "logger-visible",
+      evidence.installed,
+      evidence.installed
+        ? "Logger is installed and visible to Console."
+        : "Logger is not installed, not enabled, or not visible to Console.",
+    ),
+    assertion(
+      "status-readable",
+      Boolean(status) && !statusError,
+      statusError ? `Logger status threw: ${statusError}` : "Logger status is readable.",
+    ),
+    assertion(
+      "recording-active-explicit",
+      typeof recording.active === "boolean",
+      "Logger recording state should explicitly expose whether recording is active.",
+    ),
+    assertion(
+      "recording-file-visible",
+      !active || Boolean(recording.fileName || recording.file || recording.path),
+      active
+        ? "Active Logger recording should expose its file name or path."
+        : "Logger recording is idle; no recording filename required.",
+    ),
+    assertion(
+      "recording-timestamps-visible",
+      !active || Boolean(recording.startedAt || recording.from || recording.startTime),
+      active
+        ? "Active Logger recording should expose a start timestamp."
+        : "Logger recording is idle; no recording timestamp required.",
+    ),
+    assertion(
+      "recording-counters-visible",
+      !active || finiteNonNegative(lineCount) || finiteNonNegative(byteCount),
+      active
+        ? "Active Logger recording should expose line or byte counters."
+        : "Logger recording is idle; counters are advisory.",
+    ),
+    assertion(
+      "recording-paths-visible",
+      Boolean(status?.paths || evidence.status?.paths || recording.path || recording.file),
+      "Logger should expose recording paths so Capture/Voyage Viewer downloads can find logs.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "logger-capture-recording-contract",
+    testId: "logger-capture-recording-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ evidence, recording }],
+    summary: result === "pass"
+      ? "Logger exposes capture recording state and paths clearly enough for voyage bundles."
+      : `Logger capture recording contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { status, statusError, recording },
+  });
+}
+
+async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, VOYAGE_VIEWER_PLUGIN_ID);
+  const status = evidence.status || {};
+  const capabilities = status.capabilities || {};
+  const review = status.review || status.voyageReview || capabilities.review || {};
+  const reviewSupported = review === true ||
+    review.supported === true ||
+    review.available === true ||
+    capabilities.review === true ||
+    status.reviewSupported === true;
+  const voyageDirectory = status.voyageDirectory || status.directories?.voyages || status.paths?.voyages;
+  const logDirectory = status.logDirectory || status.directories?.logs || status.paths?.logs;
+  const clipDirectory = status.clipDirectory || status.directories?.clips || status.paths?.clips;
+  const assertions = [
+    assertion(
+      "voyage-viewer-visible",
+      evidence.installed,
+      evidence.installed
+        ? "Voyage Viewer is installed and visible to Console."
+        : "Voyage Viewer is not installed, not enabled, or not visible to Console.",
+    ),
+    assertion(
+      "voyage-directory-visible",
+      Boolean(voyageDirectory),
+      "Voyage Viewer should expose the voyage directory it reads from.",
+    ),
+    assertion(
+      "raw-log-directory-visible",
+      Boolean(logDirectory || status.captureDirectory || status.rawDirectory),
+      "Voyage Viewer should expose raw log/capture directory information.",
+    ),
+    assertion(
+      "clip-directory-visible",
+      Boolean(clipDirectory || status.clipDirectory === null),
+      "Voyage Viewer should expose clip directory information, even if clips are disabled.",
+    ),
+    assertion(
+      "review-capability-visible",
+      reviewSupported,
+      "Voyage Viewer should advertise the voyage Review capability used for post-voyage summaries.",
+    ),
+    assertion(
+      "review-schema-visible",
+      !reviewSupported || review === true || Number.isFinite(Number(review.schemaVersion || status.reviewSchemaVersion || 1)),
+      reviewSupported
+        ? "Voyage Review should expose a schema version or stable true capability."
+        : "Voyage Review capability is not available.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "voyage-viewer-review-contract",
+    testId: "voyage-viewer-review-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ evidence, review }],
+    summary: result === "pass"
+      ? "Voyage Viewer exposes directory and review capability metadata for offline analysis."
+      : `Voyage Viewer review contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      status,
+      directories: { voyageDirectory, logDirectory, clipDirectory },
+      review,
+      capabilities,
+    },
   });
 }
 
@@ -5034,6 +5479,90 @@ async function runDrPlotPersistenceContractBite(app, { consoleVersion }) {
       ? "DR Plotter exposes persisted fix/track state for page refreshes and voyage bundles."
       : `DR Plotter persistence contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: { status, plotPersistence, trackPersistence },
+  });
+}
+
+async function runGpsVoyageReviewReadinessBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, GPS_INTEGRITY_PLUGIN_ID);
+  const gpsIntegrity = collectSnapshot(app).gpsIntegrity || evidence.status || {};
+  const diagnostics = gpsIntegrity.diagnostics || {};
+  const observed = diagnostics.observed || {};
+  const decision = diagnostics.decision || {};
+  const thresholds = diagnostics.thresholds || gpsIntegrity.thresholds || {};
+  const operationalDr = gpsIntegrity.operationalDeadReckoning || gpsIntegrity.deadReckoning || {};
+  const integrityDr = gpsIntegrity.integrityDeadReckoning || {};
+  const assertions = [
+    assertion(
+      "gps-integrity-visible",
+      evidence.installed || Boolean(gpsIntegrity),
+      evidence.installed
+        ? "GPS Integrity is installed and visible to Console."
+        : "GPS Integrity projection is visible even though the webapp listing was not found.",
+    ),
+    assertion(
+      "trust-state-visible",
+      typeof gpsIntegrity.trust === "string" && gpsIntegrity.trust.length > 0,
+      "GPS Integrity should expose final trust state for voyage summaries.",
+    ),
+    assertion(
+      "counter-summary-visible",
+      Boolean(gpsIntegrity.counters && typeof gpsIntegrity.counters === "object"),
+      "GPS Integrity should expose counters for outages, jumps, rejected fixes, and weak signal events.",
+    ),
+    assertion(
+      "diagnostics-observed-visible",
+      Boolean(observed && typeof observed === "object" && Object.keys(observed).length),
+      "GPS Integrity diagnostics should include observed inputs for Voyage Viewer analysis.",
+    ),
+    assertion(
+      "diagnostics-decision-visible",
+      Boolean(decision && typeof decision === "object" && Object.keys(decision).length),
+      "GPS Integrity diagnostics should include decision flags/reasons for Voyage Viewer analysis.",
+    ),
+    assertion(
+      "thresholds-visible",
+      Boolean(thresholds && typeof thresholds === "object" && Object.keys(thresholds).length),
+      "GPS Integrity should expose thresholds so voyage review can explain warning sensitivity.",
+    ),
+    assertion(
+      "operational-dr-summary-visible",
+      Boolean(operationalDr && typeof operationalDr === "object" && (operationalDr.position || operationalDr.ageSeconds != null || operationalDr.source)),
+      "GPS Integrity should expose operational DR summary for lost-GPS review.",
+    ),
+    assertion(
+      "integrity-dr-summary-visible",
+      Boolean(integrityDr && typeof integrityDr === "object" && (integrityDr.position || integrityDr.ageSeconds != null || integrityDr.source)),
+      "GPS Integrity should expose independent DR summary for spoof/jump review.",
+    ),
+    assertion(
+      "current-source-visible",
+      Boolean(gpsIntegrity.current?.source || diagnostics.current?.source || observed.currentSource),
+      "GPS Integrity should expose current/tide source so DR review can distinguish live, retained, and estimated current.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "gps-voyage-review-readiness",
+    testId: "gps-voyage-review-readiness",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ evidence, gpsIntegrity: gpsIntegritySummary(gpsIntegrity) }],
+    summary: result === "pass"
+      ? "GPS Integrity exposes enough diagnostics for Voyage Viewer to review navigation integrity."
+      : `GPS voyage review readiness failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      gpsIntegrity: gpsIntegritySummary(gpsIntegrity),
+      diagnostics,
+      thresholds,
+      current: gpsIntegrity.current || diagnostics.current || null,
+    },
   });
 }
 

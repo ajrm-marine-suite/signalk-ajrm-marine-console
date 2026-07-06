@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.105
+
+- Add BITE checks for Capture active-voyage metadata, bundled BITE report shape,
+  and Audio diagnostic history so voyage downloads are easier to review offline.
+- Add optional BITE contract checks for Logger capture-recording state and Voyage
+  Viewer review capability.
+- Add a GPS Integrity voyage-review readiness check covering diagnostics,
+  counters, DR summaries, thresholds, and current-source evidence.
+
 ## 0.5.104
 
 - Make the BITE live-progress poller self-healing: each status response schedules
