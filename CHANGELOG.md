@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.104
+
+- Make the BITE live-progress poller self-healing: each status response schedules
+  the next poll while the server still reports a run in progress, avoids
+  overlapping status requests, and refreshes immediately when the browser window
+  becomes visible again.
+- Keep polling alive after transient status errors during a local BITE run, so
+  LEDs do not freeze until a manual refresh.
+
 ## 0.5.103
 
 - Start BITE Run all/group checks as server-side background jobs and drive the

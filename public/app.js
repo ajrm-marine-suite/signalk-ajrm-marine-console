@@ -32,6 +32,7 @@ let biteRunning = false;
 let biteRunningTestId = null;
 let biteRunningGroupId = null;
 let biteStatusPollTimer = null;
+let biteStatusRefreshInFlight = false;
 const biteExpandedGroups = new Set();
 
 const els = {
@@ -60,6 +61,11 @@ async function start() {
   window.addEventListener("orientationchange", () => {
     window.setTimeout(updateViewportHeight, 250);
   });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && biteIsRunning()) {
+      refreshBiteStatus();
+    }
+  });
   try {
     consoleStatus = await jsonRequest(CONSOLE_STATUS_URL);
     els.version.textContent = `v${consoleStatus.version}`;
@@ -80,6 +86,8 @@ async function start() {
 }
 
 async function refreshBiteStatus() {
+  if (biteStatusRefreshInFlight) return;
+  biteStatusRefreshInFlight = true;
   try {
     biteStatus = await jsonRequest(BITE_STATUS_URL);
     ingestBiteReportSet(biteStatus.lastRunAllReport?.reports);
@@ -90,15 +98,22 @@ async function refreshBiteStatus() {
       biteRunning = false;
       biteRunningTestId = null;
       biteRunningGroupId = null;
-      stopBiteStatusPolling();
       if (biteStatus.lastRunAllReport) {
         ingestBiteReportSet(biteStatus.lastRunAllReport.reports);
         setBiteLog(formatBiteReport(biteStatus.lastRunAllReport));
       }
     }
     renderBitePanel();
+    if (biteIsRunning()) {
+      scheduleBiteStatusPolling();
+    } else {
+      stopBiteStatusPolling();
+    }
   } catch (error) {
     renderBiteError(error);
+    if (biteRunning) scheduleBiteStatusPolling();
+  } finally {
+    biteStatusRefreshInFlight = false;
   }
 }
 
@@ -445,14 +460,20 @@ async function runBiteGroup(groupId) {
 
 function startBiteStatusPolling() {
   stopBiteStatusPolling();
-  biteStatusPollTimer = window.setInterval(() => {
-    refreshBiteStatus();
-  }, BITE_STATUS_REFRESH_MS);
+  scheduleBiteStatusPolling(100);
+}
+
+function scheduleBiteStatusPolling(delayMs = BITE_STATUS_REFRESH_MS) {
+  if (biteStatusPollTimer) return;
+  biteStatusPollTimer = window.setTimeout(async () => {
+    biteStatusPollTimer = null;
+    await refreshBiteStatus();
+  }, delayMs);
 }
 
 function stopBiteStatusPolling() {
   if (!biteStatusPollTimer) return;
-  window.clearInterval(biteStatusPollTimer);
+  window.clearTimeout(biteStatusPollTimer);
   biteStatusPollTimer = null;
 }
 
