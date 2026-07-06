@@ -5159,7 +5159,7 @@ async function runTrafficAdvisoryNoActionPromptBite(app, { pluginId, testId, con
     target: {
       mmsi: ADVISORY_NO_PROMPT_TEST_TARGET_MMSI,
       name: ADVISORY_NO_PROMPT_TEST_TARGET_NAME,
-      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 45 }),
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 400 }),
       speedMps: 3 * KNOTS_TO_MPS,
       courseRad: Math.PI / 2,
       lengthMeters: 7,
