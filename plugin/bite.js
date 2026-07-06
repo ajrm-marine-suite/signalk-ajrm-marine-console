@@ -1780,8 +1780,10 @@ async function runAudioPlayableOutputPathBite(app, { pluginId, consoleVersion, t
   const deliveryEvidence = publishError
     ? null
     : await waitForBiteAudioSummary(app, { message, startedAtMs, timeoutMs });
+  const playableEvidence = publishError
+    ? null
+    : await waitForPlayableAudioEvidence(app, { message, startedAtMs, timeoutMs });
   const finalAudio = readSelfPath(app, WATCH_PATHS.audio) || {};
-  const playableEvidence = playableAudioEvidence(finalAudio, { message, startedAtMs });
   const assertions = [
     assertion(
       "audio-path-check-published",
@@ -1857,6 +1859,19 @@ async function waitForBiteAudioSummary(app, { message, startedAtMs, timeoutMs })
       startedAtMs,
     });
     if (evidence) return evidence;
+    await delay(Math.min(POLL_MS, Math.max(0, deadline - Date.now())));
+  } while (Date.now() < deadline);
+  return null;
+}
+
+async function waitForPlayableAudioEvidence(app, { message, startedAtMs, timeoutMs }) {
+  const deadline = Date.now() + Math.max(5000, Number(timeoutMs) || 30000);
+  do {
+    const evidence = playableAudioEvidence(readSelfPath(app, WATCH_PATHS.audio), {
+      message,
+      startedAtMs,
+    });
+    if (evidence?.url) return evidence;
     await delay(Math.min(POLL_MS, Math.max(0, deadline - Date.now())));
   } while (Date.now() < deadline);
   return null;
