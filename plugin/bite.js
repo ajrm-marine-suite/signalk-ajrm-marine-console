@@ -4949,6 +4949,8 @@ async function runTrafficHarbourProfileBoundaryBite(app, { consoleVersion }) {
   const policy = snapshot.trafficAudioPolicy || {};
   const profile = policy.profile || traffic.profile || "";
   const autoProfile = policy.autoProfile || traffic.autoProfile || traffic.profileAutomation || {};
+  const autoProfileSettings = autoProfile.settings || autoProfile.options || {};
+  const autoProfileStatus = autoProfile.status || autoProfile.reason || "";
   const boundary = policy.harbourBoundary || traffic.harbourBoundary || traffic.harbour || {};
   const assertions = [
     assertion(
@@ -4959,7 +4961,11 @@ async function runTrafficHarbourProfileBoundaryBite(app, { consoleVersion }) {
     assertion(
       "auto-profile-state-visible",
       autoProfile && typeof autoProfile === "object" &&
-        (typeof autoProfile.enabled === "boolean" || typeof autoProfile.active === "boolean"),
+        (
+          typeof autoProfile.enabled === "boolean" ||
+          typeof autoProfile.active === "boolean" ||
+          typeof autoProfileSettings.enabled === "boolean"
+        ),
       "Traffic should expose whether auto-profile switching is enabled/active.",
     ),
     assertion(
@@ -4970,6 +4976,9 @@ async function runTrafficHarbourProfileBoundaryBite(app, { consoleVersion }) {
         boundary.inside != null ||
         autoProfile.harbourName ||
         autoProfile.regionName ||
+        autoProfile.insideRegionName ||
+        autoProfile.nearestRegionName ||
+        autoProfileStatus ||
         policy.status,
       ),
       "Traffic should expose harbour/boundary status used to explain harbour/coastal transitions.",
@@ -4983,10 +4992,13 @@ async function runTrafficHarbourProfileBoundaryBite(app, { consoleVersion }) {
       "auto-profile-debounce-visible",
       autoProfile.enterDistanceMeters != null ||
         autoProfile.exitDistanceMeters != null ||
+        autoProfileSettings.enterDistanceMeters != null ||
+        autoProfileSettings.exitDistanceMeters != null ||
         autoProfile.enterDistance != null ||
         autoProfile.exitDistance != null ||
         autoProfile.refreshRegionsSeconds != null ||
-        autoProfile.reason,
+        autoProfileSettings.refreshRegionsSeconds != null ||
+        autoProfileStatus,
       "Traffic auto-profile status should expose a boundary threshold, refresh cadence, or reason.",
     ),
   ];

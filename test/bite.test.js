@@ -671,11 +671,17 @@ test("Console exposes BITE status and run routes", async () => {
     status: "Sound enabled.",
     autoProfile: {
       enabled: true,
-      active: true,
-      harbourName: "Harbour: Craobh",
-      enterDistanceMeters: 50,
-      exitDistanceMeters: 100,
-      refreshRegionsSeconds: 60,
+      profile: "coastal",
+      settings: {
+        enabled: true,
+        enterDistanceMeters: 50,
+        exitDistanceMeters: 100,
+        refreshRegionsSeconds: 60,
+      },
+      status: "outside Harbour: Craobh",
+      insideRegionName: "",
+      nearestRegionName: "Harbour: Craobh",
+      distanceMeters: 140,
     },
     harbourBoundary: {
       name: "Harbour: Craobh",
