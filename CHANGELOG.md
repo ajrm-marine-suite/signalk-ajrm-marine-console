@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.101
+
+- Keep each BITE test's own timeout during Run all and group runs, so long
+  checks such as the final audible summary are not shortened by the run-level
+  timeout.
+- Raise the BITE harness timeout ceiling to allow slower Pi audio rendering to
+  complete before the final audible-summary check is failed.
+
 ## 0.5.100
 
 - Extend the final BITE audible summary freshness window so it does not expire

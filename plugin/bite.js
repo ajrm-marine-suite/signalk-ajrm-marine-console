@@ -1079,7 +1079,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
         pluginId,
         testId: test.id,
         consoleVersion,
-        timeoutMs: boundedTimeout(timeoutSeconds || test.timeoutSeconds),
+        timeoutMs: boundedTimeout(testTimeoutSeconds(test, timeoutSeconds)),
         priorReports: reports,
       });
       reports.push(report);
@@ -7192,7 +7192,18 @@ function summaryFor(result, assertions) {
 function boundedTimeout(value) {
   const seconds = Number(value);
   if (!Number.isFinite(seconds)) return DEFAULT_TIMEOUT_MS;
-  return Math.max(5, Math.min(120, seconds)) * 1000;
+  return Math.max(5, Math.min(300, seconds)) * 1000;
+}
+
+function testTimeoutSeconds(test, runTimeoutSeconds) {
+  const testSeconds = Number(test?.timeoutSeconds);
+  const runSeconds = Number(runTimeoutSeconds);
+  if (Number.isFinite(testSeconds) && Number.isFinite(runSeconds)) {
+    return Math.max(testSeconds, runSeconds);
+  }
+  if (Number.isFinite(testSeconds)) return testSeconds;
+  if (Number.isFinite(runSeconds)) return runSeconds;
+  return DEFAULT_TIMEOUT_MS / 1000;
 }
 
 function delay(ms) {
