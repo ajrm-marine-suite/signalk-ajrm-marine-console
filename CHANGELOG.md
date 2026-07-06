@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.102
+
+- Keep the completed BITE Run all/group results visible across browser refresh
+  and screen lock/unlock while Signal K remains running.
+- Leave BITE lights reset to amber after a Signal K/server restart.
+- Retain more in-memory BITE report history so the status API matches the
+  fuller voyage bundle evidence.
+
 ## 0.5.101
 
 - Keep each BITE test's own timeout during Run all and group runs, so long

@@ -1986,6 +1986,18 @@ test("Console exposes BITE status and run routes", async () => {
     ),
     "run-all summary is written before Capture stops so it is included in the voyage zip",
   );
+  statusBody = null;
+  routes.get("GET /ajrmMarineConsole/bite/status")({}, {
+    json(value) {
+      statusBody = value;
+    },
+  });
+  assert.equal(statusBody.lastRunAllReport.testId, "run-group:safety");
+  assert.deepEqual(statusBody.lastRunAllReport.reports.map((report) => report.testId), [
+    "preflight-safety",
+    "skipper-settings-sanity",
+    "audio-output-summary",
+  ]);
 
   statusCode = 0;
   runBody = null;

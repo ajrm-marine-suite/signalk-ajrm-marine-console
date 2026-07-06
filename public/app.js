@@ -82,12 +82,19 @@ async function start() {
 async function refreshBiteStatus() {
   try {
     biteStatus = await jsonRequest(BITE_STATUS_URL);
-    for (const report of biteStatus.currentRunAll?.reports || []) {
-      biteResults[report.testId || report.scenario] = report;
-    }
+    ingestBiteReportSet(biteStatus.lastRunAllReport?.reports);
+    ingestBiteReportSet(biteStatus.currentRunAll?.reports);
     renderBitePanel();
   } catch (error) {
     renderBiteError(error);
+  }
+}
+
+function ingestBiteReportSet(reports) {
+  if (!Array.isArray(reports)) return;
+  for (const report of reports) {
+    const key = report?.testId || report?.scenario;
+    if (key) biteResults[key] = report;
   }
 }
 

@@ -843,7 +843,7 @@ const DEFAULT_REPORTS_DIRECTORY = path.join(
   "signalk-ajrm-marine-console",
   "bite-reports",
 );
-const MAX_REPORTS = 50;
+const MAX_REPORTS = 200;
 const AJRM_MARINE_CAPTURE_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineCaptureApi");
 const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
 const AJRM_MARINE_LOGGER_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineLoggerApi");
