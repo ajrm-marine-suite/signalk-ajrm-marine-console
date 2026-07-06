@@ -925,6 +925,86 @@ test("Console exposes BITE status and run routes", async () => {
   const messages = [];
   const captureCommands = [];
   const trafficCommands = [];
+  const trafficProfiles = {
+    contract: "ajrm-marine-traffic-profiles",
+    contractVersion: 1,
+    current: "coastal",
+    anchor: {
+      automuteStationary: true,
+      cpaSensitivity: 1,
+      tcpaLookahead: 1,
+      repeatSensitivity: 1,
+      warning: { cpa: 0, tcpa: 3600, speed: 0 },
+      danger: { cpa: 0, tcpa: 3600, speed: 0 },
+    },
+    harbor: {
+      automuteStationary: true,
+      cpaSensitivity: 1,
+      tcpaLookahead: 1,
+      repeatSensitivity: 1,
+      warning: { bySize: {
+        small: { cpa: 50, tcpa: 180, speed: 0.5 },
+        medium: { cpa: 100, tcpa: 240, speed: 0.5 },
+        large: { cpa: 200, tcpa: 360, speed: 0.5 },
+      } },
+      danger: { bySize: {
+        small: { cpa: 25, tcpa: 60, speed: 3 },
+        medium: { cpa: 50, tcpa: 120, speed: 3 },
+        large: { cpa: 100, tcpa: 180, speed: 3 },
+      } },
+    },
+    coastal: {
+      automuteStationary: false,
+      cpaSensitivity: 1,
+      tcpaLookahead: 1,
+      repeatSensitivity: 1,
+      warning: { bySize: {
+        small: { cpa: 740.8, tcpa: 600, speed: 0 },
+        medium: { cpa: 1481.6, tcpa: 900, speed: 0 },
+        large: { cpa: 2778, tcpa: 1200, speed: 0 },
+      } },
+      danger: { bySize: {
+        small: { cpa: 277.8, tcpa: 300, speed: 0.5 },
+        medium: { cpa: 740.8, tcpa: 480, speed: 0.5 },
+        large: { cpa: 1481.6, tcpa: 720, speed: 0.5 },
+      } },
+    },
+    offshore: {
+      automuteStationary: false,
+      cpaSensitivity: 1,
+      tcpaLookahead: 1,
+      repeatSensitivity: 1,
+      warning: { bySize: {
+        small: { cpa: 926, tcpa: 720, speed: 0 },
+        medium: { cpa: 2315, tcpa: 1200, speed: 0 },
+        large: { cpa: 5556, tcpa: 1800, speed: 0 },
+      } },
+      danger: { bySize: {
+        small: { cpa: 370.4, tcpa: 360, speed: 0 },
+        medium: { cpa: 1111.2, tcpa: 600, speed: 0 },
+        large: { cpa: 2778, tcpa: 900, speed: 0 },
+      } },
+    },
+  };
+  const trafficApiAudioPolicy = {
+    muted: true,
+    automuteStationary: true,
+    automuteStationarySpeed: 0.35,
+    automuteStationaryDelaySeconds: 10,
+    automuteMovingDelaySeconds: 3,
+    allWellEnabled: true,
+    allWellMessage: "All's well.",
+    allWellIntervalMinutes: 30,
+  };
+  const trafficApiAutoProfile = {
+    settings: {
+      enabled: true,
+      harbourProfile: "harbor",
+      outsideProfile: "coastal",
+      enterDistanceMeters: 50,
+      exitDistanceMeters: 100,
+    },
+  };
   function injectScenarioMessage({ mmsi, name, visualMessage, audioMessage = visualMessage, state = "warn" }) {
     const now = new Date().toISOString();
     values["plugins.ajrmMarineTraffic.targets"] = {
@@ -1082,10 +1162,31 @@ test("Console exposes BITE status and run routes", async () => {
     },
     ajrmMarineTrafficApi: {
       async status() {
-        return { audioPolicy: { muted: true } };
+        return {
+          profile: trafficProfiles.current,
+          profiles: trafficProfiles,
+          autoProfile: trafficApiAutoProfile,
+          audioPolicy: trafficApiAudioPolicy,
+        };
+      },
+      async setProfile(profile) {
+        trafficCommands.push({ profile });
+        trafficProfiles.current = profile;
+        return trafficProfiles;
+      },
+      async setProfiles(profiles) {
+        trafficCommands.push({ profiles });
+        Object.assign(trafficProfiles, profiles);
+        return trafficProfiles;
+      },
+      async setAutoProfile(command) {
+        trafficCommands.push({ autoProfile: command });
+        Object.assign(trafficApiAutoProfile.settings, command);
+        return trafficApiAutoProfile;
       },
       async setAudioPolicy(command) {
         trafficCommands.push(command);
+        Object.assign(trafficApiAudioPolicy, command);
         return { muted: command.muted === true };
       },
     },
@@ -1816,8 +1917,8 @@ test("Console exposes BITE status and run routes", async () => {
   };
   statusCode = 0;
   runBody = null;
-  await routes.get("POST /ajrmMarineConsole/bite/run-all")(
-    { body: { timeoutSeconds: 5 } },
+  await routes.get("POST /ajrmMarineConsole/bite/run-group")(
+    { body: { groupId: "safety", timeoutSeconds: 5 } },
     {
       set() {},
       status(code) {
@@ -1831,6 +1932,8 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusCode, 200);
   assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.contract, "ajrm-marine-console-bite-run-all-report");
+  assert.equal(runBody.testId, "run-group:safety");
+  assert.equal(runBody.groupId, "safety");
   assert.equal(runBody.capture.started, true);
   assert.equal(runBody.capture.stop.fileName, "voyage-bite.zip");
   assert.deepEqual(captureCommands, [
@@ -1839,86 +1942,29 @@ test("Console exposes BITE status and run routes", async () => {
     { stop: true },
     { enabled: true },
   ]);
-  assert.deepEqual(trafficCommands, [
-    { muted: false },
-    { muted: true },
-  ]);
-  assert.equal(runBody.reports.length, 70);
+  assert.equal(trafficCommands[0].profiles.current, "coastal");
+  assert.deepEqual(trafficCommands[1], { profile: "coastal" });
+  assert.deepEqual(trafficCommands[2], { autoProfile: { enabled: false } });
+  assert.equal(trafficCommands[3].muted, false);
+  assert.equal(trafficCommands[3].automuteStationary, true);
+  assert.ok(trafficCommands.some((command) => command.muted === false));
+  assert.equal(trafficCommands.at(-4).profiles.current, "coastal");
+  assert.deepEqual(trafficCommands.at(-3), { profile: "coastal" });
+  assert.equal(trafficCommands.at(-2).autoProfile.enabled, true);
+  assert.equal(trafficCommands.at(-1).muted, true);
+  assert.equal(runBody.reports.length, 3);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",
-    "console-availability",
-    "display-availability",
-    "traffic-availability",
-    "notifications-availability",
-    "audio-availability",
-    "capture-availability",
-    "core-projections",
-    "projection-contracts",
-    "audio-policy-consistency",
-    "audio-renderer-readiness",
-    "notifications-broker-health",
-    "stationary-automute-policy-shape",
-    "capture-api-contract",
-    "traffic-api-contract",
-    "audio-status-detail-contract",
-    "notifications-visual-contract",
-    "audio-playable-output-path",
-    "collision-audio-chain",
-    "quiet-target-no-alert",
-    "traffic-overtaking-wording",
-    "traffic-close-quarters-wording",
-    "traffic-unnamed-spoken-name",
-    "traffic-head-on-prompt",
-    "traffic-give-way-prompt",
-    "traffic-stand-on-prompt",
-    "traffic-target-overtaking-wording",
-    "traffic-same-course-wording",
-    "traffic-target-projection-contract",
-    "traffic-audio-policy-contract",
-    "traffic-advisory-no-action-prompt",
-    "traffic-cpa-deduplicated-wording",
-    "traffic-visual-audio-wording-alignment",
-    "traffic-harbour-profile-boundary",
-    "traffic-safety-message-retained",
-    "gps-integrity-availability",
-    "dr-plotter-availability",
-    "gps-integrity-health",
-    "gps-lost-age-consistency",
-    "gps-integrity-diagnostics-contract",
-    "dead-reckoning-projection",
-    "dead-reckoning-loss-exercise",
-    "gps-recovery-realigns-dr",
-    "gps-jump-rejection",
-    "gps-intermittent-outage-count",
-    "docked-no-dr-drift",
-    "gps-recovery-fresh-fix",
-    "lost-gps-retained-current-source",
-    "gps-explicit-no-fix-immediate",
-    "gps-weak-signal-detection",
-    "gps-vector-arrow-contract",
-    "gps-counter-contract",
-    "gps-current-contract",
-    "dr-plot-persistence-contract",
-    "vessel-database-availability",
-    "vessel-database-summary-contract",
-    "snapshot-availability",
-    "snapshot-api-contract",
-    "logger-availability",
-    "logger-api-contract",
-    "logger-replay-sanity-contract",
-    "voyage-viewer-availability",
-    "simulator-availability",
-    "alert-panel-availability",
-    "instruments-availability",
-    "instrument-alerts-availability",
-    "instrument-alerts-depth-callout-capability",
-    "pi-controller-availability",
-    "pi-controller-telemetry-contract",
+    "skipper-settings-sanity",
     "audio-output-summary",
   ]);
+  assert.equal(runBody.reports[0].assertions.find((item) => item.id === "bite-settings-snapshot").pass, true);
+  assert.equal(runBody.reports[0].assertions.find((item) => item.id === "bite-settings-defaults-applied").pass, true);
+  assert.equal(runBody.reports[1].assertions.find((item) => item.id === "skipper-profile-thresholds-sensible").pass, true);
+  assert.equal(runBody.reports.at(-1).assertions.find((item) => item.id === "bite-settings-restored").pass, true);
   assert.match(
     values["plugins.ajrmMarineNotifications.audio"].audioRequest.message,
-    /Marine built in tests complete\. 69 tests passed/,
+    /Marine built in tests complete\. 2 tests passed/,
   );
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.priorityScore, 150);
   assert.equal(values["plugins.ajrmMarineNotifications.audio"].audioRequest.preempt, false);
@@ -1930,7 +1976,7 @@ test("Console exposes BITE status and run routes", async () => {
   const savedRunAllReports = fs.readdirSync(reportsDir)
     .filter((name) => name.endsWith(".json"))
     .map((name) => JSON.parse(fs.readFileSync(path.join(reportsDir, name), "utf8")))
-    .filter((report) => report.testId === "run-all");
+    .filter((report) => report.testId === "run-group:safety");
   assert.ok(
     savedRunAllReports.some((report) =>
       report.phase === "before-capture-stop" &&

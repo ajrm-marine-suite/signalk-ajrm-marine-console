@@ -72,7 +72,94 @@ const WATCH_PATHS = {
 };
 const REQUIRED_SUITE_PLUGINS = Object.freeze(packageInfo.signalk?.requires || []);
 const PREFLIGHT_TEST_ID = "preflight-safety";
+const SKIPPER_SETTINGS_SANITY_TEST_ID = "skipper-settings-sanity";
 const AUDIO_SUMMARY_TEST_ID = "audio-output-summary";
+const METERS_PER_NM = 1852;
+const BITE_TRAFFIC_PROFILE = "coastal";
+const BITE_TRAFFIC_PROFILES = Object.freeze({
+  current: BITE_TRAFFIC_PROFILE,
+  anchor: {
+    automuteStationary: true,
+    cpaSensitivity: 1,
+    tcpaLookahead: 1,
+    repeatSensitivity: 1,
+    warning: { cpa: 0, tcpa: 3600, speed: 0 },
+    danger: { cpa: 0, tcpa: 3600, speed: 0 },
+  },
+  harbor: {
+    automuteStationary: true,
+    cpaSensitivity: 1,
+    tcpaLookahead: 1,
+    repeatSensitivity: 1,
+    warning: {
+      bySize: {
+        small: { cpa: 50, tcpa: 180, speed: 0.5 },
+        medium: { cpa: 100, tcpa: 240, speed: 0.5 },
+        large: { cpa: 200, tcpa: 360, speed: 0.5 },
+      },
+    },
+    danger: {
+      bySize: {
+        small: { cpa: 25, tcpa: 60, speed: 3 },
+        medium: { cpa: 50, tcpa: 120, speed: 3 },
+        large: { cpa: 100, tcpa: 180, speed: 3 },
+      },
+    },
+  },
+  coastal: {
+    automuteStationary: false,
+    cpaSensitivity: 1,
+    tcpaLookahead: 1,
+    repeatSensitivity: 1,
+    warning: {
+      bySize: {
+        small: { cpa: 0.4 * METERS_PER_NM, tcpa: 600, speed: 0 },
+        medium: { cpa: 0.8 * METERS_PER_NM, tcpa: 900, speed: 0 },
+        large: { cpa: 1.5 * METERS_PER_NM, tcpa: 1200, speed: 0 },
+      },
+    },
+    danger: {
+      bySize: {
+        small: { cpa: 0.15 * METERS_PER_NM, tcpa: 300, speed: 0.5 },
+        medium: { cpa: 0.4 * METERS_PER_NM, tcpa: 480, speed: 0.5 },
+        large: { cpa: 0.8 * METERS_PER_NM, tcpa: 720, speed: 0.5 },
+      },
+    },
+  },
+  offshore: {
+    automuteStationary: false,
+    cpaSensitivity: 1,
+    tcpaLookahead: 1,
+    repeatSensitivity: 1,
+    warning: {
+      bySize: {
+        small: { cpa: 0.5 * METERS_PER_NM, tcpa: 720, speed: 0 },
+        medium: { cpa: 1.25 * METERS_PER_NM, tcpa: 1200, speed: 0 },
+        large: { cpa: 3 * METERS_PER_NM, tcpa: 1800, speed: 0 },
+      },
+    },
+    danger: {
+      bySize: {
+        small: { cpa: 0.2 * METERS_PER_NM, tcpa: 360, speed: 0 },
+        medium: { cpa: 0.6 * METERS_PER_NM, tcpa: 600, speed: 0 },
+        large: { cpa: 1.5 * METERS_PER_NM, tcpa: 900, speed: 0 },
+      },
+    },
+  },
+});
+const BITE_AUDIO_POLICY = Object.freeze({
+  muted: false,
+  automuteStationary: true,
+  automuteStationarySpeed: 0.35,
+  automuteStationaryDelaySeconds: 10,
+  automuteMovingDelaySeconds: 3,
+  allWellEnabled: true,
+  allWellMessage: "All's well.",
+  allWellIntervalMinutes: 30,
+});
+const BITE_AUTO_PROFILE = Object.freeze({
+  enabled: false,
+});
 const REQUIRED_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
   pluginAvailabilityTest({
     pluginId: packageInfo.name,
@@ -254,9 +341,16 @@ const TESTS = [
     id: PREFLIGHT_TEST_ID,
     number: "0",
     title: "Required plugins and safety isolation",
-    description: "Checks that required AJRM Marine plugins are installed/enabled and that simulator or live feeds are not active before BITE injects test data.",
+    description: "Checks that required AJRM Marine plugins are installed/enabled, simulator or live feeds are not active, then snapshots skipper settings and applies BITE defaults.",
     timeoutSeconds: 5,
     blocking: true,
+  },
+  {
+    id: SKIPPER_SETTINGS_SANITY_TEST_ID,
+    number: "0.99",
+    title: "Skipper settings sanity",
+    description: "Checks the skipper's saved Traffic/audio settings are within sensible limits, such as non-zero CPA/TCPA thresholds for normal sailing profiles.",
+    timeoutSeconds: 5,
   },
   ...PLUGIN_AVAILABILITY_TESTS,
   ...OPTIONAL_PLUGIN_CONTRACT_TESTS,
@@ -637,8 +731,8 @@ const BITE_GROUP_DEFINITIONS = [
     id: "safety",
     number: "0",
     title: "Pre-test safety",
-    description: "Required plugin checks and isolation from live or simulator data before BITE injects test traffic.",
-    testIds: [PREFLIGHT_TEST_ID],
+    description: "Required plugin checks, isolation from live/simulator data, BITE defaults, and skipper setting sanity checks.",
+    testIds: [PREFLIGHT_TEST_ID, SKIPPER_SETTINGS_SANITY_TEST_ID],
   },
   {
     id: "required-plugins",
@@ -1025,7 +1119,19 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
         progress({ phase: "capture-auto-restore-failed", currentTestId: null });
       }
     }
-    if (traffic?.setAudioPolicy && trafficWasMuted !== null) {
+    if (app.ajrmMarineConsoleBiteSettingsSnapshot?.active) {
+      const settingsRestore = await restoreBiteSettings(app);
+      if (!settingsRestore.ok) {
+        restoreError = settingsRestore.message;
+        progress({ phase: "bite-settings-restore-failed", currentTestId: null });
+      } else {
+        progress({ phase: "bite-settings-restored", currentTestId: null });
+      }
+    }
+    const settingsManagedByBite = reports.some((report) =>
+      report?.testId === PREFLIGHT_TEST_ID && report?.snapshot?.settings?.snapshotOk === true
+    );
+    if (traffic?.setAudioPolicy && trafficWasMuted !== null && !settingsManagedByBite) {
       try {
         await traffic.setAudioPolicy({ muted: trafficWasMuted });
         progress({ phase: "audio-restored", currentTestId: null });
@@ -1219,6 +1325,7 @@ function runAllSummary({ failed, captureStart, captureStop, captureError, restor
 
 async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutMs, priorReports = [] }) {
   if (testId === PREFLIGHT_TEST_ID) return runPreflightBite(app, { consoleVersion });
+  if (testId === SKIPPER_SETTINGS_SANITY_TEST_ID) return runSkipperSettingsSanityBite(app, { consoleVersion });
   const availabilityTest = pluginAvailabilityTestById(testId);
   if (availabilityTest && testId !== "harbour-editor-availability") {
     return runPluginAvailabilityBite(app, { consoleVersion, test: availabilityTest });
@@ -1350,7 +1457,7 @@ async function runPreflightBite(app, { consoleVersion }) {
   const requiredPluginEvidence = requiredSuitePluginEvidence(app);
   const simulatorEvidence = simulatorOutputEvidence(app);
   const liveFeedEvidence = recentLiveFeedEvidence(app, startedAtMs);
-  const assertions = [
+  const baseAssertions = [
     assertion(
       "required-suite-plugins",
       requiredPluginEvidence.ok,
@@ -1371,6 +1478,31 @@ async function runPreflightBite(app, { consoleVersion }) {
       liveFeedEvidence.length
         ? `Recent own-vessel feed detected on ${liveFeedEvidence.slice(0, 4).map((item) => item.path).join(", ")}. Stop live feeds or simulator output before BITE.`
         : "No fresh own-vessel navigation or instrument feed detected.",
+    ),
+  ];
+  const safeToPrepareSettings = baseAssertions.every((item) => item.pass);
+  const settingsEvidence = safeToPrepareSettings
+    ? await prepareBiteSettings(app)
+    : {
+        ok: false,
+        skipped: true,
+        message: "BITE settings were not changed because the pre-test safety checks failed.",
+      };
+  const assertions = [
+    ...baseAssertions,
+    assertion(
+      "bite-settings-snapshot",
+      !safeToPrepareSettings || settingsEvidence.snapshotOk === true,
+      settingsEvidence.snapshotOk
+        ? "Skipper Traffic/audio settings were snapshotted for restoration."
+        : settingsEvidence.message || "Skipper Traffic/audio settings could not be snapshotted.",
+    ),
+    assertion(
+      "bite-settings-defaults-applied",
+      !safeToPrepareSettings || settingsEvidence.defaultsApplied === true,
+      settingsEvidence.defaultsApplied
+        ? "BITE Traffic/audio defaults were applied for repeatable tests."
+        : settingsEvidence.message || "BITE Traffic/audio defaults could not be applied.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
@@ -1398,8 +1530,321 @@ async function runPreflightBite(app, { consoleVersion }) {
       simulator: simulatorEvidence,
       liveFeed: liveFeedEvidence.slice(0, 12),
       maxLiveDataAgeSeconds: PREFLIGHT_LIVE_DATA_MAX_AGE_MS / 1000,
+      settings: settingsEvidence,
     },
   };
+}
+
+async function prepareBiteSettings(app) {
+  const traffic = trafficApi(app);
+  if (!traffic?.status || !traffic?.setProfile || !traffic?.setProfiles || !traffic?.setAudioPolicy) {
+    return {
+      ok: false,
+      snapshotOk: false,
+      defaultsApplied: false,
+      message: "Traffic API cannot snapshot and apply BITE profile/audio settings. Update AJRM Marine Traffic.",
+    };
+  }
+  const previous = app.ajrmMarineConsoleBiteSettingsSnapshot;
+  if (previous?.active) {
+    await restoreBiteSettings(app);
+  }
+  const status = await traffic.status();
+  const snapshot = trafficSettingsSnapshot(status);
+  app.ajrmMarineConsoleBiteSettingsSnapshot = {
+    active: true,
+    createdAt: new Date().toISOString(),
+    snapshot,
+  };
+  await traffic.setProfiles(jsonClone(BITE_TRAFFIC_PROFILES));
+  await traffic.setProfile(BITE_TRAFFIC_PROFILE);
+  if (traffic.setAutoProfile) {
+    await traffic.setAutoProfile(jsonClone(BITE_AUTO_PROFILE));
+  }
+  await traffic.setAudioPolicy(jsonClone(BITE_AUDIO_POLICY));
+  return {
+    ok: true,
+    snapshotOk: true,
+    defaultsApplied: true,
+    message: "Skipper settings snapshotted and BITE defaults applied.",
+    snapshot: settingsSnapshotSummary(snapshot),
+    defaults: {
+      profile: BITE_TRAFFIC_PROFILE,
+      profiles: settingsSnapshotSummary({ profiles: BITE_TRAFFIC_PROFILES }).profiles,
+      autoProfile: BITE_AUTO_PROFILE,
+      audioPolicy: BITE_AUDIO_POLICY,
+    },
+  };
+}
+
+async function restoreBiteSettings(app) {
+  const state = app.ajrmMarineConsoleBiteSettingsSnapshot;
+  if (!state?.active || !state.snapshot) {
+    return { ok: true, skipped: true, message: "No BITE settings snapshot was active." };
+  }
+  const traffic = trafficApi(app);
+  if (!traffic) {
+    return { ok: false, message: "Traffic API is unavailable; skipper settings could not be restored." };
+  }
+  const { snapshot } = state;
+  const errors = [];
+  try {
+    if (snapshot.profiles && typeof traffic.setProfiles === "function") {
+      await traffic.setProfiles(jsonClone(snapshot.profiles));
+    }
+  } catch (error) {
+    errors.push(`profiles: ${error.message || String(error)}`);
+  }
+  try {
+    if (snapshot.profile && typeof traffic.setProfile === "function") {
+      await traffic.setProfile(snapshot.profile);
+    }
+  } catch (error) {
+    errors.push(`profile: ${error.message || String(error)}`);
+  }
+  try {
+    if (snapshot.autoProfileSettings && typeof traffic.setAutoProfile === "function") {
+      await traffic.setAutoProfile(jsonClone(snapshot.autoProfileSettings));
+    }
+  } catch (error) {
+    errors.push(`auto-profile: ${error.message || String(error)}`);
+  }
+  try {
+    if (snapshot.audioPolicyCommand && typeof traffic.setAudioPolicy === "function") {
+      await traffic.setAudioPolicy(jsonClone(snapshot.audioPolicyCommand));
+    }
+  } catch (error) {
+    errors.push(`audio policy: ${error.message || String(error)}`);
+  }
+  if (!errors.length) {
+    app.ajrmMarineConsoleBiteSettingsSnapshot = null;
+  }
+  return {
+    ok: errors.length === 0,
+    message: errors.length
+      ? `BITE could not restore all skipper settings: ${errors.join("; ")}`
+      : "Skipper Traffic/audio settings restored.",
+    errors,
+    snapshot: settingsSnapshotSummary(snapshot),
+  };
+}
+
+function trafficSettingsSnapshot(status = {}) {
+  const audioPolicy = status.audioPolicy || status.trafficAudioPolicy || {};
+  const autoProfile = status.autoProfile || {};
+  return {
+    profile: status.profile || status.profiles?.current || audioPolicy.profile || "",
+    profiles: jsonClone(status.profiles || {}),
+    autoProfileSettings: jsonClone(autoProfile.settings || {}),
+    audioPolicyCommand: trafficAudioPolicyCommand(audioPolicy),
+    rawAudioPolicy: jsonClone(audioPolicy),
+  };
+}
+
+function trafficAudioPolicyCommand(policy = {}) {
+  const keys = [
+    "muted",
+    "automuteStationary",
+    "automuteStationarySpeed",
+    "automuteStationaryDelaySeconds",
+    "automuteMovingDelaySeconds",
+    "allWellEnabled",
+    "allWellMessage",
+    "allWellIntervalMinutes",
+  ];
+  return keys.reduce((command, key) => {
+    if (policy[key] !== undefined) command[key] = policy[key];
+    return command;
+  }, {});
+}
+
+function settingsSnapshotSummary(snapshot = {}) {
+  return {
+    profile: snapshot.profile || "",
+    profiles: summarizeTrafficProfiles(snapshot.profiles),
+    autoProfile: snapshot.autoProfileSettings || null,
+    audioPolicy: snapshot.audioPolicyCommand || null,
+  };
+}
+
+async function runSkipperSettingsSanityBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  let snapshot = app.ajrmMarineConsoleBiteSettingsSnapshot?.snapshot || null;
+  let snapshotError = "";
+  if (!snapshot) {
+    const traffic = trafficApi(app);
+    try {
+      snapshot = traffic?.status ? trafficSettingsSnapshot(await traffic.status()) : null;
+    } catch (error) {
+      snapshotError = error.message || String(error);
+    }
+  }
+  const sanity = analyseSkipperTrafficSettings(snapshot || {});
+  const assertions = [
+    assertion(
+      "skipper-settings-readable",
+      Boolean(snapshot),
+      snapshot
+        ? "Skipper Traffic/audio settings are readable."
+        : `Skipper Traffic/audio settings are not readable${snapshotError ? `: ${snapshotError}` : "."}`,
+    ),
+    assertion(
+      "skipper-profile-thresholds-sensible",
+      sanity.profileProblems.length === 0,
+      sanity.profileProblems.length
+        ? `Traffic profile thresholds need review: ${sanity.profileProblems.slice(0, 6).join("; ")}`
+        : "Traffic CPA/TCPA/sensitivity settings are within sensible bounds.",
+    ),
+    assertion(
+      "skipper-audio-policy-sensible",
+      sanity.audioProblems.length === 0,
+      sanity.audioProblems.length
+        ? `Traffic audio/automute settings need review: ${sanity.audioProblems.join("; ")}`
+        : "Traffic mute, automute, and all's-well settings are within sensible bounds.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: SKIPPER_SETTINGS_SANITY_TEST_ID,
+    testId: SKIPPER_SETTINGS_SANITY_TEST_ID,
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: sanity.observations,
+    summary: result === "pass"
+      ? "Skipper Traffic/audio settings are within sensible BITE boundaries."
+      : `Skipper settings sanity check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      snapshotError,
+      settings: settingsSnapshotSummary(snapshot || {}),
+      sanity,
+    },
+  });
+}
+
+function analyseSkipperTrafficSettings(snapshot = {}) {
+  const profiles = snapshot.profiles || {};
+  const profileProblems = [];
+  const observations = [];
+  for (const profileName of ["harbor", "coastal", "offshore"]) {
+    const profile = profiles[profileName] || {};
+    for (const sensitivityKey of ["cpaSensitivity", "tcpaLookahead", "repeatSensitivity"]) {
+      const value = Number(profile[sensitivityKey]);
+      if (!Number.isFinite(value) || value <= 0) {
+        profileProblems.push(`${profileName} ${sensitivityKey} must be greater than zero`);
+      } else if (value > 10) {
+        profileProblems.push(`${profileName} ${sensitivityKey} is unusually high (${value})`);
+      }
+    }
+    for (const severity of ["warning", "danger"]) {
+      const criteria = profile[severity] || {};
+      const sized = criteria.bySize || criteria;
+      for (const size of ["small", "medium", "large"]) {
+        const rule = sized[size] || criteria;
+        const cpa = Number(rule?.cpa);
+        const tcpa = Number(rule?.tcpa);
+        if (!Number.isFinite(cpa) || cpa <= 0) {
+          profileProblems.push(`${profileName} ${severity} ${size} CPA must be greater than zero`);
+        } else if (cpa > 12 * METERS_PER_NM) {
+          profileProblems.push(`${profileName} ${severity} ${size} CPA is unusually large (${Math.round(cpa)} m)`);
+        }
+        if (!Number.isFinite(tcpa) || tcpa <= 0) {
+          profileProblems.push(`${profileName} ${severity} ${size} TCPA must be greater than zero`);
+        } else if (tcpa < 10) {
+          profileProblems.push(`${profileName} ${severity} ${size} TCPA is too short (${tcpa} s)`);
+        } else if (tcpa > 7200) {
+          profileProblems.push(`${profileName} ${severity} ${size} TCPA is unusually long (${tcpa} s)`);
+        }
+      }
+    }
+    observations.push({
+      profile: profileName,
+      automuteStationary: profile.automuteStationary,
+      cpaSensitivity: profile.cpaSensitivity,
+      tcpaLookahead: profile.tcpaLookahead,
+      repeatSensitivity: profile.repeatSensitivity,
+    });
+  }
+  const audio = snapshot.audioPolicyCommand || {};
+  const audioProblems = [];
+  if (typeof audio.muted !== "boolean" && audio.muted !== undefined) audioProblems.push("muted must be true or false");
+  if (typeof audio.automuteStationary !== "boolean" && audio.automuteStationary !== undefined) {
+    audioProblems.push("automuteStationary must be true or false");
+  }
+  const stationarySpeed = Number(audio.automuteStationarySpeed);
+  if (!Number.isFinite(stationarySpeed) || stationarySpeed < 0) {
+    audioProblems.push("stationary automute speed must be zero or greater");
+  } else if (stationarySpeed > 5) {
+    audioProblems.push(`stationary automute speed is unusually high (${stationarySpeed} m/s)`);
+  }
+  for (const key of ["automuteStationaryDelaySeconds", "automuteMovingDelaySeconds"]) {
+    const value = Number(audio[key]);
+    if (!Number.isFinite(value) || value < 0) {
+      audioProblems.push(`${key} must be zero or greater`);
+    } else if (value > 300) {
+      audioProblems.push(`${key} is unusually long (${value} s)`);
+    }
+  }
+  const allWellInterval = Number(audio.allWellIntervalMinutes);
+  if (!Number.isFinite(allWellInterval) || allWellInterval <= 0) {
+    audioProblems.push("all's-well interval must be greater than zero minutes");
+  } else if (allWellInterval > 240) {
+    audioProblems.push(`all's-well interval is unusually long (${allWellInterval} minutes)`);
+  }
+  return {
+    ok: profileProblems.length === 0 && audioProblems.length === 0,
+    profileProblems,
+    audioProblems,
+    observations,
+  };
+}
+
+function summarizeTrafficProfiles(profiles = {}) {
+  const summary = {};
+  for (const profileName of ["anchor", "harbor", "coastal", "offshore"]) {
+    const profile = profiles?.[profileName] || {};
+    summary[profileName] = {
+      automuteStationary: profile.automuteStationary,
+      cpaSensitivity: profile.cpaSensitivity,
+      tcpaLookahead: profile.tcpaLookahead,
+      repeatSensitivity: profile.repeatSensitivity,
+      warning: summarizeCriteria(profile.warning),
+      danger: summarizeCriteria(profile.danger),
+    };
+  }
+  if (profiles?.current) summary.current = profiles.current;
+  return summary;
+}
+
+function summarizeCriteria(criteria = {}) {
+  if (!criteria || typeof criteria !== "object") return {};
+  const result = {};
+  for (const size of ["small", "medium", "large"]) {
+    const sized = criteria.bySize?.[size] || criteria[size];
+    if (sized) result[size] = {
+      cpa: Math.round(Number(sized.cpa) || 0),
+      tcpa: Math.round(Number(sized.tcpa) || 0),
+      speed: Number(sized.speed) || 0,
+    };
+  }
+  if (!Object.keys(result).length && (criteria.cpa !== undefined || criteria.tcpa !== undefined)) {
+    result.default = {
+      cpa: Math.round(Number(criteria.cpa) || 0),
+      tcpa: Math.round(Number(criteria.tcpa) || 0),
+      speed: Number(criteria.speed) || 0,
+    };
+  }
+  return result;
+}
+
+function jsonClone(value) {
+  if (value === undefined) return undefined;
+  return JSON.parse(JSON.stringify(value));
 }
 
 function requiredSuitePluginEvidence(app) {
@@ -1701,6 +2146,7 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
   if (clientSettleMs > 0) {
     await delay(clientSettleMs);
   }
+  const settingsRestore = await restoreBiteSettings(app);
   const finalAudio = readSelfPath(app, WATCH_PATHS.audio) || audio;
   const assertions = [
     assertion(
@@ -1729,6 +2175,13 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
       true,
       "This test verifies the software requested audio. The skipper confirms the physical output by listening for the summary.",
     ),
+    assertion(
+      "bite-settings-restored",
+      settingsRestore.ok,
+      settingsRestore.ok
+        ? settingsRestore.message
+        : `BITE settings restore failed: ${settingsRestore.message}`,
+    ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
   return biteReport({
@@ -1748,6 +2201,7 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
       audioEvidence: deliveryEvidence,
       clientSettleMs,
       audioProgress: audioProgressSummary(finalAudio),
+      settingsRestore,
     }],
     summary: result === "pass"
       ? "Spoken BITE summary was requested. Confirm it was heard on the selected audio output."
@@ -1757,6 +2211,7 @@ async function runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorR
       audio: audioPolicySummary(finalAudio),
       audioDeliveryEvidence: deliveryEvidence,
       audioClientSettleMs: clientSettleMs,
+      settingsRestore,
       precedingTests: reportsToSummarize.map((report) => ({
         testId: report.testId,
         result: report.result,
@@ -2951,8 +3406,8 @@ async function runTrafficApiContractBite(app, { consoleVersion }) {
     ),
     assertion(
       "traffic-control-methods",
-      Boolean(traffic?.status && traffic?.setAudioPolicy),
-      "Traffic API should expose status and setAudioPolicy methods.",
+      Boolean(traffic?.status && traffic?.setAudioPolicy && traffic?.setProfile && traffic?.setProfiles),
+      "Traffic API should expose status, setAudioPolicy, setProfile, and setProfiles methods.",
     ),
     assertion(
       "traffic-status-readable",
@@ -2963,8 +3418,8 @@ async function runTrafficApiContractBite(app, { consoleVersion }) {
     ),
     assertion(
       "traffic-status-audio-policy",
-      !status || Boolean(status.audioPolicy || status.trafficAudioPolicy || status.profile),
-      "Traffic status should expose audio policy and/or profile state.",
+      !status || Boolean((status.audioPolicy || status.trafficAudioPolicy) && status.profile && status.profiles),
+      "Traffic status should expose audio policy, selected profile, and profile settings.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
