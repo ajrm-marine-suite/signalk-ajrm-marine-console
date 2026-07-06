@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.103
+
+- Start BITE Run all/group checks as server-side background jobs and drive the
+  page from `/bite/status`, so browser sleep, refresh, or a long-lived POST
+  cannot freeze the LED progress display mid-run.
+- Mark live BITE progress explicitly as running in the status payload and make
+  the frontend treat server running state as authoritative.
+
 ## 0.5.102
 
 - Keep the completed BITE Run all/group results visible across browser refresh

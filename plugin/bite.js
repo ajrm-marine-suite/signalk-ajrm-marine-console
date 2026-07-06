@@ -914,6 +914,9 @@ function createBiteController(app, { pluginId, version }) {
         error.statusCode = 409;
         throw error;
       }
+      if (options.background === true) {
+        return startBackgroundRunAll(options);
+      }
       running = true;
       currentRunAll = null;
       try {
@@ -944,6 +947,9 @@ function createBiteController(app, { pluginId, version }) {
         error.statusCode = 409;
         throw error;
       }
+      if (options.background === true) {
+        return startBackgroundRunAll(options);
+      }
       running = true;
       currentRunAll = null;
       try {
@@ -969,6 +975,46 @@ function createBiteController(app, { pluginId, version }) {
       }
     },
   };
+
+  function startBackgroundRunAll(options = {}) {
+    running = true;
+    currentRunAll = null;
+    const runPromise = runAllBiteTests(app, {
+      pluginId,
+      consoleVersion: version,
+      timeoutSeconds: options.timeoutSeconds,
+      groupId: options.groupId,
+      onProgress: (progress) => {
+        currentRunAll = progress;
+      },
+      recordReport: async (report) => {
+        reports = [...reports, report].slice(-MAX_REPORTS);
+        await saveReport(report);
+      },
+    });
+    runPromise
+      .then(async (report) => {
+        lastRunAllReport = report;
+        reports = [...reports, report].slice(-MAX_REPORTS);
+        await saveReport(report);
+      })
+      .catch(async (error) => {
+        app.error(`[${pluginId}] background BITE run failed: ${error.stack || error.message}`);
+        const report = backgroundRunFailureReport({
+          consoleVersion: version,
+          groupId: options.groupId,
+          error,
+        });
+        lastRunAllReport = report;
+        reports = [...reports, report].slice(-MAX_REPORTS);
+        await saveReport(report).catch(() => {});
+      })
+      .finally(() => {
+        running = false;
+        currentRunAll = null;
+      });
+    return currentRunAll || backgroundRunStartedProgress({ consoleVersion: version, groupId: options.groupId });
+  }
 }
 
 async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, groupId = "", recordReport, onProgress }) {
@@ -999,6 +1045,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       contract: "ajrm-marine-console-bite-run-all-progress",
       contractVersion: 1,
       consoleVersion,
+      running: true,
       runId,
       startedAt,
       groupId: group?.id || "",
@@ -1155,6 +1202,71 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
     restoreError,
     group,
   });
+}
+
+function backgroundRunStartedProgress({ consoleVersion, groupId = "" }) {
+  const startedAt = new Date().toISOString();
+  return {
+    ok: true,
+    contract: "ajrm-marine-console-bite-run-all-progress",
+    contractVersion: 1,
+    consoleVersion,
+    running: true,
+    runId: "",
+    startedAt,
+    groupId: String(groupId || ""),
+    groupTitle: "",
+    phase: "starting",
+    currentTestId: null,
+    testIds: [],
+    capture: {
+      started: false,
+      start: null,
+      stop: null,
+      error: null,
+      automaticRecordingBeforeTest: null,
+    },
+    trafficAudio: {
+      mutedBeforeTest: null,
+      restoreError: null,
+    },
+    reports: [],
+  };
+}
+
+function backgroundRunFailureReport({ consoleVersion, groupId = "", error }) {
+  const runId = randomUUID();
+  const startedAt = new Date().toISOString();
+  const groupDefinition = groupId
+    ? BITE_GROUP_DEFINITIONS.find((group) => group.id === groupId)
+    : null;
+  const message = error?.message || String(error || "Unknown BITE background run failure");
+  return {
+    ok: false,
+    contract: "ajrm-marine-console-bite-run-all-report",
+    contractVersion: 1,
+    consoleVersion,
+    runId,
+    testId: groupDefinition ? `run-group:${groupDefinition.id}` : "run-all",
+    scenario: groupDefinition ? "run-group" : "run-all",
+    groupId: groupDefinition?.id || String(groupId || ""),
+    groupTitle: groupDefinition?.title || "",
+    phase: "complete",
+    result: "fail",
+    startedAt,
+    finishedAt: startedAt,
+    durationSeconds: 0,
+    capture: {
+      comment: "",
+      started: false,
+      start: null,
+      stop: null,
+      error: message,
+      restoreError: null,
+    },
+    reports: [],
+    summary: `BITE background run failed: ${message}`,
+  };
 }
 
 function runAllReport({

@@ -84,6 +84,18 @@ async function refreshBiteStatus() {
     biteStatus = await jsonRequest(BITE_STATUS_URL);
     ingestBiteReportSet(biteStatus.lastRunAllReport?.reports);
     ingestBiteReportSet(biteStatus.currentRunAll?.reports);
+    if (biteStatus.currentRunAll?.running) {
+      biteRunning = true;
+    } else if (biteRunning && !biteStatus.running) {
+      biteRunning = false;
+      biteRunningTestId = null;
+      biteRunningGroupId = null;
+      stopBiteStatusPolling();
+      if (biteStatus.lastRunAllReport) {
+        ingestBiteReportSet(biteStatus.lastRunAllReport.reports);
+        setBiteLog(formatBiteReport(biteStatus.lastRunAllReport));
+      }
+    }
     renderBitePanel();
   } catch (error) {
     renderBiteError(error);
@@ -127,11 +139,11 @@ function renderNavigation() {
 function renderBitePanel() {
   const tests = biteTests();
   const enabledTests = tests.filter((test) => test.enabled !== false);
-  els.biteRunAll.disabled = biteRunning || enabledTests.length === 0;
+  els.biteRunAll.disabled = biteIsRunning() || enabledTests.length === 0;
   renderBiteOverall(tests);
   els.biteTests.innerHTML = biteGroups().map((group, index) => biteGroupHtml(group, tests, index)).join("")
     || '<p class="empty-note">No BITE tests are available.</p>';
-  if (biteRunning && biteStatus?.currentRunAll) {
+  if (biteIsRunning() && biteStatus?.currentRunAll) {
     setBiteLog(formatBiteRunAllProgress(biteStatus.currentRunAll));
     return;
   }
@@ -150,7 +162,7 @@ function renderBiteOverall(tests) {
 }
 
 function biteOverallState(tests) {
-  if (biteRunning || biteStatus?.currentRunAll?.running) return "running";
+  if (biteIsRunning()) return "running";
   const available = tests.filter((test) => test.enabled !== false);
   if (!available.length) return "disabled";
   const results = available.map((test) => biteResults[test.id]).filter(Boolean);
@@ -216,7 +228,7 @@ function biteGroupHtml(group, allTests, groupIndex = 0) {
           <span>${escapeHtml(summary)}</span>
         </span>
       </button>
-      <button class="bite-run bite-run-group" type="button" data-bite-run-group="${escapeHtml(group.id)}" ${biteRunning || !enabled ? "disabled" : ""}>Run group</button>
+      <button class="bite-run bite-run-group" type="button" data-bite-run-group="${escapeHtml(group.id)}" ${biteIsRunning() || !enabled ? "disabled" : ""}>Run group</button>
     </div>
     <div class="bite-group-tests" ${expanded ? "" : "hidden"}>
       ${tests.map((test, index) => biteTestHtml(test, group, index, groupNumber)).join("")}
@@ -226,7 +238,7 @@ function biteGroupHtml(group, allTests, groupIndex = 0) {
 
 function biteGroupState(group, tests) {
   const currentTestId = biteStatus?.currentRunAll?.currentTestId || biteRunningTestId || null;
-  if (biteRunning && (biteRunningGroupId === group.id || tests.some((test) => test.id === currentTestId))) return "running";
+  if (biteIsRunning() && (biteRunningGroupId === group.id || tests.some((test) => test.id === currentTestId))) return "running";
   const available = tests.filter((test) => test.enabled !== false);
   if (!available.length) return "disabled";
   const results = available.map((test) => biteResults[test.id]).filter(Boolean);
@@ -252,7 +264,7 @@ function biteTestHtml(test, group = null, testIndex = 0, groupNumber = "") {
   const available = test.enabled !== false;
   const state = !available
     ? "disabled"
-    : biteRunning && currentTestId === test.id
+    : biteIsRunning() && currentTestId === test.id
       ? "running"
       : result
       ? result.ok
@@ -277,8 +289,12 @@ function biteTestHtml(test, group = null, testIndex = 0, groupNumber = "") {
       <strong>${biteChildDisplayNumber(test, group, testIndex, groupNumber)} ${escapeHtml(test.title || test.id)}</strong>
       <span>${escapeHtml(summary)}</span>
     </div>
-    <button class="bite-run" type="button" data-bite-test="${escapeHtml(test.id)}" ${biteRunning || !available ? "disabled" : ""}>Run</button>
+    <button class="bite-run" type="button" data-bite-test="${escapeHtml(test.id)}" ${biteIsRunning() || !available ? "disabled" : ""}>Run</button>
   </article>`;
+}
+
+function biteIsRunning() {
+  return biteRunning || biteStatus?.running === true || biteStatus?.currentRunAll?.running === true;
 }
 
 function biteGroupDisplayNumber(group, groupIndex = 0) {
@@ -357,13 +373,10 @@ async function runAllBiteTests() {
   try {
     const report = await jsonRequest(BITE_RUN_ALL_URL, {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify({ background: true }),
     });
-    for (const child of report.reports || []) {
-      biteResults[child.testId || child.scenario] = child;
-    }
-    biteResults["run-all"] = report;
-    setBiteLog(formatBiteReport(report));
+    biteStatus = { ...(biteStatus || {}), running: true, currentRunAll: report };
+    setBiteLog(formatBiteRunAllProgress(report));
   } catch (error) {
     if (error.body?.contract === "ajrm-marine-console-bite-run-all-report") {
       for (const child of error.body.reports || []) {
@@ -375,9 +388,11 @@ async function runAllBiteTests() {
       setBiteLog(`BITE run all failed to run: ${error.message}`);
     }
   } finally {
-    biteRunning = false;
-    biteRunningTestId = null;
-    stopBiteStatusPolling();
+    if (!biteStatus?.running && !biteStatus?.currentRunAll?.running) {
+      biteRunning = false;
+      biteRunningTestId = null;
+      stopBiteStatusPolling();
+    }
     await refreshBiteStatus();
     renderBitePanel();
   }
@@ -402,13 +417,10 @@ async function runBiteGroup(groupId) {
   try {
     const report = await jsonRequest(BITE_RUN_GROUP_URL, {
       method: "POST",
-      body: JSON.stringify({ groupId }),
+      body: JSON.stringify({ groupId, background: true }),
     });
-    for (const child of report.reports || []) {
-      biteResults[child.testId || child.scenario] = child;
-    }
-    biteResults[report.testId || `run-group:${groupId}`] = report;
-    setBiteLog(formatBiteReport(report));
+    biteStatus = { ...(biteStatus || {}), running: true, currentRunAll: report };
+    setBiteLog(formatBiteRunAllProgress(report));
   } catch (error) {
     if (error.body?.contract === "ajrm-marine-console-bite-run-all-report") {
       for (const child of error.body.reports || []) {
@@ -420,10 +432,12 @@ async function runBiteGroup(groupId) {
       setBiteLog(`BITE ${group.title || groupId} group failed to run: ${error.message}`);
     }
   } finally {
-    biteRunning = false;
-    biteRunningTestId = null;
-    biteRunningGroupId = null;
-    stopBiteStatusPolling();
+    if (!biteStatus?.running && !biteStatus?.currentRunAll?.running) {
+      biteRunning = false;
+      biteRunningTestId = null;
+      biteRunningGroupId = null;
+      stopBiteStatusPolling();
+    }
     await refreshBiteStatus();
     renderBitePanel();
   }
