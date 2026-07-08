@@ -808,9 +808,9 @@ test("Console exposes BITE status and run routes", async () => {
       enabled: true,
       muted: false,
       pluginMuted: false,
-      engineMuted: false,
-      engineAudioPolicy: trafficAudioPolicy,
-      engineAudioPolicySequence: 7,
+      trafficMuted: false,
+      trafficAudioPolicy: trafficAudioPolicy,
+      trafficAudioPolicySequence: 7,
       localPlayback: false,
       localPlaybackAvailable: false,
       localPlaybackUnavailableReason: "Server speaker output disabled.",
@@ -1848,7 +1848,7 @@ test("Console exposes BITE status and run routes", async () => {
         },
       },
     );
-    assert.equal(statusCode, 200);
+    assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
     assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
     assert.equal(runBody.scenario, testId);
     values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
@@ -1939,9 +1939,9 @@ test("Console exposes BITE status and run routes", async () => {
   values["plugins.ajrmMarineAudio"] = {
     ...values["plugins.ajrmMarineAudio"],
     muted: true,
-    engineMuted: true,
-    engineAudioPolicy: values["plugins.ajrmMarineTraffic.audioPolicy"],
-    engineAudioPolicySequence: 8,
+    trafficMuted: true,
+    trafficAudioPolicy: values["plugins.ajrmMarineTraffic.audioPolicy"],
+    trafficAudioPolicySequence: 8,
     recentEvents: [{
       ts: new Date().toISOString(),
       event: "accepted",
@@ -2009,9 +2009,9 @@ test("Console exposes BITE status and run routes", async () => {
   values["plugins.ajrmMarineAudio"] = {
     ...values["plugins.ajrmMarineAudio"],
     muted: false,
-    engineMuted: false,
-    engineAudioPolicy: trafficAudioPolicy,
-    engineAudioPolicySequence: 7,
+    trafficMuted: false,
+    trafficAudioPolicy: trafficAudioPolicy,
+    trafficAudioPolicySequence: 7,
     recentEvents: [{
       ts: new Date().toISOString(),
       event: "queued",

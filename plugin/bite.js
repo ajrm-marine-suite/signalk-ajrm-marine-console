@@ -2653,8 +2653,8 @@ async function runAudioDiagnosticsContractBite(app, { consoleVersion }) {
       "audio-mute-policy-visible",
       typeof audio.muted === "boolean" ||
         typeof audio.pluginMuted === "boolean" ||
-        typeof audio.engineMuted === "boolean" ||
-        Boolean(audio.engineAudioPolicy),
+        typeof audio.trafficMuted === "boolean" ||
+        Boolean(audio.trafficAudioPolicy),
       "Audio should expose mute/policy state for diagnosing missed announcements.",
     ),
     assertion(
@@ -3047,7 +3047,7 @@ async function runAudioPolicyConsistencyBite(app, { consoleVersion }) {
   const snapshot = collectSnapshot(app);
   const trafficPolicy = snapshot.trafficAudioPolicy || {};
   const audio = snapshot.audio || {};
-  const enginePolicy = audio.engineAudioPolicy || {};
+  const consumedTrafficPolicy = audio.trafficAudioPolicy || {};
   const assertions = [
     assertion(
       "traffic-policy-authoritative",
@@ -3058,15 +3058,15 @@ async function runAudioPolicyConsistencyBite(app, { consoleVersion }) {
     ),
     assertion(
       "audio-consumes-traffic-policy",
-      Boolean(audio.engineAudioPolicy) && (audio.engineAudioPolicySequence === trafficPolicy.sequence || enginePolicy.sequence === trafficPolicy.sequence),
-      Boolean(audio.engineAudioPolicy)
+      Boolean(audio.trafficAudioPolicy) && (audio.trafficAudioPolicySequence === trafficPolicy.sequence || consumedTrafficPolicy.sequence === trafficPolicy.sequence),
+      Boolean(audio.trafficAudioPolicy)
         ? "Audio has consumed Traffic's audio policy projection."
-        : "Audio has not exposed an engine audio policy.",
+        : "Audio has not exposed an traffic audio policy.",
     ),
     assertion(
       "mute-state-consistent",
-      trafficPolicy.muted === audio.engineMuted && audio.muted === (audio.engineMuted === true || audio.pluginMuted === true),
-      `Traffic muted=${trafficPolicy.muted}; Audio engineMuted=${audio.engineMuted}; Audio muted=${audio.muted}.`,
+      trafficPolicy.muted === audio.trafficMuted && audio.muted === (audio.trafficMuted === true || audio.pluginMuted === true),
+      `Traffic muted=${trafficPolicy.muted}; Audio trafficMuted=${audio.trafficMuted}; Audio muted=${audio.muted}.`,
     ),
     assertion(
       "automute-state-explicit",
@@ -4072,8 +4072,8 @@ async function runAudioStatusDetailContractBite(app, { consoleVersion }) {
     ),
     assertion(
       "audio-mute-booleans",
-      ["enabled", "muted", "pluginMuted", "engineMuted"].every((key) => typeof audio[key] === "boolean"),
-      "Audio status should expose enabled, muted, pluginMuted, and engineMuted booleans.",
+      ["enabled", "muted", "pluginMuted", "trafficMuted"].every((key) => typeof audio[key] === "boolean"),
+      "Audio status should expose enabled, muted, pluginMuted, and trafficMuted booleans.",
     ),
     assertion(
       "audio-queue-length",
@@ -5245,7 +5245,9 @@ async function runGpsWeakSignalDetectionBite(app, { pluginId, consoleVersion, ti
   }
   const before = Number(baseline?.counters?.degradedSignals || 0);
   const after = Number(degraded?.counters?.degradedSignals || before);
-  const reasons = (degraded?.reasons || []).join(" ");
+  const observed = degraded?.diagnostics?.observed || {};
+  const observedHdop = Number(observed.hdop ?? degraded?.gps?.hdop);
+  const observedSatellites = Number(observed.satellites ?? degraded?.gps?.satellites);
   const assertions = [
     assertion("weak-signal-baseline-accepted", Boolean(baseline), "Trusted GPS baseline should be accepted."),
     assertion(
@@ -5261,9 +5263,9 @@ async function runGpsWeakSignalDetectionBite(app, { pluginId, consoleVersion, ti
       `Weak-signal counter before=${before}, after=${after}.`,
     ),
     assertion(
-      "weak-signal-reason-visible",
-      /HDOP|satellites/i.test(reasons),
-      reasons ? `Weak-signal reasons: ${reasons}` : "Weak-signal reasons were not published.",
+      "weak-signal-diagnostics-visible",
+      Number.isFinite(observedHdop) || Number.isFinite(observedSatellites),
+      `Observed HDOP=${Number.isFinite(observedHdop) ? observedHdop : "unavailable"}; satellites=${Number.isFinite(observedSatellites) ? observedSatellites : "unavailable"}.`,
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
@@ -5276,7 +5278,12 @@ async function runGpsWeakSignalDetectionBite(app, { pluginId, consoleVersion, ti
     startedAt,
     startedAtMs,
     assertions,
-    observations: [{ degradedSignalsBefore: before, degradedSignalsAfter: after, reasons }],
+    observations: [{
+      degradedSignalsBefore: before,
+      degradedSignalsAfter: after,
+      observedHdop: Number.isFinite(observedHdop) ? observedHdop : null,
+      observedSatellites: Number.isFinite(observedSatellites) ? observedSatellites : null,
+    }],
     summary: result === "pass"
       ? "Weak GPS signal was detected and counted."
       : `GPS weak-signal detection failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
@@ -5293,8 +5300,7 @@ function gpsWeakSignalObserved(state = {}) {
     (Number.isFinite(satellites) && satellites <= 2)
   ) && (
     state.degradedSignalActive === true ||
-    state.diagnostics?.decision?.degradedSignalActive === true ||
-    (Array.isArray(state.reasons) && state.reasons.some((reason) => /HDOP|satellites/i.test(String(reason))))
+    state.diagnostics?.decision?.degradedSignalActive === true
   );
 }
 
@@ -6444,9 +6450,9 @@ async function runStationaryAutomutePolicyShapeBite(app, { consoleVersion }) {
     ),
     assertion(
       "audio-follows-traffic-policy",
-      policy.muted !== true || audio.engineMuted === true || audio.muted === true,
+      policy.muted !== true || audio.trafficMuted === true || audio.muted === true,
       policy.muted === true
-        ? `Traffic muted=${policy.muted}; Audio engineMuted=${audio.engineMuted}; Audio muted=${audio.muted}.`
+        ? `Traffic muted=${policy.muted}; Audio trafficMuted=${audio.trafficMuted}; Audio muted=${audio.muted}.`
         : "Traffic policy is not muted; no stationary mute propagation is expected.",
     ),
     assertion(
@@ -8007,10 +8013,10 @@ function audioPolicySummary(audio = {}) {
     enabled: audio.enabled,
     muted: audio.muted,
     pluginMuted: audio.pluginMuted,
-    engineMuted: audio.engineMuted,
-    engineSessionId: audio.engineSessionId,
-    engineAudioPolicySequence: audio.engineAudioPolicySequence,
-    engineAudioPolicy: trafficPolicySummary(audio.engineAudioPolicy || {}),
+    trafficMuted: audio.trafficMuted,
+    trafficSessionId: audio.trafficSessionId,
+    trafficAudioPolicySequence: audio.trafficAudioPolicySequence,
+    trafficAudioPolicy: trafficPolicySummary(audio.trafficAudioPolicy || {}),
     queueLength: audio.queueLength,
     timelineState: audio.timeline?.event?.state || "",
   };

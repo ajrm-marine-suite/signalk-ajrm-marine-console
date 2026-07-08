@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.115
+
+- Rename Console BITE Audio policy checks from legacy Engine wording to Traffic
+  wording.
+- Make GPS weak-signal BITE checks use explicit diagnostics instead of parsing
+  reason text.
+
 ## 0.5.114
 
 - Tighten stationary automute BITE checks to rely on explicit Traffic audio
