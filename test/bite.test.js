@@ -14,6 +14,7 @@ const {
   evaluateQuietTargetSnapshot,
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
+  currentDrifts,
   publishSyntheticEncounter,
   unwrapSignalKLeaf,
 } = require("../plugin/bite");
@@ -363,6 +364,15 @@ test("BITE audio output routing evaluator exercises Audio output options", () =>
   });
   assert.equal(oldAudioContract.assertions.find((item) => item.id === "desktop-player-output-explicit").pass, false);
   assert.equal(oldAudioContract.assertions.find((item) => item.id === "desktop-player-availability-explicit").pass, false);
+});
+
+test("BITE current drift helper treats null current as unavailable", () => {
+  assert.equal(currentDrifts(null), false);
+  assert.equal(currentDrifts(undefined), false);
+  assert.equal(currentDrifts({ drift: null }), false);
+  assert.equal(currentDrifts({ drift: 0 }), false);
+  assert.equal(currentDrifts({ drift: 0.2 }), true);
+  assert.equal(currentDrifts({ driftKnots: 0.5 }), true);
 });
 
 test("BITE evaluation passes when Traffic, Notifications, and Audio align", () => {

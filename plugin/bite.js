@@ -7796,7 +7796,8 @@ function offsetPositionMeters(position, { eastMeters = 0, northMeters = 0 } = {}
 }
 
 function currentAvailable(value = {}) {
-  return value?.available === true ||
+  if (!value || typeof value !== "object") return false;
+  return value.available === true ||
     (Number.isFinite(Number(value.setTrue)) && Number.isFinite(Number(value.drift))) ||
     (Number.isFinite(Number(value.setTrueDegrees)) && Number.isFinite(Number(value.driftKnots)));
 }
@@ -7807,6 +7808,7 @@ function currentDrifts(value = {}, minimumMps = 0.05) {
 }
 
 function currentDriftMps(value = {}) {
+  if (!value || typeof value !== "object") return NaN;
   if (Number.isFinite(Number(value.drift))) return Number(value.drift);
   if (Number.isFinite(Number(value.driftKnots))) return Number(value.driftKnots) * KNOTS_TO_MPS;
   return NaN;
@@ -8029,6 +8031,7 @@ module.exports = {
   evaluateQuietTargetSnapshot,
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
+  currentDrifts,
   publishSyntheticEncounter,
   unwrapSignalKLeaf,
 };

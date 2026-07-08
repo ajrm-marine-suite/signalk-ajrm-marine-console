@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.111
+
+- Treat cleared/null current and tide values as unavailable in BITE current
+  drift checks instead of throwing during the background run.
+
 ## 0.5.110
 
 - Make the GPS recovery BITE exercise wait for a non-zero trusted current before
