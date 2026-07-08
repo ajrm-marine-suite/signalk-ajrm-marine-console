@@ -3098,6 +3098,7 @@ async function runAudioRendererReadinessBite(app, { consoleVersion }) {
   const piperReady = dependencies.ok === true || dependencies.piperPlaybackAvailable === true;
   const explicitUnavailable = dependencies.ok === false && typeof dependencies.summary === "string" && dependencies.summary.length > 0;
   const outputSelected = audio.localPlayback === true || audio.liveStream === true || audio.publicHttpStream === true;
+  const generatedMp3OutputAvailable = dependencies.piperPlaybackAvailable === true;
   const assertions = [
     assertion(
       "audio-enabled",
@@ -3115,9 +3116,11 @@ async function runAudioRendererReadinessBite(app, { consoleVersion }) {
     ),
     assertion(
       "output-state-explicit",
-      outputSelected || audio.localPlaybackAvailable === false || dependencies.piperPlaybackAvailable === false,
+      outputSelected || generatedMp3OutputAvailable || audio.localPlaybackAvailable === false || dependencies.piperPlaybackAvailable === false,
       outputSelected
         ? "At least one Audio output path is selected."
+        : generatedMp3OutputAvailable
+          ? "Server-rendered MP3 output is available for browser or desktop-player clients."
         : "No output is selected, but Audio explicitly reports why playback is unavailable.",
     ),
     assertion(
@@ -3148,6 +3151,7 @@ async function runAudioRendererReadinessBite(app, { consoleVersion }) {
       localPlaybackUnavailableReason: audio.localPlaybackUnavailableReason,
       liveStream: audio.liveStream,
       publicHttpStream: audio.publicHttpStream,
+      generatedMp3OutputAvailable,
       queueLength: audio.queueLength,
       dependencies,
     },

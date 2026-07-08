@@ -742,8 +742,8 @@ test("Console exposes BITE status and run routes", async () => {
       localPlayback: false,
       localPlaybackAvailable: false,
       localPlaybackUnavailableReason: "Server speaker output disabled.",
-      liveStream: true,
-      publicHttpStream: true,
+      liveStream: false,
+      publicHttpStream: false,
       queueLength: 0,
       dependencies: {
         ok: true,
