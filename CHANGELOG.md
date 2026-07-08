@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.112
+
+- Extend BITE Instrument Alerts checks to require the Anchor dropped to Traffic
+  Anchor-profile bridge.
+- Extend the stationary automute BITE check to verify Anchor and Harbour
+  automute are enabled while Coastal and Offshore remain disabled.
+
 ## 0.5.111
 
 - Treat cleared/null current and tide values as unavailable in BITE current

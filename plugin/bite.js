@@ -3635,6 +3635,9 @@ async function runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersi
     depthCallout.supported === true ||
     depthCallout.available === true ||
     capabilities.anchoringDepthCallout === true;
+  const anchorDroppedSelectsTrafficProfile =
+    capabilities.anchorDroppedSelectsTrafficProfile === true ||
+    depthCallout.anchorDroppedSelectsTrafficProfile === true;
   const assertions = [
     assertion(
       "instrument-alerts-visible",
@@ -3664,6 +3667,13 @@ async function runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersi
         ? "Depth callout is able to request audio output."
         : "Depth callout capability is not available.",
     ),
+    assertion(
+      "anchor-dropped-profile-bridge-visible",
+      !supported || anchorDroppedSelectsTrafficProfile,
+      anchorDroppedSelectsTrafficProfile
+        ? "Anchor dropped advertises Traffic Anchor profile selection."
+        : "Anchor dropped does not advertise Traffic Anchor profile selection.",
+    ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
   return biteReport({
@@ -3675,11 +3685,11 @@ async function runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersi
     startedAt,
     startedAtMs,
     assertions,
-    observations: [{ evidence, depthCallout }],
+    observations: [{ evidence, depthCallout, capabilities }],
     summary: result === "pass"
       ? "Instrument Alerts advertises the anchoring depth callout capability."
       : `Instrument Alerts depth callout capability failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: { status, depthCallout },
+    snapshot: { status, depthCallout, capabilities },
   });
 }
 
@@ -6400,6 +6410,9 @@ async function runStationaryAutomutePolicyShapeBite(app, { consoleVersion }) {
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
   const snapshot = collectSnapshot(app);
+  const traffic = trafficApi(app);
+  const trafficStatus = traffic?.status ? await traffic.status() : {};
+  const profiles = trafficStatus.profiles || {};
   const policy = snapshot.trafficAudioPolicy || {};
   const audio = snapshot.audio || {};
   const stationaryMode = policy.automaticMuteActive === true || /stationary|muted|harbou?r|anchor/i.test(String(policy.status || ""));
@@ -6418,6 +6431,16 @@ async function runStationaryAutomutePolicyShapeBite(app, { consoleVersion }) {
       "stationary-automute-status-visible",
       typeof policy.status === "string" && policy.status.length > 0,
       policy.status ? `Traffic audio policy status is: ${policy.status}` : "Traffic audio policy status text is missing.",
+    ),
+    assertion(
+      "anchor-harbour-automute-profiles-visible",
+      profiles.anchor?.automuteStationary === true && profiles.harbor?.automuteStationary === true,
+      `Anchor automute=${profiles.anchor?.automuteStationary}; Harbour automute=${profiles.harbor?.automuteStationary}.`,
+    ),
+    assertion(
+      "sailing-profiles-do-not-automute",
+      profiles.coastal?.automuteStationary === false && profiles.offshore?.automuteStationary === false,
+      `Coastal automute=${profiles.coastal?.automuteStationary}; Offshore automute=${profiles.offshore?.automuteStationary}.`,
     ),
     assertion(
       "audio-follows-traffic-policy",
@@ -6444,11 +6467,19 @@ async function runStationaryAutomutePolicyShapeBite(app, { consoleVersion }) {
     startedAt,
     startedAtMs,
     assertions,
-    observations: [{ trafficAudioPolicy: trafficPolicySummary(policy), audio: audioPolicySummary(audio) }],
+    observations: [{
+      trafficAudioPolicy: trafficPolicySummary(policy),
+      trafficProfiles: summarizeTrafficProfiles(profiles),
+      audio: audioPolicySummary(audio),
+    }],
     summary: result === "pass"
       ? "Stationary automute policy shape is explicit and visible to Audio."
       : `Stationary automute policy shape check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: { trafficAudioPolicy: trafficPolicySummary(policy), audio: audioPolicySummary(audio) },
+    snapshot: {
+      trafficAudioPolicy: trafficPolicySummary(policy),
+      trafficProfiles: summarizeTrafficProfiles(profiles),
+      audio: audioPolicySummary(audio),
+    },
   });
 }
 

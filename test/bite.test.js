@@ -934,17 +934,21 @@ test("Console exposes BITE status and run routes", async () => {
         },
       }],
       capabilities: {
+        anchoringDepthCallout: true,
+        anchorDroppedSelectsTrafficProfile: true,
         depthCallout: {
           supported: true,
           path: "environment.depth.belowKeel",
           audio: true,
           mode: "anchoring",
+          anchorDroppedSelectsTrafficProfile: true,
         },
       },
       depthCallout: {
         supported: true,
         path: "environment.depth.belowKeel",
         audio: true,
+        anchorDroppedSelectsTrafficProfile: true,
       },
       recentEvents: [],
     },
