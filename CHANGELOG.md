@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.114
+
+- Tighten stationary automute BITE checks to rely on explicit Traffic audio
+  policy booleans instead of interpreting policy status text.
+
 ## 0.5.113
 
 - Fix Console Help's CPA table to treat profile CPA thresholds as metres,

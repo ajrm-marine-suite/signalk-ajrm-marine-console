@@ -6415,7 +6415,7 @@ async function runStationaryAutomutePolicyShapeBite(app, { consoleVersion }) {
   const profiles = trafficStatus.profiles || {};
   const policy = snapshot.trafficAudioPolicy || {};
   const audio = snapshot.audio || {};
-  const stationaryMode = policy.automaticMuteActive === true || /stationary|muted|harbou?r|anchor/i.test(String(policy.status || ""));
+  const stationaryAutomuteActive = policy.automaticMuteActive === true;
   const assertions = [
     assertion(
       "stationary-automute-config-visible",
@@ -6451,10 +6451,10 @@ async function runStationaryAutomutePolicyShapeBite(app, { consoleVersion }) {
     ),
     assertion(
       "stationary-mute-explained-when-active",
-      !stationaryMode || policy.muted === true || policy.automuteAllowed === false,
-      stationaryMode
-        ? `Stationary status is visible; muted=${policy.muted}, automuteAllowed=${policy.automuteAllowed}.`
-        : "Traffic is not currently reporting a stationary/harbour/anchor mute state.",
+      !stationaryAutomuteActive || policy.muted === true,
+      stationaryAutomuteActive
+        ? `Stationary automute is active; muted=${policy.muted}.`
+        : "Traffic is not currently reporting active stationary automute.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
