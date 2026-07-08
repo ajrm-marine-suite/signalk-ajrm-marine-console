@@ -4461,7 +4461,7 @@ async function runDeadReckoningLossExerciseBite(app, { pluginId, consoleVersion,
         const state = snapshot.gpsIntegrity || {};
         return state.acceptedGps === true &&
           validPosition(state.lastTrustedFix?.position) &&
-          currentAvailable(state.current || state.lastTrustedCurrent);
+          (currentDrifts(state.current) || currentDrifts(state.lastTrustedCurrent));
       },
     });
     observations.push({
@@ -4567,7 +4567,7 @@ async function runGpsRecoveryRealignsDrBite(app, { pluginId, consoleVersion, tim
       includeGps: true,
       includeCurrent: true,
       timeoutMs: Math.min(7000, timeoutMs / 3),
-      predicate: (state) => state.acceptedGps === true,
+      predicate: (state) => state.acceptedGps === true && (currentDrifts(state.current) || currentDrifts(state.lastTrustedCurrent)),
     });
     publishDeadReckoningExerciseSample(app, {
       pluginId,
@@ -5030,7 +5030,7 @@ async function runLostGpsRetainedCurrentSourceBite(app, { pluginId, consoleVersi
       includeGps: true,
       includeCurrent: true,
       timeoutMs: Math.min(7000, timeoutMs / 2),
-      predicate: (state) => state.acceptedGps === true && currentAvailable(state.current || state.lastTrustedCurrent),
+      predicate: (state) => state.acceptedGps === true && (currentDrifts(state.current) || currentDrifts(state.lastTrustedCurrent)),
     });
     publishDeadReckoningExerciseSample(app, {
       pluginId,
@@ -7799,6 +7799,17 @@ function currentAvailable(value = {}) {
   return value?.available === true ||
     (Number.isFinite(Number(value.setTrue)) && Number.isFinite(Number(value.drift))) ||
     (Number.isFinite(Number(value.setTrueDegrees)) && Number.isFinite(Number(value.driftKnots)));
+}
+
+function currentDrifts(value = {}, minimumMps = 0.05) {
+  const drift = currentDriftMps(value);
+  return Number.isFinite(drift) && Math.abs(drift) >= minimumMps;
+}
+
+function currentDriftMps(value = {}) {
+  if (Number.isFinite(Number(value.drift))) return Number(value.drift);
+  if (Number.isFinite(Number(value.driftKnots))) return Number(value.driftKnots) * KNOTS_TO_MPS;
+  return NaN;
 }
 
 function displayMeters(value) {

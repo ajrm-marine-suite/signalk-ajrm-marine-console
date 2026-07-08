@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.110
+
+- Make the GPS recovery BITE exercise wait for a non-zero trusted current before
+  removing GPS, so the retained-current DR drift check is not satisfied by a
+  zero-current baseline race.
+
 ## 0.5.109
 
 - Update BITE head-on prompt expectations for Traffic's spoken full-stop pause:
