@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.107
+
+- Prefer Audio's explicit `desktopPlayerOutput` status field in BITE renderer
+  readiness checks, while retaining compatibility with older Audio versions.
+
 ## 0.5.105
 
 - Add BITE checks for Capture active-voyage metadata, bundled BITE report shape,
