@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.113
+
+- Fix Console Help's CPA table to treat profile CPA thresholds as metres,
+  matching Traffic and Display's explicit profile-threshold contract.
+
 ## 0.5.112
 
 - Extend BITE Instrument Alerts checks to require the Anchor dropped to Traffic

@@ -91,7 +91,7 @@ function currentSettingsHtml(uiState = {}, profiles = {}, repeatIntervals = {}) 
             <td>${escapeHtml(profileLabel(profileKey))}</td>
             <td>${escapeHtml(SIZE_LABELS[size])}</td>
             <td>${level === "warning" ? "Advisory" : "Alarm"}</td>
-            <td>${escapeHtml(formatDistanceNm(criteria.cpa * cpaSensitivity))}</td>
+            <td>${escapeHtml(formatDistanceMeters(criteria.cpa * cpaSensitivity))}</td>
             <td>${escapeHtml(formatMinutes(criteria.tcpa * tcpaLookahead))}</td>
             <td>${escapeHtml(repeatText)}</td>
             <td>${escapeHtml(formatSpeed(criteria.speed))}</td>
@@ -204,10 +204,12 @@ function formatMinutes(seconds) {
   return value > 0 ? `${value} min` : "Off";
 }
 
-function formatDistanceNm(value) {
-  const nm = finite(value);
-  if (nm <= 0) return "Off";
-  return nm < 1 ? `${Math.round(nm * 1852)} m` : `${Number(nm.toFixed(2))} NM`;
+function formatDistanceMeters(value) {
+  const metres = finite(value);
+  if (metres <= 0) return "Off";
+  return metres < 1852
+    ? `${Math.round(metres)} m`
+    : `${Number((metres / 1852).toFixed(2))} NM`;
 }
 
 function formatMeters(value) {
