@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.108
+
+- Add a BITE Audio output-routing check that explicitly exercises Desktop
+  Player, server speaker, radio stream, public stream, and all-routes-off
+  states.
+- Include Desktop Player output in the Audio status-detail contract check.
+
 ## 0.5.107
 
 - Prefer Audio's explicit `desktopPlayerOutput` status field in BITE renderer

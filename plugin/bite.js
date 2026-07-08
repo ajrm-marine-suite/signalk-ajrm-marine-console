@@ -398,6 +398,13 @@ const TESTS = [
     timeoutSeconds: 5,
   },
   {
+    id: "audio-output-routing-options",
+    number: "1.4.1",
+    title: "Audio output routing options",
+    description: "Checks that Audio explicitly reports the Desktop Player, server speaker, and stream output routes, with at least one usable route selected.",
+    timeoutSeconds: 5,
+  },
+  {
     id: "notifications-broker-health",
     number: "1.5",
     title: "Notifications broker health",
@@ -796,6 +803,7 @@ const BITE_GROUP_DEFINITIONS = [
       "projection-contracts",
       "audio-policy-consistency",
       "audio-renderer-readiness",
+      "audio-output-routing-options",
       "notifications-broker-health",
       "stationary-automute-policy-shape",
       "capture-api-contract",
@@ -1495,6 +1503,7 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "projection-contracts") return runProjectionContractsBite(app, { consoleVersion });
   if (testId === "audio-policy-consistency") return runAudioPolicyConsistencyBite(app, { consoleVersion });
   if (testId === "audio-renderer-readiness") return runAudioRendererReadinessBite(app, { consoleVersion });
+  if (testId === "audio-output-routing-options") return runAudioOutputRoutingOptionsBite(app, { consoleVersion });
   if (testId === "notifications-broker-health") return runNotificationsBrokerHealthBite(app, { consoleVersion });
   if (testId === "capture-api-contract") return runCaptureApiContractBite(app, { consoleVersion });
   if (testId === "traffic-api-contract") return runTrafficApiContractBite(app, { consoleVersion });
@@ -3095,9 +3104,10 @@ async function runAudioRendererReadinessBite(app, { consoleVersion }) {
   const snapshot = collectSnapshot(app);
   const audio = snapshot.audio || {};
   const dependencies = audio.dependencies || {};
+  const routing = evaluateAudioOutputRoutingOptions(audio);
   const piperReady = dependencies.ok === true || dependencies.piperPlaybackAvailable === true;
   const explicitUnavailable = dependencies.ok === false && typeof dependencies.summary === "string" && dependencies.summary.length > 0;
-  const outputSelected = audio.localPlayback === true || audio.liveStream === true || audio.publicHttpStream === true;
+  const outputSelected = routing.selectedRoutes.length > 0;
   const generatedMp3OutputAvailable = audio.desktopPlayerOutput === true ||
     (audio.desktopPlayerOutput == null && dependencies.piperPlaybackAvailable === true);
   const assertions = [
@@ -3119,7 +3129,7 @@ async function runAudioRendererReadinessBite(app, { consoleVersion }) {
       "output-state-explicit",
       outputSelected || generatedMp3OutputAvailable || audio.localPlaybackAvailable === false || dependencies.piperPlaybackAvailable === false,
       outputSelected
-        ? "At least one Audio output path is selected."
+        ? `At least one Audio output path is selected: ${routing.selectedRoutes.join(", ")}.`
         : generatedMp3OutputAvailable
           ? "Desktop Player/generated MP3 output is enabled."
         : "No output is selected, but Audio explicitly reports why playback is unavailable.",
@@ -3155,9 +3165,37 @@ async function runAudioRendererReadinessBite(app, { consoleVersion }) {
       desktopPlayerOutput: audio.desktopPlayerOutput,
       desktopPlayerOutputAvailable: audio.desktopPlayerOutputAvailable,
       generatedMp3OutputAvailable,
+      selectedRoutes: routing.selectedRoutes,
+      usableRoutes: routing.usableRoutes,
       queueLength: audio.queueLength,
       dependencies,
     },
+  });
+}
+
+async function runAudioOutputRoutingOptionsBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const snapshot = collectSnapshot(app);
+  const audio = snapshot.audio || {};
+  const routing = evaluateAudioOutputRoutingOptions(audio);
+  const assertions = routing.assertions;
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "audio-output-routing-options",
+    testId: "audio-output-routing-options",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [],
+    summary: result === "pass"
+      ? `Audio output routing is explicit: ${routing.usableRoutes.join(", ")}.`
+      : `Audio output routing options check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: routing.snapshot,
   });
 }
 
@@ -4013,7 +4051,7 @@ async function runAudioStatusDetailContractBite(app, { consoleVersion }) {
   const audio = snapshot.audio || {};
   const dependencies = audio.dependencies || {};
   const recentEvents = Array.isArray(audio.recentEvents) ? audio.recentEvents : [];
-  const hasOutputState = ["localPlayback", "liveStream", "publicHttpStream", "browserPlayback"].some((key) =>
+  const hasOutputState = ["desktopPlayerOutput", "localPlayback", "liveStream", "publicHttpStream", "browserPlayback"].some((key) =>
     Object.prototype.hasOwnProperty.call(audio, key)
   );
   const assertions = [
@@ -7806,6 +7844,119 @@ function trafficPolicySummary(policy = {}) {
   };
 }
 
+function evaluateAudioOutputRoutingOptions(audio = {}) {
+  const dependencies = audio.dependencies || {};
+  const desktopExplicit = typeof audio.desktopPlayerOutput === "boolean";
+  const desktopAvailableExplicit = typeof audio.desktopPlayerOutputAvailable === "boolean";
+  const serverSpeakerExplicit = typeof audio.localPlayback === "boolean";
+  const serverSpeakerAvailableExplicit = typeof audio.localPlaybackAvailable === "boolean";
+  const radioStreamExplicit = typeof audio.liveStream === "boolean";
+  const publicStreamExplicit = typeof audio.publicHttpStream === "boolean";
+  const routeStates = [
+    {
+      id: "desktopPlayer",
+      label: "Desktop Player",
+      selected: audio.desktopPlayerOutput === true,
+      available: audio.desktopPlayerOutputAvailable !== false,
+      explicit: desktopExplicit && desktopAvailableExplicit,
+    },
+    {
+      id: "serverSpeaker",
+      label: "server speaker",
+      selected: audio.localPlayback === true,
+      available: audio.localPlaybackAvailable !== false,
+      explicit: serverSpeakerExplicit && serverSpeakerAvailableExplicit,
+    },
+    {
+      id: "radioStream",
+      label: "radio stream",
+      selected: audio.liveStream === true,
+      available: true,
+      explicit: radioStreamExplicit,
+    },
+    {
+      id: "publicStream",
+      label: "public HTTP stream",
+      selected: audio.publicHttpStream === true,
+      available: true,
+      explicit: publicStreamExplicit,
+    },
+  ];
+  const selectedRoutes = routeStates.filter((route) => route.selected).map((route) => route.id);
+  const usableRoutes = routeStates
+    .filter((route) => route.selected && route.available)
+    .map((route) => route.id);
+  const piperReady = dependencies.ok === true || dependencies.piperPlaybackAvailable === true;
+  const assertions = [
+    assertion(
+      "desktop-player-output-explicit",
+      desktopExplicit,
+      desktopExplicit
+        ? `Desktop Player output is ${audio.desktopPlayerOutput ? "on" : "off"}.`
+        : "Audio status should expose the Desktop Player output switch.",
+    ),
+    assertion(
+      "desktop-player-availability-explicit",
+      desktopAvailableExplicit,
+      desktopAvailableExplicit
+        ? `Desktop Player availability is ${audio.desktopPlayerOutputAvailable ? "available" : "unavailable"}.`
+        : "Audio status should expose whether Desktop Player output is currently available.",
+    ),
+    assertion(
+      "server-speaker-output-explicit",
+      serverSpeakerExplicit && serverSpeakerAvailableExplicit,
+      serverSpeakerExplicit && serverSpeakerAvailableExplicit
+        ? `Server speaker output is ${audio.localPlayback ? "on" : "off"} and ${audio.localPlaybackAvailable ? "available" : "unavailable"}.`
+        : "Audio status should expose the server speaker output switch and availability.",
+    ),
+    assertion(
+      "stream-output-state-explicit",
+      radioStreamExplicit && publicStreamExplicit,
+      radioStreamExplicit && publicStreamExplicit
+        ? `Stream outputs are radio=${audio.liveStream ? "on" : "off"}, public=${audio.publicHttpStream ? "on" : "off"}.`
+        : "Audio status should expose radio and public stream output switches.",
+    ),
+    assertion(
+      "selected-output-route-usable",
+      usableRoutes.length > 0,
+      usableRoutes.length > 0
+        ? `Usable output route selected: ${usableRoutes.join(", ")}.`
+        : selectedRoutes.length > 0
+          ? `Selected output route is unavailable: ${selectedRoutes.join(", ")}.`
+          : piperReady
+            ? "Piper is ready but no Audio output route is selected."
+            : "No usable output route is selected.",
+    ),
+    assertion(
+      "desktop-player-off-respected",
+      audio.desktopPlayerOutput !== false || !selectedRoutes.includes("desktopPlayer"),
+      audio.desktopPlayerOutput === false
+        ? "Desktop Player output is off and is not treated as a selected route."
+        : "Desktop Player output is not disabled.",
+    ),
+  ];
+  return {
+    assertions,
+    selectedRoutes,
+    usableRoutes,
+    routeStates,
+    snapshot: {
+      enabled: audio.enabled,
+      desktopPlayerOutput: audio.desktopPlayerOutput,
+      desktopPlayerOutputAvailable: audio.desktopPlayerOutputAvailable,
+      desktopPlayerOutputUnavailableReason: audio.desktopPlayerOutputUnavailableReason,
+      localPlayback: audio.localPlayback,
+      localPlaybackAvailable: audio.localPlaybackAvailable,
+      localPlaybackUnavailableReason: audio.localPlaybackUnavailableReason,
+      liveStream: audio.liveStream,
+      publicHttpStream: audio.publicHttpStream,
+      selectedRoutes,
+      usableRoutes,
+      dependencies,
+    },
+  };
+}
+
 function audioPolicySummary(audio = {}) {
   return {
     contract: audio.contract,
@@ -7865,6 +8016,7 @@ module.exports = {
   createBiteController,
   evaluateCollisionAudioSnapshot,
   evaluateQuietTargetSnapshot,
+  evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
   publishSyntheticEncounter,
   unwrapSignalKLeaf,

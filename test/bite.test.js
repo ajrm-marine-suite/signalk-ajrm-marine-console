@@ -12,6 +12,7 @@ const {
   TEST_TARGET_NAME,
   evaluateCollisionAudioSnapshot,
   evaluateQuietTargetSnapshot,
+  evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
   publishSyntheticEncounter,
   unwrapSignalKLeaf,
@@ -302,6 +303,67 @@ function fakeDrIntegrityFromInjectedValues(previous, values) {
     },
   };
 }
+
+test("BITE audio output routing evaluator exercises Audio output options", () => {
+  const baseAudio = {
+    enabled: true,
+    desktopPlayerOutput: true,
+    desktopPlayerOutputAvailable: true,
+    localPlayback: false,
+    localPlaybackAvailable: false,
+    localPlaybackUnavailableReason: "Server speaker output disabled.",
+    liveStream: false,
+    publicHttpStream: false,
+    dependencies: {
+      ok: true,
+      summary: "Piper speech engine ready",
+      piperPlaybackAvailable: true,
+    },
+  };
+  const desktopOnly = evaluateAudioOutputRoutingOptions(baseAudio);
+  assert.deepEqual(desktopOnly.selectedRoutes, ["desktopPlayer"]);
+  assert.deepEqual(desktopOnly.usableRoutes, ["desktopPlayer"]);
+  assert.equal(desktopOnly.assertions.every((item) => item.pass), true);
+
+  const serverSpeaker = evaluateAudioOutputRoutingOptions({
+    ...baseAudio,
+    desktopPlayerOutput: false,
+    desktopPlayerOutputAvailable: true,
+    localPlayback: true,
+    localPlaybackAvailable: true,
+  });
+  assert.deepEqual(serverSpeaker.selectedRoutes, ["serverSpeaker"]);
+  assert.deepEqual(serverSpeaker.usableRoutes, ["serverSpeaker"]);
+  assert.equal(serverSpeaker.assertions.every((item) => item.pass), true);
+
+  const radioStream = evaluateAudioOutputRoutingOptions({
+    ...baseAudio,
+    desktopPlayerOutput: false,
+    liveStream: true,
+  });
+  assert.deepEqual(radioStream.selectedRoutes, ["radioStream"]);
+  assert.deepEqual(radioStream.usableRoutes, ["radioStream"]);
+  assert.equal(radioStream.assertions.every((item) => item.pass), true);
+
+  const noRoutes = evaluateAudioOutputRoutingOptions({
+    ...baseAudio,
+    desktopPlayerOutput: false,
+    localPlayback: false,
+    liveStream: false,
+    publicHttpStream: false,
+  });
+  assert.deepEqual(noRoutes.selectedRoutes, []);
+  assert.deepEqual(noRoutes.usableRoutes, []);
+  assert.equal(noRoutes.assertions.find((item) => item.id === "selected-output-route-usable").pass, false);
+
+  const oldAudioContract = evaluateAudioOutputRoutingOptions({
+    ...baseAudio,
+    desktopPlayerOutput: undefined,
+    desktopPlayerOutputAvailable: undefined,
+  });
+  assert.equal(oldAudioContract.assertions.find((item) => item.id === "desktop-player-output-explicit").pass, false);
+  assert.equal(oldAudioContract.assertions.find((item) => item.id === "desktop-player-availability-explicit").pass, false);
+});
 
 test("BITE evaluation passes when Traffic, Notifications, and Audio align", () => {
   const startedAtMs = Date.now() - 1000;
@@ -2053,6 +2115,7 @@ test("Console exposes BITE status and run routes", async () => {
     "projection-contracts",
     "audio-policy-consistency",
     "audio-renderer-readiness",
+    "audio-output-routing-options",
     "notifications-broker-health",
     "stationary-automute-policy-shape",
     "capture-api-contract",
