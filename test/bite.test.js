@@ -1388,7 +1388,7 @@ test("Console exposes BITE status and run routes", async () => {
         injectScenarioMessage({
           mmsi: "235912350",
           name: "BITE HEAD ON TARGET",
-          visualMessage: "Collision alarm. Medium vessel BITE HEAD ON TARGET at 12 o'clock. Risk of collision. Head-on: alter starboard, pass port-to-port. CPA 0 meters in 2 minutes.",
+          visualMessage: "Collision alarm. Medium vessel BITE HEAD ON TARGET at 12 o'clock. Risk of collision. Head-on. Alter starboard, pass port-to-port. CPA 0 meters in 2 minutes.",
           state: "alarm",
         });
       }

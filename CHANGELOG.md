@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.109
+
+- Update BITE head-on prompt expectations for Traffic's spoken full-stop pause:
+  `Head-on. Alter starboard, pass port-to-port`.
+
 ## 0.5.108
 
 - Add a BITE Audio output-routing check that explicitly exercises Desktop

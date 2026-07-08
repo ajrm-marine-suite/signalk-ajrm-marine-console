@@ -5718,7 +5718,7 @@ async function runTrafficHeadOnPromptBite(app, { pluginId, testId, consoleVersio
       speedMps: 5 * KNOTS_TO_MPS,
       courseRad: Math.PI / 2,
     },
-    expectedPatterns: [/Risk of collision/i, /Head-on: alter starboard, pass port-to-port/i],
+    expectedPatterns: [/Risk of collision/i, /Head-on\. Alter starboard, pass port-to-port/i],
     forbiddenPatterns: [/CPA will be ahead\. CPA /i],
     passSummary: "Head-on collision prompt was present in the Traffic alert chain.",
     failSummary: "Traffic head-on prompt check failed",
@@ -5860,7 +5860,7 @@ async function runTrafficAdvisoryNoActionPromptBite(app, { pluginId, testId, con
     },
     expectedPatterns: [/Traffic advisory/i, /(Close quarters|CPA)/i],
     forbiddenPatterns: [
-      /Head-on: alter starboard/i,
+      /Head-on[:.] alter starboard/i,
       /pass port-to-port/i,
       /\bGive Way\b/i,
       /\bStand On\b/i,
