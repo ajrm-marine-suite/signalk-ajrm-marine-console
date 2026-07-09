@@ -515,7 +515,7 @@ test("BITE evaluation accepts muted audio when skipped evidence follows accepted
   assert.equal(result.assertions.find((item) => item.id === "mute-explicit").pass, true);
 });
 
-test("BITE audio summary evidence does not accept audio-ready-only announcements", () => {
+test("BITE audio summary evidence accepts fresh request progress", () => {
   const startedAtMs = Date.now() - 1000;
   const message = "Marine built in tests complete. 9 tests passed.";
   assert.equal(
@@ -529,6 +529,14 @@ test("BITE audio summary evidence does not accept audio-ready-only announcements
     }, { message, startedAtMs }),
     null,
   );
+  const acceptedEvidence = biteAudioSummaryEvidence({
+    recentEvents: [{
+      ts: new Date().toISOString(),
+      event: "accepted",
+      message,
+    }],
+  }, { message, startedAtMs });
+  assert.equal(acceptedEvidence.state, "accepted");
   const renderedEvidence = biteAudioSummaryEvidence({
     lastAnnouncement: {
       renderedAt: new Date().toISOString(),
@@ -1096,6 +1104,7 @@ test("Console exposes BITE status and run routes", async () => {
     const now = new Date().toISOString();
     values["plugins.ajrmMarineTraffic.targets"] = {
       ...trafficProjection(state),
+      profile: trafficProfiles.current,
       targets: [{
         id: `vessels.urn:mrn:imo:mmsi:${mmsi}`,
         mmsi,
@@ -1867,6 +1876,15 @@ test("Console exposes BITE status and run routes", async () => {
     "traffic-cpa-deduplicated-wording",
     "traffic-visual-audio-wording-alignment",
   ]) {
+    const commandStart = trafficCommands.length;
+    const preScenarioAutoProfile = { ...trafficApiAutoProfile.settings };
+    if (trafficWordingTestId === "traffic-advisory-no-action-prompt") {
+      trafficProfiles.current = "harbor";
+      values["plugins.ajrmMarineTraffic.targets"] = {
+        ...values["plugins.ajrmMarineTraffic.targets"],
+        profile: "harbor",
+      };
+    }
     statusCode = 0;
     runBody = null;
     await routes.get("POST /ajrmMarineConsole/bite/run")(
@@ -1884,6 +1902,15 @@ test("Console exposes BITE status and run routes", async () => {
     assert.equal(statusCode, 200);
     assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
     assert.equal(runBody.scenario, trafficWordingTestId);
+    if (trafficWordingTestId === "traffic-advisory-no-action-prompt") {
+      const scenarioCommands = trafficCommands.slice(commandStart);
+      assert.deepEqual(scenarioCommands[0], { autoProfile: { enabled: false } });
+      assert.deepEqual(scenarioCommands[1], { profile: "coastal" });
+      assert.deepEqual(scenarioCommands.at(-2), { profile: "harbor" });
+      assert.deepEqual(scenarioCommands.at(-1).autoProfile, preScenarioAutoProfile);
+      assert.equal(trafficProfiles.current, "harbor");
+      assert.equal(runBody.snapshot.trafficProfile, "coastal");
+    }
     if (trafficWordingTestId !== "traffic-visual-audio-wording-alignment") {
       assert.equal(runBody.assertions.find((item) => item.id === "expected-wording-1").pass, true);
     }

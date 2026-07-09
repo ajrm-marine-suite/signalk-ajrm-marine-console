@@ -1815,6 +1815,53 @@ async function restoreBiteSettings(app) {
   };
 }
 
+async function applyBiteTrafficScenarioSettings(app) {
+  const traffic = trafficApi(app);
+  if (!traffic?.status || !traffic?.setProfile) {
+    return {
+      ok: false,
+      message: "Traffic API cannot apply deterministic BITE scenario profile settings.",
+      async restore() {
+        return { ok: true, skipped: true, message: "No BITE scenario Traffic settings were applied." };
+      },
+    };
+  }
+  const status = await traffic.status();
+  const snapshot = trafficSettingsSnapshot(status);
+  if (traffic.setAutoProfile) {
+    await traffic.setAutoProfile(jsonClone(BITE_AUTO_PROFILE));
+  }
+  await traffic.setProfile(BITE_TRAFFIC_PROFILE);
+  return {
+    ok: true,
+    snapshot,
+    async restore() {
+      const errors = [];
+      try {
+        if (snapshot.profile) {
+          await traffic.setProfile(snapshot.profile);
+        }
+      } catch (error) {
+        errors.push(`profile: ${error.message || String(error)}`);
+      }
+      try {
+        if (snapshot.autoProfileSettings && traffic.setAutoProfile) {
+          await traffic.setAutoProfile(jsonClone(snapshot.autoProfileSettings));
+        }
+      } catch (error) {
+        errors.push(`auto-profile: ${error.message || String(error)}`);
+      }
+      return {
+        ok: errors.length === 0,
+        message: errors.length
+          ? `BITE scenario Traffic settings restore failed: ${errors.join("; ")}`
+          : "BITE scenario Traffic settings restored.",
+        errors,
+      };
+    },
+  };
+}
+
 function trafficSettingsSnapshot(status = {}) {
   const audioPolicy = status.audioPolicy || status.trafficAudioPolicy || {};
   const autoProfile = status.autoProfile || {};
@@ -2830,6 +2877,17 @@ function biteAudioSummaryEvidence(audio, { message, startedAtMs }) {
           : "rendered",
       ts: last.localPlaybackCompletedAt || last.renderedAt || last.queuedAt || "",
       message: last.message || "",
+    };
+  }
+  const acceptedEvent = (audio.recentEvents || []).find((event) =>
+    audioEventMatchesSummary(event, { message, startedAtMs }) &&
+    /accepted|queued|audio-ready/.test(String(event.event || "").toLowerCase())
+  );
+  if (acceptedEvent) {
+    return {
+      state: acceptedEvent.event || "accepted",
+      ts: acceptedEvent.ts || "",
+      message: acceptedEvent.message || "",
     };
   }
   return null;
@@ -5862,7 +5920,7 @@ async function runTrafficAdvisoryNoActionPromptBite(app, { pluginId, testId, con
     target: {
       mmsi: ADVISORY_NO_PROMPT_TEST_TARGET_MMSI,
       name: ADVISORY_NO_PROMPT_TEST_TARGET_NAME,
-      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 400 }),
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 45 }),
       speedMps: 3 * KNOTS_TO_MPS,
       courseRad: Math.PI / 2,
       lengthMeters: 7,
@@ -5942,7 +6000,14 @@ async function runTrafficVisualAudioWordingAlignmentBite(app, { pluginId, testId
   let lastRefreshAt = 0;
   let finalSnapshot = null;
   let evaluation = null;
+  let scenarioSettings = null;
+  let settingsRestore = null;
+  let settingsError = "";
   try {
+    scenarioSettings = await applyBiteTrafficScenarioSettings(app);
+    if (scenarioSettings?.ok === false) {
+      settingsError = scenarioSettings.message || "BITE scenario Traffic settings could not be applied.";
+    }
     publishSyntheticTrafficScenario(app, { pluginId, runId, target, own });
     while (Date.now() - startedAtMs <= timeoutMs) {
       if (Date.now() - lastRefreshAt >= REFRESH_MS) {
@@ -5967,8 +6032,21 @@ async function runTrafficVisualAudioWordingAlignmentBite(app, { pluginId, testId
         targetMmsi: target.mmsi,
       });
     }
+  } catch (error) {
+    settingsError = error.message || String(error);
   } finally {
     await clearSyntheticScenarioTarget(app, { pluginId, runId, target });
+    settingsRestore = await scenarioSettings?.restore?.();
+  }
+  if (settingsError || settingsRestore?.ok === false) {
+    const message = settingsError || settingsRestore.message || "BITE scenario Traffic settings could not be restored.";
+    evaluation = {
+      result: "fail",
+      assertions: [
+        ...(evaluation?.assertions || []),
+        assertion("bite-traffic-scenario-settings", false, message),
+      ],
+    };
   }
   const result = evaluation?.result || "fail";
   return biteReport({
@@ -6333,7 +6411,14 @@ async function runTrafficMessageScenarioBite(app, {
   let lastRefreshAt = 0;
   let finalSnapshot = null;
   let evaluation = null;
+  let scenarioSettings = null;
+  let settingsRestore = null;
+  let settingsError = "";
   try {
+    scenarioSettings = await applyBiteTrafficScenarioSettings(app);
+    if (scenarioSettings?.ok === false) {
+      settingsError = scenarioSettings.message || "BITE scenario Traffic settings could not be applied.";
+    }
     publishSyntheticTrafficScenario(app, { pluginId, runId, target, own });
     while (Date.now() - startedAtMs <= timeoutMs) {
       if (Date.now() - lastRefreshAt >= REFRESH_MS) {
@@ -6368,8 +6453,21 @@ async function runTrafficMessageScenarioBite(app, {
         strict: true,
       });
     }
+  } catch (error) {
+    settingsError = error.message || String(error);
   } finally {
     await clearSyntheticScenarioTarget(app, { pluginId, runId, target });
+    settingsRestore = await scenarioSettings?.restore?.();
+  }
+  if (settingsError || settingsRestore?.ok === false) {
+    const message = settingsError || settingsRestore.message || "BITE scenario Traffic settings could not be restored.";
+    evaluation = {
+      result: "fail",
+      assertions: [
+        ...(evaluation?.assertions || []),
+        assertion("bite-traffic-scenario-settings", false, message),
+      ],
+    };
   }
   const result = evaluation?.result || "fail";
   return biteReport({

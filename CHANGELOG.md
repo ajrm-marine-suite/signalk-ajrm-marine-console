@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.116
+
+- Make BITE synthetic traffic wording scenarios force the deterministic coastal
+  Traffic profile and restore the previous profile/auto-profile settings after
+  each scenario, so reruns are not affected by harbour state from earlier tests.
+- Let the final BITE audio summary accept fresh queued/accepted Audio progress
+  events while the renderer is still catching up.
+
 ## 0.5.115
 
 - Rename Console BITE Audio policy checks from legacy Engine wording to Traffic
