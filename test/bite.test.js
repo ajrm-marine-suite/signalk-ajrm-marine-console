@@ -15,6 +15,7 @@ const {
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
   currentDrifts,
+  publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,
   unwrapSignalKLeaf,
 } = require("../plugin/bite");
@@ -758,10 +759,41 @@ test("BITE publishes synthetic own-vessel and target deltas", () => {
   assert.equal(messages.length, 2);
   assert.equal(messages[0].message.context, "vessels.self");
   assert.equal(messages[1].message.context, `vessels.urn:mrn:imo:mmsi:${TEST_TARGET_MMSI}`);
-  assert.ok(messages[1].message.updates[0].$source.startsWith("ajrm-marine-bite-"));
+  assert.equal(messages[0].message.updates[0].$source, "ajrm-marine-bite");
+  assert.equal(messages[1].message.updates[0].$source, "ajrm-marine-bite");
   assert.ok(messages[1].message.updates[0].values.some((item) =>
     item.path === "" && item.value.name === TEST_TARGET_NAME && item.value.mmsi === TEST_TARGET_MMSI
   ));
+});
+
+test("BITE dead-reckoning samples use a stable source", () => {
+  const messages = [];
+  const app = {
+    handleMessage(id, message) {
+      messages.push({ id, message });
+    },
+  };
+
+  publishDeadReckoningExerciseSample(app, {
+    pluginId: "signalk-ajrm-marine-console",
+    runId: "test-run",
+    phase: "baseline",
+    position: BITE_OWN_POSITION,
+    includeGps: true,
+    includeCurrent: true,
+  });
+
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].message.context, "vessels.self");
+  assert.equal(messages[0].message.updates[0].$source, "ajrm-marine-bite-dr");
+  assert.deepEqual(
+    messages[0].message.updates[0].values.find((item) => item.path === "plugins.ajrmMarineConsole.bite.deadReckoningExercise").value,
+    {
+      runId: "test-run",
+      phase: "baseline",
+      timestamp: messages[0].message.updates[0].timestamp,
+    },
+  );
 });
 
 test("Console exposes BITE status and run routes", async () => {

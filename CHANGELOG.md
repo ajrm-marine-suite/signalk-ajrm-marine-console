@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.121
+
+- Use stable Signal K `$source` names for BITE synthetic navigation and
+  dead-reckoning samples, so repeated BITE runs do not accumulate per-run
+  sources in Signal K Source Priority groups.
+
 ## 0.5.120
 
 - Keep BITE run-all Traffic/audio settings active through the final audio

@@ -76,6 +76,8 @@ const PREFLIGHT_TEST_ID = "preflight-safety";
 const SKIPPER_SETTINGS_SANITY_TEST_ID = "skipper-settings-sanity";
 const AUDIO_SUMMARY_TEST_ID = "audio-output-summary";
 const METERS_PER_NM = 1852;
+const BITE_SYNTHETIC_SOURCE = "ajrm-marine-bite";
+const BITE_DR_SYNTHETIC_SOURCE = "ajrm-marine-bite-dr";
 const BITE_TRAFFIC_PROFILE = "coastal";
 const BITE_TRAFFIC_PROFILES = Object.freeze({
   current: BITE_TRAFFIC_PROFILE,
@@ -7176,12 +7178,11 @@ function publishSyntheticEncounter(app, { pluginId, runId, quiet }) {
   const targetCourse = quiet ? 0 : (270 * Math.PI) / 180;
   const ownSpeed = quiet ? 0 : 5 * KNOTS_TO_MPS;
   const ownCourse = quiet ? 0 : Math.PI / 2;
-  const sourceName = `ajrm-marine-bite-${runId}`;
 
   app.handleMessage(pluginId, {
     context: "vessels.self",
     updates: [{
-      $source: sourceName,
+      $source: BITE_SYNTHETIC_SOURCE,
       timestamp,
       values: [
         { path: "navigation.position", value: OWN_POSITION },
@@ -7196,7 +7197,7 @@ function publishSyntheticEncounter(app, { pluginId, runId, quiet }) {
   app.handleMessage(pluginId, {
     context: `vessels.urn:mrn:imo:mmsi:${TEST_TARGET_MMSI}`,
     updates: [{
-      $source: sourceName,
+      $source: BITE_SYNTHETIC_SOURCE,
       timestamp,
       values: [
         {
@@ -7236,7 +7237,7 @@ function publishDeadReckoningExerciseSample(app, {
   app.handleMessage?.(pluginId, {
     context: "vessels.self",
     updates: [{
-      $source: `ajrm-marine-bite-dr-${runId}`,
+      $source: BITE_DR_SYNTHETIC_SOURCE,
       timestamp,
       values: [
         { path: "navigation.position", value: gpsPosition },
@@ -7259,7 +7260,6 @@ function publishDeadReckoningExerciseSample(app, {
 
 function publishSyntheticTrafficScenario(app, { pluginId, runId, target, own }) {
   const timestamp = new Date().toISOString();
-  const sourceName = `ajrm-marine-bite-${runId}`;
   const ownCourse = Number.isFinite(Number(own?.courseRad)) ? Number(own.courseRad) : 0;
   const ownSpeed = Number.isFinite(Number(own?.speedMps)) ? Number(own.speedMps) : 0;
   const targetCourse = Number.isFinite(Number(target?.courseRad)) ? Number(target.courseRad) : 0;
@@ -7268,7 +7268,7 @@ function publishSyntheticTrafficScenario(app, { pluginId, runId, target, own }) 
   app.handleMessage(pluginId, {
     context: "vessels.self",
     updates: [{
-      $source: sourceName,
+      $source: BITE_SYNTHETIC_SOURCE,
       timestamp,
       values: [
         { path: "navigation.position", value: own?.position || OWN_POSITION },
@@ -7283,7 +7283,7 @@ function publishSyntheticTrafficScenario(app, { pluginId, runId, target, own }) 
   app.handleMessage(pluginId, {
     context: `vessels.urn:mrn:imo:mmsi:${target.mmsi}`,
     updates: [{
-      $source: sourceName,
+      $source: BITE_SYNTHETIC_SOURCE,
       timestamp,
       values: [
         {
@@ -7332,12 +7332,11 @@ async function clearSyntheticScenarioTarget(app, { pluginId, runId, target }) {
 
 function publishSyntheticQuietTarget(app, { pluginId, runId }) {
   const timestamp = new Date().toISOString();
-  const sourceName = `ajrm-marine-bite-${runId}`;
 
   app.handleMessage(pluginId, {
     context: "vessels.self",
     updates: [{
-      $source: sourceName,
+      $source: BITE_SYNTHETIC_SOURCE,
       timestamp,
       values: [
         { path: "navigation.position", value: OWN_POSITION },
@@ -7352,7 +7351,7 @@ function publishSyntheticQuietTarget(app, { pluginId, runId }) {
   app.handleMessage(pluginId, {
     context: `vessels.urn:mrn:imo:mmsi:${QUIET_TEST_TARGET_MMSI}`,
     updates: [{
-      $source: sourceName,
+      $source: BITE_SYNTHETIC_SOURCE,
       timestamp,
       values: [
         {
@@ -8165,6 +8164,7 @@ module.exports = {
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
   currentDrifts,
+  publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,
   unwrapSignalKLeaf,
 };
