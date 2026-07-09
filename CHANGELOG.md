@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.117
+
+- Restore the BITE advisory no-action-prompt target to coastal advisory range
+  so it remains a warning-level advisory rather than a collision alarm.
+
 ## 0.5.116
 
 - Make BITE synthetic traffic wording scenarios force the deterministic coastal
