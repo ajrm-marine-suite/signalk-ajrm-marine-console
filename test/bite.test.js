@@ -1440,6 +1440,16 @@ test("Console exposes BITE status and run routes", async () => {
           },
         };
       },
+      status() {
+        return {
+          ok: true,
+          pluginId: "signalk-ajrm-marine-snapshot",
+          version: "0.5.11",
+          allowRemoteAccess: true,
+          snapshotPath: "/plugins/signalk-ajrm-marine-snapshot/snapshot",
+          settingsPath: "/plugins/signalk-ajrm-marine-snapshot/settings",
+        };
+      },
     },
     getSelfPath(path) {
       if (path === "plugins.ajrmMarineNotifications") {
@@ -1969,6 +1979,44 @@ test("Console exposes BITE status and run routes", async () => {
     assert.equal(runBody.scenario, testId);
     values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
   }
+
+  app.ajrmMarineSnapshotApi.status = () => ({
+    ok: true,
+    pluginId: "signalk-ajrm-marine-snapshot",
+    version: "0.5.11",
+    allowRemoteAccess: false,
+    snapshotPath: "/plugins/signalk-ajrm-marine-snapshot/snapshot",
+    settingsPath: "/plugins/signalk-ajrm-marine-snapshot/settings",
+  });
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "snapshot-api-contract", timeoutSeconds: 10 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.ok, false, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.assertions.find((item) => item.id === "snapshot-browser-access-enabled").pass, false);
+  assert.match(
+    runBody.assertions.find((item) => item.id === "snapshot-browser-access-enabled").message,
+    /Allow remote HTTP\/browser access/,
+  );
+  app.ajrmMarineSnapshotApi.status = () => ({
+    ok: true,
+    pluginId: "signalk-ajrm-marine-snapshot",
+    version: "0.5.11",
+    allowRemoteAccess: true,
+    snapshotPath: "/plugins/signalk-ajrm-marine-snapshot/snapshot",
+    settingsPath: "/plugins/signalk-ajrm-marine-snapshot/settings",
+  });
 
   for (const trafficWordingTestId of [
     "traffic-overtaking-wording",

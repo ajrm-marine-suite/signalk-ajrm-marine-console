@@ -333,7 +333,7 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     id: "snapshot-api-contract",
     number: "9.2.1",
     title: "Snapshot API contract",
-    description: "Checks Snapshot exposes the in-process snapshot API used for support/debug bundles.",
+    description: "Checks Snapshot exposes the in-process snapshot API and browser access needed for support/debug bundles.",
   }),
 ]);
 const PLUGIN_AVAILABILITY_TESTS = Object.freeze([
@@ -3888,11 +3888,20 @@ async function runSnapshotApiContractBite(app, { consoleVersion }) {
   const api = snapshotApi(app);
   let snapshot = null;
   let snapshotError = "";
+  let snapshotStatus = null;
+  let snapshotStatusError = "";
   if (api?.snapshot) {
     try {
       snapshot = await api.snapshot({ reason: "bite-contract" });
     } catch (error) {
       snapshotError = error.message || String(error);
+    }
+  }
+  if (api?.status) {
+    try {
+      snapshotStatus = await api.status();
+    } catch (error) {
+      snapshotStatusError = error.message || String(error);
     }
   }
   const assertions = [
@@ -3918,6 +3927,23 @@ async function runSnapshotApiContractBite(app, { consoleVersion }) {
       !snapshot || Object.keys(snapshot).length > 0,
       "Snapshot API should return a non-empty object.",
     ),
+    assertion(
+      "snapshot-status-api-visible",
+      typeof api?.status === "function",
+      "Snapshot should expose status() so BITE can check browser support-snapshot readiness.",
+    ),
+    assertion(
+      "snapshot-browser-access-config-visible",
+      !api?.status || (snapshotStatus && typeof snapshotStatus.allowRemoteAccess === "boolean" && !snapshotStatusError),
+      snapshotStatusError
+        ? `Snapshot status API failed: ${snapshotStatusError}`
+        : "Snapshot status should expose the Allow remote HTTP/browser access setting.",
+    ),
+    assertion(
+      "snapshot-browser-access-enabled",
+      !snapshotStatus || snapshotStatus.allowRemoteAccess === true,
+      "Snapshot browser access is disabled; enable \"Allow remote HTTP/browser access\" in Snapshot plugin options on a trusted private network before collecting browser support snapshots.",
+    ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
   return biteReport({
@@ -3931,12 +3957,14 @@ async function runSnapshotApiContractBite(app, { consoleVersion }) {
     assertions,
     observations: [{ ...evidence, snapshotError }],
     summary: result === "pass"
-      ? "Snapshot API contract is available."
+      ? "Snapshot API and browser access contract is available."
       : `Snapshot API contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: {
       evidence,
+      status: snapshotStatus,
       snapshotKeys: snapshot && typeof snapshot === "object" ? Object.keys(snapshot).slice(0, 30) : [],
       snapshotError,
+      snapshotStatusError,
     },
   });
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.123
+
+- Make BITE's Snapshot contract verify browser support-snapshot readiness, so
+  runs fail clearly when Snapshot's remote/browser access option is disabled.
+
 ## 0.5.122
 
 - Move BITE synthetic collision and quiet targets well out of operational range
