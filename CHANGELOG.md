@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.124
+
+- Move all BITE scenario targets to the same far-away cleared position as the
+  generic and quiet targets, so Display's target list is not left cluttered by
+  neutralised scenario vessels after BITE completes.
+
 ## 0.5.123
 
 - Make BITE's Snapshot contract verify browser support-snapshot readiness, so

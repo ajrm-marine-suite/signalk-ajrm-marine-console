@@ -7345,7 +7345,7 @@ async function clearSyntheticEncounter(app, { pluginId, runId }) {
 async function clearSyntheticScenarioTarget(app, { pluginId, runId, target }) {
   const quietTarget = {
     ...target,
-    position: offsetPositionMeters(OWN_POSITION, { eastMeters: 8000, northMeters: 8000 }),
+    position: offsetPositionMeters(OWN_POSITION, CLEAR_TARGET_OFFSET_METERS),
     speedMps: 0,
     courseRad: 0,
   };
@@ -8249,6 +8249,7 @@ module.exports = {
   biteAudioSummaryEvidence,
   currentDrifts,
   clearSyntheticEncounter,
+  clearSyntheticScenarioTarget,
   clearSyntheticQuietTarget,
   publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,

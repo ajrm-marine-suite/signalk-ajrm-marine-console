@@ -15,6 +15,7 @@ const {
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
   clearSyntheticEncounter,
+  clearSyntheticScenarioTarget,
   clearSyntheticQuietTarget,
   currentDrifts,
   publishDeadReckoningExerciseSample,
@@ -823,15 +824,30 @@ test("BITE cleanup moves synthetic targets out of operational range", async () =
     pluginId: "signalk-ajrm-marine-console",
     runId: "test-run",
   });
+  await clearSyntheticScenarioTarget(app, {
+    pluginId: "signalk-ajrm-marine-console",
+    runId: "test-run",
+    target: {
+      mmsi: "235912347",
+      name: "BITE SCENARIO TARGET",
+      position: BITE_OWN_POSITION,
+      speedMps: 4,
+      courseRad: 1,
+    },
+  });
 
   const testTargetPosition = lastPublishedTargetPosition(messages, TEST_TARGET_MMSI);
   const quietTargetPosition = lastPublishedTargetPosition(messages, "235912346");
+  const scenarioTargetPosition = lastPublishedTargetPosition(messages, "235912347");
   assert.ok(testTargetPosition, "Expected cleared position for BITE test target");
   assert.ok(quietTargetPosition, "Expected cleared position for BITE quiet target");
+  assert.ok(scenarioTargetPosition, "Expected cleared position for BITE scenario target");
   assert.ok(positionOffsetMeters(testTargetPosition).eastMeters > 100000);
   assert.ok(positionOffsetMeters(testTargetPosition).northMeters > 100000);
   assert.ok(positionOffsetMeters(quietTargetPosition).eastMeters > 100000);
   assert.ok(positionOffsetMeters(quietTargetPosition).northMeters > 100000);
+  assert.ok(positionOffsetMeters(scenarioTargetPosition).eastMeters > 100000);
+  assert.ok(positionOffsetMeters(scenarioTargetPosition).northMeters > 100000);
 });
 
 test("Console exposes BITE status and run routes", async () => {
