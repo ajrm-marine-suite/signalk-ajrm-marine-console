@@ -1915,7 +1915,6 @@ test("Console exposes BITE status and run routes", async () => {
   ]) {
     const commandStart = trafficCommands.length;
     const messageStart = messages.length;
-    const preScenarioAutoProfile = { ...trafficApiAutoProfile.settings };
     if (trafficWordingTestId === "traffic-advisory-no-action-prompt") {
       trafficProfiles.current = "harbor";
       values["plugins.ajrmMarineTraffic.targets"] = {
@@ -1947,9 +1946,17 @@ test("Console exposes BITE status and run routes", async () => {
       const scenarioCommands = trafficCommands.slice(commandStart);
       assert.deepEqual(scenarioCommands[0], { autoProfile: { enabled: false } });
       assert.deepEqual(scenarioCommands[1], { profile: "coastal" });
-      assert.deepEqual(scenarioCommands.at(-2), { profile: "harbor" });
-      assert.deepEqual(scenarioCommands.at(-1).autoProfile, preScenarioAutoProfile);
-      assert.equal(trafficProfiles.current, "harbor");
+      assert.equal(
+        scenarioCommands.some((command) => command.profile === "harbor"),
+        false,
+        "traffic scenarios must not restore Harbour while the BITE settings snapshot is active",
+      );
+      assert.equal(
+        scenarioCommands.filter((command) => command.autoProfile).length,
+        1,
+        "traffic scenarios must defer auto-profile restore while the BITE settings snapshot is active",
+      );
+      assert.equal(trafficProfiles.current, "coastal");
       assert.equal(runBody.snapshot.trafficProfile, "coastal");
       assertPublishedTargetOffset(messages, "235912355", { eastMeters: 220, northMeters: 400 }, { since: messageStart });
     }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.120
+
+- Keep BITE run-all Traffic/audio settings active through the final audio
+  summary instead of restoring per-scenario Harbour/auto-profile settings
+  between deterministic traffic wording scenarios.
+- Add regression coverage so traffic scenarios do not re-enable Harbour
+  stationary automute while a BITE settings snapshot is active.
+
 ## 0.5.119
 
 - Correct the BITE Traffic close-quarters and advisory no-action scenario

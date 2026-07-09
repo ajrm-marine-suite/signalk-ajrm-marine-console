@@ -1826,6 +1826,7 @@ async function applyBiteTrafficScenarioSettings(app) {
       },
     };
   }
+  const deferRestoreToBiteRun = app.ajrmMarineConsoleBiteSettingsSnapshot?.active === true;
   const status = await traffic.status();
   const snapshot = trafficSettingsSnapshot(status);
   if (traffic.setAutoProfile) {
@@ -1836,6 +1837,14 @@ async function applyBiteTrafficScenarioSettings(app) {
     ok: true,
     snapshot,
     async restore() {
+      if (deferRestoreToBiteRun) {
+        return {
+          ok: true,
+          skipped: true,
+          deferredToBiteSettingsRestore: true,
+          message: "BITE run settings remain active; scenario Traffic settings restore deferred.",
+        };
+      }
       const errors = [];
       try {
         if (snapshot.profile) {
