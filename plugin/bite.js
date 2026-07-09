@@ -2879,17 +2879,6 @@ function biteAudioSummaryEvidence(audio, { message, startedAtMs }) {
       message: last.message || "",
     };
   }
-  const acceptedEvent = (audio.recentEvents || []).find((event) =>
-    audioEventMatchesSummary(event, { message, startedAtMs }) &&
-    /accepted|queued|audio-ready/.test(String(event.event || "").toLowerCase())
-  );
-  if (acceptedEvent) {
-    return {
-      state: acceptedEvent.event || "accepted",
-      ts: acceptedEvent.ts || "",
-      message: acceptedEvent.message || "",
-    };
-  }
   return null;
 }
 

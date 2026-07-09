@@ -515,7 +515,7 @@ test("BITE evaluation accepts muted audio when skipped evidence follows accepted
   assert.equal(result.assertions.find((item) => item.id === "mute-explicit").pass, true);
 });
 
-test("BITE audio summary evidence accepts fresh request progress", () => {
+test("BITE audio summary evidence does not accept audio-ready-only announcements", () => {
   const startedAtMs = Date.now() - 1000;
   const message = "Marine built in tests complete. 9 tests passed.";
   assert.equal(
@@ -529,14 +529,16 @@ test("BITE audio summary evidence accepts fresh request progress", () => {
     }, { message, startedAtMs }),
     null,
   );
-  const acceptedEvidence = biteAudioSummaryEvidence({
+  assert.equal(
+    biteAudioSummaryEvidence({
     recentEvents: [{
       ts: new Date().toISOString(),
       event: "accepted",
       message,
     }],
-  }, { message, startedAtMs });
-  assert.equal(acceptedEvidence.state, "accepted");
+    }, { message, startedAtMs }),
+    null,
+  );
   const renderedEvidence = biteAudioSummaryEvidence({
     lastAnnouncement: {
       renderedAt: new Date().toISOString(),

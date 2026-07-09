@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.118
+
+- Make the final BITE audio summary wait for rendered/playable Audio evidence
+  again, so queued-only progress cannot pass before the desktop player has a
+  chance to receive the completion message.
+
 ## 0.5.117
 
 - Restore the BITE advisory no-action-prompt target to coastal advisory range
