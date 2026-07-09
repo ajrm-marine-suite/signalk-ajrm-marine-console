@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.119
+
+- Correct the BITE Traffic close-quarters and advisory no-action scenario
+  geometry after the near/far targets were accidentally swapped.
+- Add regression coverage for the published synthetic target offsets so canned
+  test messages cannot hide a future geometry swap.
+
 ## 0.5.118
 
 - Make the final BITE audio summary wait for rendered/playable Audio evidence

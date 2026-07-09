@@ -19,6 +19,9 @@ const {
   unwrapSignalKLeaf,
 } = require("../plugin/bite");
 
+const BITE_OWN_POSITION = { latitude: 56.21122, longitude: -5.55756 };
+const EARTH_RADIUS_METERS = 6378137;
+
 function trafficProjection(state = "alarm") {
   return {
     contract: "ajrm-marine-traffic-targets",
@@ -38,6 +41,38 @@ function trafficProjection(state = "alarm") {
       },
     }],
   };
+}
+
+function publishedTargetPosition(messages, mmsi, { since = 0 } = {}) {
+  const targetContext = `vessels.urn:mrn:imo:mmsi:${mmsi}`;
+  const message = messages
+    .slice(since)
+    .filter((candidate) => candidate.message?.context === targetContext)
+    .find((candidate) => {
+      const values = (candidate.message?.updates || []).flatMap((update) => update.values || []);
+      const state = values.find((value) => value.path === "navigation.state")?.value;
+      const speed = values.find((value) => value.path === "navigation.speedOverGround")?.value;
+      return state === "underWay" || Number(speed) > 0.2;
+    })?.message;
+  return (message?.updates || [])
+    .flatMap((update) => update.values || [])
+    .find((value) => value.path === "navigation.position")?.value || null;
+}
+
+function positionOffsetMeters(position, origin = BITE_OWN_POSITION) {
+  const latRad = (origin.latitude * Math.PI) / 180;
+  return {
+    northMeters: ((position.latitude - origin.latitude) * Math.PI / 180) * EARTH_RADIUS_METERS,
+    eastMeters: ((position.longitude - origin.longitude) * Math.PI / 180) * EARTH_RADIUS_METERS * Math.cos(latRad),
+  };
+}
+
+function assertPublishedTargetOffset(messages, mmsi, expected, options = {}) {
+  const position = publishedTargetPosition(messages, mmsi, options);
+  assert.ok(position, `Expected published position for ${mmsi}`);
+  const offset = positionOffsetMeters(position);
+  assert.ok(Math.abs(offset.eastMeters - expected.eastMeters) < 1, `${mmsi} east offset ${offset.eastMeters}`);
+  assert.ok(Math.abs(offset.northMeters - expected.northMeters) < 1, `${mmsi} north offset ${offset.northMeters}`);
 }
 
 function gpsIntegrityProjectionFor(startedAtMs) {
@@ -1879,6 +1914,7 @@ test("Console exposes BITE status and run routes", async () => {
     "traffic-visual-audio-wording-alignment",
   ]) {
     const commandStart = trafficCommands.length;
+    const messageStart = messages.length;
     const preScenarioAutoProfile = { ...trafficApiAutoProfile.settings };
     if (trafficWordingTestId === "traffic-advisory-no-action-prompt") {
       trafficProfiles.current = "harbor";
@@ -1904,6 +1940,9 @@ test("Console exposes BITE status and run routes", async () => {
     assert.equal(statusCode, 200);
     assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
     assert.equal(runBody.scenario, trafficWordingTestId);
+    if (trafficWordingTestId === "traffic-close-quarters-wording") {
+      assertPublishedTargetOffset(messages, "235912348", { eastMeters: 220, northMeters: 45 }, { since: messageStart });
+    }
     if (trafficWordingTestId === "traffic-advisory-no-action-prompt") {
       const scenarioCommands = trafficCommands.slice(commandStart);
       assert.deepEqual(scenarioCommands[0], { autoProfile: { enabled: false } });
@@ -1912,6 +1951,7 @@ test("Console exposes BITE status and run routes", async () => {
       assert.deepEqual(scenarioCommands.at(-1).autoProfile, preScenarioAutoProfile);
       assert.equal(trafficProfiles.current, "harbor");
       assert.equal(runBody.snapshot.trafficProfile, "coastal");
+      assertPublishedTargetOffset(messages, "235912355", { eastMeters: 220, northMeters: 400 }, { since: messageStart });
     }
     if (trafficWordingTestId !== "traffic-visual-audio-wording-alignment") {
       assert.equal(runBody.assertions.find((item) => item.id === "expected-wording-1").pass, true);
