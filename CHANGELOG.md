@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.122
+
+- Move BITE synthetic collision and quiet targets well out of operational range
+  during cleanup, instead of leaving them at the old fixed quiet-test position
+  where a later simulator run could turn them into real Traffic advisories.
+- Use a short dedicated cleanup repeat interval so proper target cleanup does
+  not slow down BITE runs.
+
 ## 0.5.121
 
 - Use stable Signal K `$source` names for BITE synthetic navigation and

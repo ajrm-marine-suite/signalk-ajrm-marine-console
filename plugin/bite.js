@@ -10,6 +10,7 @@ const { discoverWebapps } = require("./modules");
 const DEFAULT_TIMEOUT_MS = 45000;
 const POLL_MS = 1000;
 const REFRESH_MS = 2000;
+const CLEAR_REFRESH_MS = 250;
 const PREFLIGHT_LIVE_DATA_MAX_AGE_MS = 15000;
 const KNOTS_TO_MPS = 0.514444;
 const TEST_TARGET_MMSI = "235912345";
@@ -56,6 +57,7 @@ const VOYAGE_VIEWER_PLUGIN_ID = "signalk-ajrm-marine-voyage-viewer";
 const OWN_POSITION = { latitude: 56.21122, longitude: -5.55756 };
 const TARGET_POSITION = { latitude: 56.21122, longitude: -5.54756 };
 const QUIET_TARGET_POSITION = { latitude: 56.24122, longitude: -5.49756 };
+const CLEAR_TARGET_OFFSET_METERS = Object.freeze({ eastMeters: 200000, northMeters: 200000 });
 const DR_EXERCISE_CURRENT_SET_RAD = Math.PI / 2;
 const DR_EXERCISE_CURRENT_DRIFT_MPS = 1 * KNOTS_TO_MPS;
 
@@ -6688,7 +6690,7 @@ async function runQuietTargetNoAlertBite(app, { pluginId, testId, consoleVersion
       });
     }
   } finally {
-    publishSyntheticQuietTarget(app, { pluginId, runId });
+    await clearSyntheticQuietTarget(app, { pluginId, runId });
   }
 
   const result = evaluation?.result || "fail";
@@ -7307,8 +7309,8 @@ function publishSyntheticTrafficScenario(app, { pluginId, runId, target, own }) 
 
 async function clearSyntheticEncounter(app, { pluginId, runId }) {
   for (let index = 0; index < 3; index += 1) {
-    publishSyntheticEncounter(app, { pluginId, runId, quiet: true });
-    await delay(REFRESH_MS);
+    publishSyntheticEncounterClear(app, { pluginId, runId });
+    await delay(CLEAR_REFRESH_MS);
   }
 }
 
@@ -7326,12 +7328,22 @@ async function clearSyntheticScenarioTarget(app, { pluginId, runId, target }) {
   };
   for (let index = 0; index < 3; index += 1) {
     publishSyntheticTrafficScenario(app, { pluginId, runId, target: quietTarget, own });
-    await delay(REFRESH_MS);
+    await delay(CLEAR_REFRESH_MS);
   }
 }
 
-function publishSyntheticQuietTarget(app, { pluginId, runId }) {
+async function clearSyntheticQuietTarget(app, { pluginId, runId }) {
+  for (let index = 0; index < 3; index += 1) {
+    publishSyntheticQuietTarget(app, { pluginId, runId, clear: true });
+    await delay(CLEAR_REFRESH_MS);
+  }
+}
+
+function publishSyntheticQuietTarget(app, { pluginId, runId, clear = false }) {
   const timestamp = new Date().toISOString();
+  const targetPosition = clear
+    ? offsetPositionMeters(OWN_POSITION, CLEAR_TARGET_OFFSET_METERS)
+    : QUIET_TARGET_POSITION;
 
   app.handleMessage(pluginId, {
     context: "vessels.self",
@@ -7358,16 +7370,60 @@ function publishSyntheticQuietTarget(app, { pluginId, runId }) {
           path: "",
           value: {
             mmsi: QUIET_TEST_TARGET_MMSI,
-            name: QUIET_TEST_TARGET_NAME,
+            name: clear ? `${QUIET_TEST_TARGET_NAME} CLEARED` : QUIET_TEST_TARGET_NAME,
           },
         },
-        { path: "navigation.position", value: QUIET_TARGET_POSITION },
+        { path: "navigation.position", value: targetPosition },
         { path: "navigation.speedOverGround", value: 0 },
         { path: "navigation.courseOverGroundTrue", value: 0 },
         { path: "navigation.state", value: "stopped" },
         { path: "design.length", value: { overall: 12 } },
         { path: "design.beam", value: 4 },
         { path: "sensors.ais.class", value: "B" },
+      ],
+    }],
+  });
+}
+
+function publishSyntheticEncounterClear(app, { pluginId, runId }) {
+  const timestamp = new Date().toISOString();
+  const targetPosition = offsetPositionMeters(OWN_POSITION, CLEAR_TARGET_OFFSET_METERS);
+
+  app.handleMessage(pluginId, {
+    context: "vessels.self",
+    updates: [{
+      $source: BITE_SYNTHETIC_SOURCE,
+      timestamp,
+      values: [
+        { path: "navigation.position", value: OWN_POSITION },
+        { path: "navigation.speedOverGround", value: 0 },
+        { path: "navigation.speedThroughWater", value: 0 },
+        { path: "navigation.courseOverGroundTrue", value: Math.PI / 2 },
+        { path: "navigation.headingTrue", value: Math.PI / 2 },
+        { path: "navigation.state", value: "stopped" },
+      ],
+    }],
+  });
+  app.handleMessage(pluginId, {
+    context: `vessels.urn:mrn:imo:mmsi:${TEST_TARGET_MMSI}`,
+    updates: [{
+      $source: BITE_SYNTHETIC_SOURCE,
+      timestamp,
+      values: [
+        {
+          path: "",
+          value: {
+            mmsi: TEST_TARGET_MMSI,
+            name: `${TEST_TARGET_NAME} CLEARED`,
+          },
+        },
+        { path: "navigation.position", value: targetPosition },
+        { path: "navigation.speedOverGround", value: 0 },
+        { path: "navigation.courseOverGroundTrue", value: 0 },
+        { path: "navigation.state", value: "stopped" },
+        { path: "design.length", value: { overall: 60 } },
+        { path: "design.beam", value: 12 },
+        { path: "sensors.ais.class", value: "A" },
       ],
     }],
   });
@@ -8164,6 +8220,8 @@ module.exports = {
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
   currentDrifts,
+  clearSyntheticEncounter,
+  clearSyntheticQuietTarget,
   publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,
   unwrapSignalKLeaf,

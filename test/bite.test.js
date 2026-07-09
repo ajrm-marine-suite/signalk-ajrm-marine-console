@@ -14,6 +14,8 @@ const {
   evaluateQuietTargetSnapshot,
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
+  clearSyntheticEncounter,
+  clearSyntheticQuietTarget,
   currentDrifts,
   publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,
@@ -55,6 +57,15 @@ function publishedTargetPosition(messages, mmsi, { since = 0 } = {}) {
       const speed = values.find((value) => value.path === "navigation.speedOverGround")?.value;
       return state === "underWay" || Number(speed) > 0.2;
     })?.message;
+  return (message?.updates || [])
+    .flatMap((update) => update.values || [])
+    .find((value) => value.path === "navigation.position")?.value || null;
+}
+
+function lastPublishedTargetPosition(messages, mmsi) {
+  const targetContext = `vessels.urn:mrn:imo:mmsi:${mmsi}`;
+  const targetMessages = messages.filter((candidate) => candidate.message?.context === targetContext);
+  const message = targetMessages.at(-1)?.message;
   return (message?.updates || [])
     .flatMap((update) => update.values || [])
     .find((value) => value.path === "navigation.position")?.value || null;
@@ -794,6 +805,33 @@ test("BITE dead-reckoning samples use a stable source", () => {
       timestamp: messages[0].message.updates[0].timestamp,
     },
   );
+});
+
+test("BITE cleanup moves synthetic targets out of operational range", async () => {
+  const messages = [];
+  const app = {
+    handleMessage(id, message) {
+      messages.push({ id, message });
+    },
+  };
+
+  await clearSyntheticEncounter(app, {
+    pluginId: "signalk-ajrm-marine-console",
+    runId: "test-run",
+  });
+  await clearSyntheticQuietTarget(app, {
+    pluginId: "signalk-ajrm-marine-console",
+    runId: "test-run",
+  });
+
+  const testTargetPosition = lastPublishedTargetPosition(messages, TEST_TARGET_MMSI);
+  const quietTargetPosition = lastPublishedTargetPosition(messages, "235912346");
+  assert.ok(testTargetPosition, "Expected cleared position for BITE test target");
+  assert.ok(quietTargetPosition, "Expected cleared position for BITE quiet target");
+  assert.ok(positionOffsetMeters(testTargetPosition).eastMeters > 100000);
+  assert.ok(positionOffsetMeters(testTargetPosition).northMeters > 100000);
+  assert.ok(positionOffsetMeters(quietTargetPosition).eastMeters > 100000);
+  assert.ok(positionOffsetMeters(quietTargetPosition).northMeters > 100000);
 });
 
 test("Console exposes BITE status and run routes", async () => {
