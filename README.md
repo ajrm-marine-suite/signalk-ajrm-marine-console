@@ -18,10 +18,13 @@ dependencies installs the mandatory suite apps declared in `signalk.requires`:
 - AJRM Marine Notifications
 - AJRM Marine Audio
 - AJRM Marine Capture
+- AJRM Marine Navigation Reference
 
 Optional suite apps are declared in `signalk.recommends`. Install them only when
 you want those features:
 
+- Optional standard-path navigation conversion for third-party displays:
+  SK Derived Data (`signalk-derived-data`)
 - Voyage diagnostics: AJRM Marine Snapshot, Logger, and Voyage Viewer
 - Navigation integrity: AJRM Marine GPS Integrity and DR Plotter
 - Instruments: AJRM Marine Instruments and Instrument Alerts
@@ -43,6 +46,105 @@ Instrument Alerts is also optional and standalone because it reads standard
 Signal K instrument paths, so it can be used with other instrument displays. DR
 Plotter depends on GPS Integrity because GPS Integrity publishes the operational
 and independent dead-reckoning state that DR Plotter renders.
+
+## Navigation data setup
+
+AJRM Marine Navigation Reference is the suite's navigation authority. It keeps
+COG separate from bow heading, calculates magnetic variation locally with WMM,
+converts a sensor's magnetic heading to true, expires stale values, and records
+source/freshness/provenance. Traffic and GPS Integrity consume its versioned
+projection rather than trusting whichever source happens to win a raw Signal K
+path.
+
+The default ground-track selection suits the current test boat, but compass
+sources are deliberately opt-in:
+
+- a coherent physical source supplying position, true COG, and SOG is selected
+  as ground track; when several exist, same-source fix quality, satellites,
+  HDOP, integrity, and receiver type are considered before arrival time;
+- while no compass is available and the boat is moving, COG is exposed only as
+  a labelled `track-proxy`;
+- after the TP32's exact source ID is added under **Preferred
+  magnetic-heading sources**, its magnetic heading becomes true bow heading by
+  adding the locally calculated WMM variation;
+- the default TP32/magnetic-compass uncertainty is 5 degrees;
+- after its provenance and calibration are confirmed, a future NMEA 2000
+  true-heading compass must be listed under both **Preferred direct true-heading
+  sources** and **Verified independent true-heading sources** so it is selected
+  and correctly marked independent;
+- plugin/calculated values, including `derived-data`, are not treated as
+  physical sensor evidence.
+
+Use the Navigation Reference
+`/plugins/signalk-ajrm-marine-navigation-reference/status` route to see the
+recorded source IDs. On installations with multiple GNSS or compass devices,
+copy the desired IDs into the preferred-source lists rather than relying on
+arrival order.
+
+On the current boat, the live TP32 source observed in the 16 July voyage is
+`YDEN.4`. The 14 July capture used the older CAN-name form
+`YDEN.cf5096ffe83083e8`. Add both exact IDs under **Preferred magnetic-heading
+sources** before replaying both historical voyages. Keep the separate
+GNSS-associated magnetic-heading independence list empty for this TP32: its
+source publishes compass/autopilot data rather than GNSS motion.
+
+### SK Derived Data compatibility
+
+[SK Derived Data](https://github.com/SignalK/signalk-derived-data) remains useful
+when non-AJRM instruments need standard `navigation.headingTrue` or
+`navigation.magneticVariation` paths. AJRM Marine does not rely on those
+calculated values, but the suite installer includes the plugin so those standard
+paths remain available to other clients.
+
+Install it from **Signal K Admin → App Store**, search for
+`signalk-derived-data` or **SK Derived Data**, install it, and restart Signal K.
+The command-line equivalent is:
+
+```bash
+cd ~/.signalk
+npm install signalk-derived-data
+sudo systemctl restart signalk
+```
+
+After installation, open **Server → Plugin Config → Derived Data** and use these
+settings for the current boat:
+
+| Derived Data calculation | Setting | Reason |
+| --- | --- | --- |
+| Magnetic Variation | **Enabled** | Publishes a maintained WMM value on the standard path for non-AJRM clients; AJRM also calculates its own WMM value. |
+| True Heading | **Enabled** | Publishes true heading on the standard path while the TP32 supplies magnetic heading; AJRM converts its selected compass itself. |
+| Magnetic Course Over Ground | **Disabled** | AJRM does not require magnetic COG. |
+| True Course Over Ground | **Disabled** | Garmin/AIS already publishes direct `navigation.courseOverGroundTrue`. |
+| Set and Drift | **Disabled** | It is not a sufficiently independent or source-qualified DR input, and the current calculation has a set-direction defect. |
+| Estimated steer error and direction | **Disabled** | This is a Direct-To waypoint display aid, not heading, Traffic, or DR data. |
+
+If another installation supplies only magnetic COG, enable **True Course Over
+Ground** for standard-path consumers and leave **Magnetic Course Over Ground**
+disabled. Do not enable both reciprocal COG conversions together. If a
+calibrated compass later supplies direct true heading, prefer that source in
+Navigation Reference and disable the redundant derived True Heading calculation.
+
+Multiple sources for the same path must be resolved explicitly. In
+[**Data → Source Priority**](https://github.com/SignalK/signalk-server/blob/master/docs/setup/source-priority.md),
+add a **path-level override** for
+`navigation.magneticVariation` and rank the `derived-data` WMM source above the
+old GPS or chartplotter source. Do not make `derived-data` first for the whole
+source group:
+
+- keep the physical GPS/AIS source first for
+  `navigation.courseOverGroundTrue`;
+- when a direct true-heading compass is fitted, rank it above `derived-data` for
+  `navigation.headingTrue`;
+- use **Data → Browser → All sources** to confirm the alternatives, then
+  **Priority filtered** to confirm the selected source;
+- verify `navigation.magneticVariation.source` reports `WMM 2025` and
+  `navigation.headingTrue` reports source `derived-data` while magnetic heading
+  is present.
+
+The green thumbs-up symbols in Derived Data mean only that an input path exists
+and is non-null. They do not prove that its source, freshness, or accuracy is
+suitable. Navigation Reference therefore makes its own source decision and
+publishes the evidence behind it.
 
 Version `0.5.4` shortens AJRM Marine suite app titles in the Console tab bar
 while leaving third-party webapp names unchanged.
@@ -114,7 +216,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.5.97 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.6.1 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

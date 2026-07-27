@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1
+
+- Make AJRM Marine Navigation Reference a required suite component and document
+  its source-priority, heading, magnetic-model, current, and leeway contract.
+- Recommend SK Derived Data as a maintained compatibility layer while keeping
+  Navigation Reference authoritative for AJRM apps.
+- Document the Derived Data settings that should be enabled and the COG,
+  set/drift, and steer-error derivations that should remain disabled to avoid
+  circular or duplicated navigation calculations.
+
 ## 0.5.124
 
 - Move all BITE scenario targets to the same far-away cleared position as the
