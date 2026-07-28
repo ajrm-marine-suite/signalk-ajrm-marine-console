@@ -94,7 +94,11 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
   explicitly reported unavailable.
 - Notifications broker active/history/audio-sequence state being coherent.
 - Capture and Traffic APIs exposing the control methods BITE needs for
-  diagnostic recording and shared audio-policy restore.
+  diagnostic recording, timestamped voyage observations, and shared
+  audio-policy restore.
+- Display deriving Active Alerts only from the broker's current active set, so
+  resolved traffic and instrument messages do not remain as historical alerts.
+- Logger exposing persistent replay-cache usage and disk-pruning limits.
 - Audio status exposing queue/recent-event/output/dependency detail for delayed
   speech debugging.
 - Notifications visual events carrying presentation, priority, delivery, and
@@ -132,10 +136,11 @@ Current numbered BITE tests:
 | 1.4 | Audio renderer readiness | Piper/FFmpeg/rendering dependencies and output availability are explicit. |
 | 1.5 | Notifications broker health | Broker active/history/audio sequence state is visible and bounded. |
 | 1.6 | Stationary automute policy shape | Traffic audio policy exposes whether stationary automute is armed, allowed, and active. |
-| 1.7 | Capture API contract | Capture exposes status, start, stop, and automatic-recording controls used to produce BITE diagnostic bundles. |
+| 1.7 | Capture API contract | Capture exposes status, start, stop, automatic-recording, and timestamped voyage-observation controls used by BITE and Display. |
 | 1.8 | Traffic API contract | Traffic exposes status and shared audio-policy control so BITE can unmute safely and restore the prior state. |
 | 1.9 | Audio status detail contract | Audio exposes queue, recent-event, output, dependency, and mute-state detail for debugging delayed speech. |
 | 1.10 | Notifications visual contract | Notifications active visual events carry presentation, delivery, priority, timestamp, and audio-sequence fields. |
+| 1.15 | Display active-alert panel contract | Display derives Active Alerts only from currently active broker events and excludes resolved history. |
 | 2.1 | Collision visual/audio chain | Synthetic collision reaches Traffic, Display-facing visual alerts, Notifications audio delivery, and Audio acceptance. |
 | 2.2 | Quiet target no-alert | Stopped/far-away synthetic target does not create a fresh visual or audible alert. |
 | 2.3 | Traffic overtaking wording | A synthetic overtaking encounter must include overtaking and CPA-direction wording through the alert chain. |
@@ -146,8 +151,10 @@ Current numbered BITE tests:
 | 2.8 | Traffic stand-on prompt | A synthetic port-side collision must say Stand On. |
 | 2.9 | Traffic target overtaking wording | A target overtaking own vessel from astern must say it is overtaking you. |
 | 2.10 | Traffic same-course wording | A similar-course passing encounter must say same general course and give the CPA side. |
-| 2.11 | Traffic target projection contract | Traffic target projections include identity, encounter state, profile, session, and sequence fields. |
+| 2.11 | Traffic target projection contract | Traffic target projections include identity, encounter state, AIS class evidence, nullable ROT, profile, session, and sequence fields. |
 | 2.12 | Traffic audio policy contract | Traffic's shared mute/automute policy carries voyage/profile/manual-override state explicitly. |
+| 2.18 | Traffic stationary-vessel wording | A stationary target is described as stationary and never as being overtaken by own vessel. |
+| 2.19 | Traffic collision all-clear lifecycle | A real warning/alarm must produce one qualified all-clear after sustained clearance, and the target must leave Display Active Alerts. |
 | 3.0 | GPS Integrity availability | Optional GPS Integrity plugin is installed, enabled, and visible to Console when present. |
 | 3.0.1 | DR Plotter availability | Optional DR Plotter plugin is installed, enabled, and visible to Console when present. |
 | 3.1 | GPS Integrity health | GPS Integrity publishes trust, fix, counters, and timestamp state coherently. |
@@ -171,11 +178,13 @@ Current numbered BITE tests:
 | 9.2 | Snapshot availability | Optional Snapshot plugin is installed, enabled, and visible to Console when present. |
 | 9.3 | Logger availability | Optional Logger plugin is installed, enabled, and visible to Console when present. |
 | 9.3.1 | Logger runtime API contract | Logger exposes status/start/stop/path API methods to the live Signal K process. |
+| 9.3.2 | Logger replay sanity contract | Logger exposes safe replay timestamp/filter state and persistent replay-cache usage, size limit, and free-disk reserve. |
 | 9.4 | Voyage Viewer availability | Optional Voyage Viewer plugin is installed, enabled, and visible to Console when present. |
 | 9.5 | Simulator availability | Optional Simulator plugin is installed, enabled, and visible to Console when present. |
 | 9.6 | Alert Panel availability | Optional Alert Panel plugin is installed, enabled, and visible to Console when present. |
 | 9.7 | Instruments availability | Optional Instruments plugin is installed, enabled, and visible to Console when present. |
 | 9.8 | Instrument Alerts availability | Optional Instrument Alerts plugin is installed, enabled, and visible to Console when present. |
+| 9.8.1 | Instrument Alerts depth-callout contract | Depth callouts expose active, scheduled-expiry, and last-clear-reason state so a stuck callout is detectable. |
 | 9.9 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
 | 9.9.1 | Harbour Editor default data contract | Harbour Editor reports enabled local/default harbour data and seed state without relying on Git storage. |
 | 9.10 | Pi Controller availability | Optional Pi Controller plugin is installed, enabled, and visible to Console when present. |
@@ -185,6 +194,12 @@ Current numbered BITE tests:
 Portable evaluator regression tests also cover stale audio evidence, broker-only
 delivery before Audio catches up, missing Display-facing visual evidence, and
 quiet-target false visual/audio leakage.
+
+The following Display behaviours remain browser-local and therefore need a
+short visual/manual check after installation: own-vessel icon size; Heading
+versus COG icon orientation; the projected track remaining COG in either mode;
+and background-tab speech being discarded rather than queued. Their
+deterministic browser tests still run in Display CI.
 
 The next Pi BITE runner should use Simulator's GPX route-following mode for a
 longer realistic voyage. It should:

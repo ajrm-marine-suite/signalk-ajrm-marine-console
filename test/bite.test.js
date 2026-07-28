@@ -39,6 +39,14 @@ function trafficProjection(state = "alarm") {
       id: `vessels.urn:mrn:imo:mmsi:${TEST_TARGET_MMSI}`,
       mmsi: TEST_TARGET_MMSI,
       name: TEST_TARGET_NAME,
+      aisClass: "B",
+      aisClassEvidence: {
+        status: "reported",
+        source: "test-fixture",
+      },
+      navigation: {
+        rateOfTurn: null,
+      },
       encounter: {
         state,
         silenced: false,
@@ -1080,6 +1088,9 @@ test("Console exposes BITE status and run routes", async () => {
         path: "environment.depth.belowKeel",
         audio: true,
         anchorDroppedSelectsTrafficProfile: true,
+        notificationActive: false,
+        notificationClearsAt: null,
+        lastNotificationClearReason: "depth-above-callout-band",
       },
       recentEvents: [],
     },
@@ -1387,6 +1398,26 @@ test("Console exposes BITE status and run routes", async () => {
         captureCommands.push({ stop: true });
         return { fileName: "voyage-bite.zip" };
       },
+      async appendObservation() {
+        return { observation: { id: "observation-bite" } };
+      },
+      async observations() {
+        return { observations: [] };
+      },
+    },
+    ajrmMarineDisplayApi: {
+      status() {
+        return values["plugins.ajrmMarineDisplay"];
+      },
+      panelEvents() {
+        const active = values["plugins.ajrmMarineNotifications"]?.active || [];
+        return {
+          entries: active.slice(0, 3).map((event) => ({
+            id: event.eventId || event.id,
+            message: event.message,
+          })),
+        };
+      },
     },
     ajrmMarineTrafficApi: {
       async status() {
@@ -1432,6 +1463,14 @@ test("Console exposes BITE status and run routes", async () => {
           playback: { active: false },
           freshTimestamps: true,
           excludeDerivedData: true,
+          options: {
+            replayCacheMaxGigabytes: 8,
+            replayCacheMinimumFreeGigabytes: 2,
+          },
+          replayCache: {
+            entries: 1,
+            bytes: 12345,
+          },
           paths: { recordings: "/tmp/ajrm-logger" },
         };
       },
@@ -2350,6 +2389,7 @@ test("Console exposes BITE status and run routes", async () => {
     "capture-active-voyage-contract",
     "bite-bundled-report-contract",
     "audio-diagnostics-contract",
+    "display-active-alert-panel-contract",
     "audio-output-summary",
   ]);
 

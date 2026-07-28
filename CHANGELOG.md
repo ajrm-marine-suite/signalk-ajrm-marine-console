@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.2
+
+- Extend live BITE coverage for stationary-vessel wording and the qualified
+  collision all-clear lifecycle, including removal from Display Active Alerts.
+- Verify Display's active-only alert-panel projection, Capture voyage
+  observations, Logger replay-cache limits, Traffic AIS class/nullable ROT
+  fields, and depth-callout expiry diagnostics.
+- Document the browser-local appearance and focus/speech checks that remain
+  manual after installation.
+- Preserve Console's fuller onboard help when Display supplies only its compact
+  local help reference during packaging.
+
 ## 0.6.1
 
 - Make AJRM Marine Navigation Reference a required suite component and document

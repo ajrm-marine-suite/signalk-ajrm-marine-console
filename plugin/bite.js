@@ -592,6 +592,13 @@ const TESTS = [
     timeoutSeconds: 5,
   },
   {
+    id: "display-active-alert-panel-contract",
+    number: "1.15",
+    title: "Display active-alert panel contract",
+    description: "Checks Display builds Active Alerts only from currently active broker events, never from historical activity.",
+    timeoutSeconds: 5,
+  },
+  {
     id: "gps-explicit-no-fix-immediate",
     number: "3.12",
     title: "GPS explicit no-fix immediate",
@@ -715,6 +722,20 @@ const TESTS = [
     timeoutSeconds: 35,
   },
   {
+    id: "traffic-stationary-wording",
+    number: "2.18",
+    title: "Traffic stationary-vessel wording",
+    description: "Publishes a stationary target outside a harbour and checks the advisory says stationary without saying own vessel is overtaking it.",
+    timeoutSeconds: 30,
+  },
+  {
+    id: "traffic-clear-lifecycle",
+    number: "2.19",
+    title: "Traffic collision all-clear lifecycle",
+    description: "Creates and clears a collision risk, then checks for one qualified all-clear and removal of the target from Display Active Alerts.",
+    timeoutSeconds: 55,
+  },
+  {
     id: "gps-vector-arrow-contract",
     number: "3.14",
     title: "GPS/DR vector arrow contract",
@@ -818,6 +839,7 @@ const BITE_GROUP_DEFINITIONS = [
       "capture-active-voyage-contract",
       "bite-bundled-report-contract",
       "audio-diagnostics-contract",
+      "display-active-alert-panel-contract",
     ],
   },
   {
@@ -843,6 +865,8 @@ const BITE_GROUP_DEFINITIONS = [
       "traffic-visual-audio-wording-alignment",
       "traffic-harbour-profile-boundary",
       "traffic-safety-message-retained",
+      "traffic-stationary-wording",
+      "traffic-clear-lifecycle",
     ],
   },
   {
@@ -905,6 +929,7 @@ const DEFAULT_REPORTS_DIRECTORY = path.join(
 );
 const MAX_REPORTS = 200;
 const AJRM_MARINE_CAPTURE_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineCaptureApi");
+const AJRM_MARINE_DISPLAY_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineDisplayApi");
 const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
 const AJRM_MARINE_LOGGER_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineLoggerApi");
 const AJRM_MARINE_SNAPSHOT_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineSnapshotApi");
@@ -1458,6 +1483,10 @@ function captureApi(app) {
   return app.ajrmMarineCaptureApi || globalThis[AJRM_MARINE_CAPTURE_API_REGISTRY] || null;
 }
 
+function displayApi(app) {
+  return app.ajrmMarineDisplayApi || globalThis[AJRM_MARINE_DISPLAY_API_REGISTRY] || null;
+}
+
 function trafficApi(app) {
   return app.ajrmMarineTrafficApi || globalThis[AJRM_MARINE_TRAFFIC_API_REGISTRY] || null;
 }
@@ -1524,6 +1553,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "audio-diagnostics-contract") {
     return runAudioDiagnosticsContractBite(app, { consoleVersion });
+  }
+  if (testId === "display-active-alert-panel-contract") {
+    return runDisplayActiveAlertPanelContractBite(app, { consoleVersion });
   }
   if (testId === "audio-output-summary") {
     return runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorReports, timeoutMs });
@@ -1631,6 +1663,12 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "traffic-safety-message-retained") {
     return runTrafficSafetyMessageRetainedBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-stationary-wording") {
+    return runTrafficStationaryWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-clear-lifecycle") {
+    return runTrafficClearLifecycleBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
   if (testId === "gps-vector-arrow-contract") return runGpsVectorArrowContractBite(app, { consoleVersion });
   if (testId === "gps-counter-contract") return runGpsCounterContractBite(app, { consoleVersion });
@@ -2612,6 +2650,80 @@ async function runCaptureActiveVoyageContractBite(app, { consoleVersion }) {
   });
 }
 
+async function runDisplayActiveAlertPanelContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const api = displayApi(app);
+  const broker = readSelfPath(app, WATCH_PATHS.notifications) || {};
+  let panel = null;
+  let apiError = "";
+  try {
+    panel = typeof api?.panelEvents === "function" ? await api.panelEvents() : null;
+  } catch (error) {
+    apiError = error?.message || String(error);
+  }
+  const activeKeys = new Set(
+    (Array.isArray(broker.active) ? broker.active : [])
+      .map((event) => String(event?.eventId || event?.id || notificationMessage(event)))
+      .filter(Boolean),
+  );
+  const recentOnlyKeys = new Set(
+    (Array.isArray(broker.recentActivity) ? broker.recentActivity : [])
+      .map((event) => String(event?.eventId || event?.id || notificationMessage(event)))
+      .filter((key) => key && !activeKeys.has(key)),
+  );
+  const entries = Array.isArray(panel?.entries) ? panel.entries : [];
+  const panelKeys = entries
+    .map((entry) => String(entry?.id || notificationMessage(entry)))
+    .filter(Boolean);
+  const assertions = [
+    assertion(
+      "display-runtime-api-visible",
+      Boolean(api) && typeof api?.panelEvents === "function",
+      api ? "Display exposes its live panel projection to BITE." : "Display runtime BITE API is missing.",
+    ),
+    assertion(
+      "display-panel-readable",
+      Boolean(panel) && !apiError && Array.isArray(panel?.entries),
+      apiError ? `Display panel projection threw: ${apiError}` : "Display panel projection is readable.",
+    ),
+    assertion(
+      "panel-contains-only-active-events",
+      panelKeys.every((key) => activeKeys.has(key)),
+      "Every Display Active Alerts entry must correspond to a currently active broker event.",
+    ),
+    assertion(
+      "historical-events-excluded",
+      panelKeys.every((key) => !recentOnlyKeys.has(key)),
+      "Resolved/historical broker events must not be retained in Display Active Alerts.",
+    ),
+    assertion(
+      "empty-broker-means-empty-panel",
+      activeKeys.size > 0 || entries.length === 0,
+      activeKeys.size > 0
+        ? `${activeKeys.size} broker event(s) are active; Display exposes ${entries.length}.`
+        : "The broker has no active events and the Display panel is empty.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "display-active-alert-panel-contract",
+    testId: "display-active-alert-panel-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ activeKeys: [...activeKeys], recentOnlyKeys: [...recentOnlyKeys], panelKeys }],
+    summary: result === "pass"
+      ? "Display Active Alerts contains only currently active broker events."
+      : `Display Active Alerts contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { brokerActiveCount: activeKeys.size, brokerRecentOnlyCount: recentOnlyKeys.size, panel, apiError },
+  });
+}
+
 async function runBiteBundledReportContractBite(_app, { consoleVersion, priorReports = [] }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -3506,6 +3618,16 @@ async function runLoggerReplaySanityContractBite(app, { consoleVersion }) {
         ? "Active Logger replay should avoid replaying derived suite data unless explicitly configured safe."
         : "Logger replay is idle; derived data replay is not currently active.",
     ),
+    assertion(
+      "replay-cache-policy-visible",
+      Boolean(
+        status?.replayCache &&
+        typeof status.replayCache === "object" &&
+        status?.options?.replayCacheMaxGigabytes != null &&
+        status?.options?.replayCacheMinimumFreeGigabytes != null
+      ),
+      "Logger should expose persistent replay-cache usage, its size limit, and its free-disk reserve.",
+    ),
   ];
   if (statusError) {
     assertions.push(assertion("status-readable", false, `Logger status threw: ${statusError}`));
@@ -3725,6 +3847,18 @@ async function runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersi
       !supported || depthCallout.audio !== false,
       supported
         ? "Depth callout is able to request audio output."
+        : "Depth callout capability is not available.",
+    ),
+    assertion(
+      "depth-callout-clear-lifecycle-visible",
+      !supported ||
+        (
+          depthCallout.notificationActive != null &&
+          Object.prototype.hasOwnProperty.call(depthCallout, "notificationClearsAt") &&
+          Object.prototype.hasOwnProperty.call(depthCallout, "lastNotificationClearReason")
+        ),
+      supported
+        ? "Depth callout exposes active, expiry, and last-clear-reason state so a stuck alert is diagnosable."
         : "Depth callout capability is not available.",
     ),
     assertion(
@@ -4053,6 +4187,11 @@ async function runCaptureApiContractBite(app, { consoleVersion }) {
       "capture-control-methods",
       Boolean(capture?.status && capture?.start && capture?.stop && capture?.setAutomaticRecordingEnabled),
       "Capture API should expose status, start, stop, and setAutomaticRecordingEnabled methods.",
+    ),
+    assertion(
+      "voyage-observation-methods",
+      Boolean(capture?.appendObservation && capture?.observations),
+      "Capture API should expose appendObservation and observations so Display can add timestamped voyage notes.",
     ),
     assertion(
       "capture-status-readable",
@@ -6131,6 +6270,26 @@ async function runTrafficTargetProjectionContractBite(app, { consoleVersion }) {
         : "Every projected target should expose identity and encounter state.",
     ),
     assertion(
+      "traffic-ais-class-evidence",
+      targets.length === 0 || targets.every((target) =>
+        Object.prototype.hasOwnProperty.call(target, "aisClass") &&
+        target.aisClassEvidence &&
+        typeof target.aisClassEvidence.status === "string"),
+      targets.length === 0
+        ? "No current Traffic targets; AIS class evidence will be exercised by plugin tests."
+        : "Every target exposes explicit AIS class A/B/unknown evidence rather than assuming Class A.",
+    ),
+    assertion(
+      "traffic-rate-of-turn-nullable",
+      targets.length === 0 || targets.every((target) =>
+        target.navigation &&
+        Object.prototype.hasOwnProperty.call(target.navigation, "rateOfTurn") &&
+        (target.navigation.rateOfTurn === null || Number.isFinite(Number(target.navigation.rateOfTurn)))),
+      targets.length === 0
+        ? "No current Traffic targets; nullable ROT will be exercised by plugin tests."
+        : "Every target exposes rate of turn as a finite value or explicit null so Display can clear its turn indicator.",
+    ),
+    assertion(
       "traffic-debug-sequence",
       Boolean(traffic.sessionId) && Number.isFinite(Number(traffic.sequence)),
       "Traffic target projection should expose sessionId and sequence for replay/debug correlation.",
@@ -6417,6 +6576,168 @@ async function runTrafficSafetyMessageRetainedBite(app, { pluginId, testId, cons
       ? "Collision-level safety audio remained visible after lower-priority queue activity."
       : trafficScenarioFailureSummary("Traffic safety message retention check failed", { assertions }, finalSnapshot, target),
     snapshot: finalSnapshot ? summarizeSnapshot(finalSnapshot) : null,
+  });
+}
+
+async function runTrafficStationaryWordingBite(app, options) {
+  const offshorePosition = { latitude: 56.0, longitude: -6.0 };
+  return runTrafficMessageScenarioBite(app, {
+    ...options,
+    target: {
+      mmsi: "970000218",
+      name: "BITE STATIONARY",
+      position: offsetPositionMeters(offshorePosition, { eastMeters: 260, northMeters: 0 }),
+      speedMps: 0,
+      courseRad: 0,
+      lengthMeters: 22,
+      beamMeters: 6,
+      aisClass: "B",
+    },
+    own: {
+      position: offshorePosition,
+      speedMps: 4 * KNOTS_TO_MPS,
+      courseRad: Math.PI / 2,
+    },
+    expectedPatterns: [/stationary/i, /CPA|collision|close quarters/i],
+    forbiddenPatterns: [/You are overtaking it/i],
+    expectedAudioPatterns: [/stationary/i],
+    forbiddenAudioPatterns: [/You are overtaking it/i],
+    passSummary: "Stationary-target advice identifies the vessel as stationary and does not call the encounter overtaking.",
+    failSummary: "Traffic stationary-vessel wording check failed",
+  });
+}
+
+async function runTrafficClearLifecycleBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const target = {
+    mmsi: "970000219",
+    name: "BITE CLEAR",
+    position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 0 }),
+    speedMps: 5 * KNOTS_TO_MPS,
+    courseRad: (3 * Math.PI) / 2,
+    lengthMeters: 22,
+    beamMeters: 6,
+    aisClass: "A",
+  };
+  const own = {
+    position: OWN_POSITION,
+    speedMps: 5 * KNOTS_TO_MPS,
+    courseRad: Math.PI / 2,
+  };
+  const quietTarget = {
+    ...target,
+    position: offsetPositionMeters(OWN_POSITION, CLEAR_TARGET_OFFSET_METERS),
+    speedMps: 0,
+    courseRad: 0,
+  };
+  const quietOwn = { position: OWN_POSITION, speedMps: 0, courseRad: 0 };
+  const observations = [];
+  let dangerSeen = false;
+  let clearEvents = [];
+  let panel = null;
+  let scenarioSettings = null;
+  let settingsError = "";
+  let lastRefreshAt = 0;
+  let phase = "danger";
+  try {
+    scenarioSettings = await applyBiteTrafficScenarioSettings(app);
+    if (scenarioSettings?.ok === false) {
+      settingsError = scenarioSettings.message || "BITE scenario Traffic settings could not be applied.";
+    }
+    while (Date.now() - startedAtMs <= timeoutMs) {
+      if (Date.now() - lastRefreshAt >= REFRESH_MS) {
+        publishSyntheticTrafficScenario(app, {
+          pluginId,
+          runId,
+          target: phase === "danger" ? target : quietTarget,
+          own: phase === "danger" ? own : quietOwn,
+        });
+        lastRefreshAt = Date.now();
+      }
+      const snapshot = collectSnapshot(app);
+      const projectedTarget = (snapshot.traffic?.targets || []).find((entry) =>
+        matchesTarget(entry, target.name, target.mmsi));
+      if (!dangerSeen && /warning|alarm/i.test(String(projectedTarget?.encounter?.state || ""))) {
+        dangerSeen = true;
+        phase = "clear";
+        lastRefreshAt = 0;
+        observations.push({ ts: new Date().toISOString(), phase: "danger-seen", state: projectedTarget.encounter.state });
+      }
+      const brokerObjects = [
+        ...(Array.isArray(snapshot.notifications?.recentActivity)
+          ? snapshot.notifications.recentActivity
+          : []),
+        ...(Array.isArray(snapshot.notifications?.history)
+          ? snapshot.notifications.history
+          : []),
+      ];
+      clearEvents = brokerObjects.filter((event) => {
+        const message = notificationMessage(event);
+        return freshEnough(event.ts || event.timestamp || event.occurredAt, startedAtMs) &&
+          /Traffic clear/i.test(message) &&
+          message.includes(target.name) &&
+          /no longer a predicted collision risk/i.test(message);
+      });
+      if (clearEvents.length) {
+        panel = typeof displayApi(app)?.panelEvents === "function"
+          ? await displayApi(app).panelEvents()
+          : null;
+        break;
+      }
+      await delay(POLL_MS);
+    }
+  } catch (error) {
+    settingsError = error?.message || String(error);
+  } finally {
+    await clearSyntheticScenarioTarget(app, { pluginId, runId, target });
+    const restored = await scenarioSettings?.restore?.();
+    if (restored?.ok === false && !settingsError) settingsError = restored.message;
+  }
+  const uniqueClearIds = new Set(
+    clearEvents.map((event) => String(event.eventId || event.id || notificationMessage(event))),
+  );
+  const panelMessages = (panel?.entries || []).map((entry) => String(entry?.message || ""));
+  const assertions = [
+    assertion("collision-risk-first-seen", dangerSeen, "The synthetic target must first reach warning/alarm state."),
+    assertion(
+      "qualified-traffic-clear-published",
+      clearEvents.length > 0,
+      clearEvents.length
+        ? `Traffic published: ${notificationMessage(clearEvents[0])}`
+        : "Traffic did not publish the qualified collision all-clear within the test window.",
+    ),
+    assertion(
+      "single-clear-event",
+      uniqueClearIds.size === 1,
+      `Expected one all-clear event; observed ${uniqueClearIds.size}.`,
+    ),
+    assertion(
+      "cleared-target-removed-from-active-panel",
+      Boolean(panel) && panelMessages.every((message) => !message.includes(target.name)),
+      panel
+        ? "Display Active Alerts no longer contains the cleared target."
+        : "Display panel projection was unavailable.",
+    ),
+    assertion("scenario-settings-restored", !settingsError, settingsError || "Traffic settings were restored."),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: testId,
+    testId,
+    result,
+    startedAt,
+    startedAtMs,
+    target: { mmsi: target.mmsi, name: target.name },
+    assertions,
+    observations,
+    summary: result === "pass"
+      ? "Traffic issued one qualified all-clear and Display removed the resolved collision alert."
+      : `Traffic all-clear lifecycle failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { clearEvents: clearEvents.slice(0, 3), panel, settingsError },
   });
 }
 

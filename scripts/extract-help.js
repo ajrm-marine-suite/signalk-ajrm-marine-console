@@ -9,6 +9,16 @@ const donor =
   path.join(root, "..", "signalk-ajrm-marine-display", "src", "web", "index.html");
 const output = path.join(root, "public", "help.html");
 const source = fs.readFileSync(donor, "utf8");
+const existingOutput = fs.existsSync(output) ? fs.readFileSync(output, "utf8") : "";
+if (
+  !source.includes('id="help-current-settings"') &&
+  existingOutput.includes('id="help-current-settings"')
+) {
+  console.log(
+    `Kept the fuller Console help because ${donor} contains only the compact Display reference.`,
+  );
+  process.exit(0);
+}
 const modalStart = source.indexOf('id="modalHelp"');
 const bodyStart = source.indexOf('<div class="modal-body">', modalStart);
 const contentStart = bodyStart + '<div class="modal-body">'.length;
