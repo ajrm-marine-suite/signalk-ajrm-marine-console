@@ -7665,6 +7665,8 @@ function publishDeadReckoningExerciseSample(app, {
         includeCurrent,
         currentSetTrue: currentSetValue,
         currentDrift: currentDriftValue,
+        hdop,
+        satellites,
       }),
     });
   }
@@ -7677,6 +7679,8 @@ function syntheticDrNavigationReferenceState({
   includeCurrent,
   currentSetTrue,
   currentDrift,
+  hdop,
+  satellites,
 }) {
   const measurement = (value, method, gpsDependent, source = BITE_DR_SYNTHETIC_SOURCE) => ({
     value,
@@ -7707,6 +7711,20 @@ function syntheticDrNavigationReferenceState({
           coherent: true,
         }
       : null,
+    gnss: {
+      source: BITE_DR_SYNTHETIC_SOURCE,
+      sourceKind: "synthetic-test",
+      timestamp,
+      ageMs: 0,
+      gpsDependent: true,
+      fixValid: includeGps,
+      explicitUnavailable: !includeGps,
+      rejectionReason: includeGps ? null : "gnss-method-reports-no-valid-fix",
+      methodQuality: includeGps ? "GNSS fix" : "no GPS",
+      satellites: includeGps ? satellites : 0,
+      horizontalDilution: includeGps ? hdop : null,
+      evidence: "synthetic-bite-gnss-status",
+    },
     bowHeadingTrue: heading,
     clockReference: {
       kind: "heading",
@@ -7839,6 +7857,20 @@ function syntheticNavigationReferenceState({
       ageMs: 0,
       gpsDependent: true,
       coherent: true,
+    },
+    gnss: {
+      source: BITE_SYNTHETIC_SOURCE,
+      sourceKind: "synthetic-test",
+      timestamp,
+      ageMs: 0,
+      gpsDependent: true,
+      fixValid: true,
+      explicitUnavailable: false,
+      rejectionReason: null,
+      methodQuality: "GNSS fix",
+      satellites: 12,
+      horizontalDilution: 0.8,
+      evidence: "synthetic-bite-gnss-status",
     },
     bowHeadingTrue: measurement(courseRad, "bite-explicit-heading", false),
     clockReference: {

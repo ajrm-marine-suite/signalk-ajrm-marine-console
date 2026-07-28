@@ -819,8 +819,41 @@ test("BITE dead-reckoning samples use a stable source", () => {
   assert.equal(reference.contract, "ajrm-marine-navigation-reference");
   assert.equal(reference.position.source, "ajrm-marine-bite-dr");
   assert.equal(reference.groundTrack.coherent, true);
+  assert.equal(reference.gnss.fixValid, true);
+  assert.equal(reference.gnss.explicitUnavailable, false);
   assert.equal(reference.current.origin, "bite-independent-current");
   assert.equal(reference.current.gpsDependent, false);
+
+  publishDeadReckoningExerciseSample(app, {
+    pluginId: "signalk-ajrm-marine-console",
+    runId: "test-run",
+    phase: "explicit-no-fix",
+    position: BITE_OWN_POSITION,
+    includeGps: false,
+    includeCurrent: false,
+    hdop: 25,
+    satellites: 2,
+  });
+  const noFixReference = messages.at(-1).message.updates[0].values[0].value;
+  assert.equal(noFixReference.gnss.fixValid, false);
+  assert.equal(noFixReference.gnss.explicitUnavailable, true);
+  assert.equal(noFixReference.gnss.methodQuality, "no GPS");
+  assert.equal(noFixReference.gnss.satellites, 0);
+
+  publishDeadReckoningExerciseSample(app, {
+    pluginId: "signalk-ajrm-marine-console",
+    runId: "test-run",
+    phase: "weak-signal",
+    position: BITE_OWN_POSITION,
+    includeGps: true,
+    includeCurrent: false,
+    hdop: 25,
+    satellites: 2,
+  });
+  const weakReference = messages.at(-1).message.updates[0].values[0].value;
+  assert.equal(weakReference.gnss.fixValid, true);
+  assert.equal(weakReference.gnss.horizontalDilution, 25);
+  assert.equal(weakReference.gnss.satellites, 2);
 });
 
 test("BITE Traffic scenarios publish an explicit heading Navigation Reference contract", () => {

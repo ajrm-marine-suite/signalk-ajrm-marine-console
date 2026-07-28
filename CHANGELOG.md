@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.6
+
+- Include explicit GNSS fix status and source-quality evidence in synthetic
+  Navigation Reference exercises, so no-fix, weak-signal, satellite-count, and
+  HDOP checks survive the provider boundary.
+
 ## 0.6.5
 
 - Use Navigation Reference's bounded in-process BITE override for synthetic
