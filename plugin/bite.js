@@ -7638,12 +7638,112 @@ function publishDeadReckoningExerciseSample(app, {
       ],
     }],
   });
+  if (phase !== "restore-gps") {
+    app.handleMessage?.(pluginId, {
+      context: "vessels.self",
+      updates: [{
+        $source: BITE_DR_SYNTHETIC_SOURCE,
+        timestamp,
+        values: [{
+          path: WATCH_PATHS.navigationReference,
+          value: syntheticDrNavigationReferenceState({
+            timestamp,
+            position: gpsPosition,
+            includeGps,
+            includeCurrent,
+            currentSetTrue: currentSetValue,
+            currentDrift: currentDriftValue,
+          }),
+        }],
+      }],
+    });
+  }
 }
 
-function publishSyntheticTrafficScenario(app, { pluginId, runId, target, own }) {
+function syntheticDrNavigationReferenceState({
+  timestamp,
+  position,
+  includeGps,
+  includeCurrent,
+  currentSetTrue,
+  currentDrift,
+}) {
+  const measurement = (value, method, gpsDependent, source = BITE_DR_SYNTHETIC_SOURCE) => ({
+    value,
+    source,
+    sourceKind: "synthetic-test",
+    timestamp,
+    ageMs: 0,
+    method,
+    gpsDependent,
+  });
+  const heading = measurement(0, "bite-explicit-heading", false);
+  return {
+    contract: "ajrm-marine-navigation-reference",
+    schemaVersion: 1,
+    updatedAt: timestamp,
+    status: includeGps ? "heading" : "unavailable",
+    position: includeGps
+      ? measurement(position, "bite-coherent-position", true)
+      : null,
+    groundTrack: includeGps
+      ? {
+          courseTrue: measurement(0, "bite-ground-track", true),
+          speedOverGround: measurement(0, "bite-speed-over-ground", true),
+          source: BITE_DR_SYNTHETIC_SOURCE,
+          timestamp,
+          ageMs: 0,
+          gpsDependent: true,
+          coherent: true,
+        }
+      : null,
+    bowHeadingTrue: heading,
+    clockReference: {
+      kind: "heading",
+      ...heading,
+      uncertaintyRad: 0,
+    },
+    magneticVariation: null,
+    throughWater: {
+      headingTrue: heading,
+      speedThroughWater: measurement(0, "bite-speed-through-water", false),
+      leeway: measurement(0, "bite-zero-leeway", false),
+      trackTrue: measurement(0, "bite-water-track", false),
+      leewayStatus: "known",
+    },
+    current: includeCurrent
+      ? {
+          setTrue: currentSetTrue,
+          drift: currentDrift,
+          source: BITE_DR_SYNTHETIC_SOURCE,
+          sourceKind: "synthetic-test",
+          timestamp,
+          ageMs: 0,
+          origin: "bite-independent-current",
+          gpsDependent: false,
+          quality: { status: "test" },
+        }
+      : null,
+    residual: null,
+    replay: { active: false },
+    diagnostics: {
+      syntheticBite: true,
+      runPurpose: "dead-reckoning-exercise",
+    },
+  };
+}
+
+function publishSyntheticTrafficScenario(app, {
+  pluginId,
+  runId,
+  target,
+  own,
+  includeTestNavigationReference = true,
+}) {
   const timestamp = new Date().toISOString();
   const ownCourse = Number.isFinite(Number(own?.courseRad)) ? Number(own.courseRad) : 0;
   const ownSpeed = Number.isFinite(Number(own?.speedMps)) ? Number(own.speedMps) : 0;
+  const ownPosition = own?.position || OWN_POSITION;
   const targetCourse = Number.isFinite(Number(target?.courseRad)) ? Number(target.courseRad) : 0;
   const targetSpeed = Number.isFinite(Number(target?.speedMps)) ? Number(target.speedMps) : 0;
 
@@ -7653,7 +7753,7 @@ function publishSyntheticTrafficScenario(app, { pluginId, runId, target, own }) 
       $source: BITE_SYNTHETIC_SOURCE,
       timestamp,
       values: [
-        { path: "navigation.position", value: own?.position || OWN_POSITION },
+        { path: "navigation.position", value: ownPosition },
         { path: "navigation.speedOverGround", value: ownSpeed },
         { path: "navigation.speedThroughWater", value: ownSpeed },
         { path: "navigation.courseOverGroundTrue", value: ownCourse },
@@ -7662,6 +7762,24 @@ function publishSyntheticTrafficScenario(app, { pluginId, runId, target, own }) 
       ],
     }],
   });
+  if (includeTestNavigationReference) {
+    app.handleMessage(pluginId, {
+      context: "vessels.self",
+      updates: [{
+        $source: BITE_SYNTHETIC_SOURCE,
+        timestamp,
+        values: [{
+          path: WATCH_PATHS.navigationReference,
+          value: syntheticNavigationReferenceState({
+            timestamp,
+            position: ownPosition,
+            courseRad: ownCourse,
+            speedMps: ownSpeed,
+          }),
+        }],
+      }],
+    });
+  }
   app.handleMessage(pluginId, {
     context: `vessels.urn:mrn:imo:mmsi:${target.mmsi}`,
     updates: [{
@@ -7687,6 +7805,54 @@ function publishSyntheticTrafficScenario(app, { pluginId, runId, target, own }) 
   });
 }
 
+function syntheticNavigationReferenceState({
+  timestamp,
+  position,
+  courseRad,
+  speedMps,
+}) {
+  const measurement = (value, method, gpsDependent) => ({
+    value,
+    source: BITE_SYNTHETIC_SOURCE,
+    sourceKind: "synthetic-test",
+    timestamp,
+    ageMs: 0,
+    method,
+    gpsDependent,
+  });
+  return {
+    contract: "ajrm-marine-navigation-reference",
+    schemaVersion: 1,
+    updatedAt: timestamp,
+    status: "heading",
+    position: measurement(position, "bite-coherent-position", true),
+    groundTrack: {
+      courseTrue: measurement(courseRad, "bite-ground-track", true),
+      speedOverGround: measurement(speedMps, "bite-speed-over-ground", true),
+      source: BITE_SYNTHETIC_SOURCE,
+      timestamp,
+      ageMs: 0,
+      gpsDependent: true,
+      coherent: true,
+    },
+    bowHeadingTrue: measurement(courseRad, "bite-explicit-heading", false),
+    clockReference: {
+      kind: "heading",
+      ...measurement(courseRad, "bite-explicit-heading", false),
+      uncertaintyRad: 0,
+    },
+    magneticVariation: null,
+    throughWater: null,
+    current: null,
+    residual: null,
+    replay: { active: false },
+    diagnostics: {
+      syntheticBite: true,
+      runPurpose: "traffic-message-chain",
+    },
+  };
+}
+
 async function clearSyntheticEncounter(app, { pluginId, runId }) {
   for (let index = 0; index < 3; index += 1) {
     publishSyntheticEncounterClear(app, { pluginId, runId });
@@ -7707,7 +7873,13 @@ async function clearSyntheticScenarioTarget(app, { pluginId, runId, target }) {
     courseRad: 0,
   };
   for (let index = 0; index < 3; index += 1) {
-    publishSyntheticTrafficScenario(app, { pluginId, runId, target: quietTarget, own });
+    publishSyntheticTrafficScenario(app, {
+      pluginId,
+      runId,
+      target: quietTarget,
+      own,
+      includeTestNavigationReference: false,
+    });
     await delay(CLEAR_REFRESH_MS);
   }
 }
@@ -8606,5 +8778,6 @@ module.exports = {
   clearSyntheticQuietTarget,
   publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,
+  publishSyntheticTrafficScenario,
   unwrapSignalKLeaf,
 };

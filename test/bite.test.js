@@ -20,6 +20,7 @@ const {
   currentDrifts,
   publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,
+  publishSyntheticTrafficScenario,
   unwrapSignalKLeaf,
 } = require("../plugin/bite");
 
@@ -803,7 +804,7 @@ test("BITE dead-reckoning samples use a stable source", () => {
     includeCurrent: true,
   });
 
-  assert.equal(messages.length, 1);
+  assert.equal(messages.length, 2);
   assert.equal(messages[0].message.context, "vessels.self");
   assert.equal(messages[0].message.updates[0].$source, "ajrm-marine-bite-dr");
   assert.deepEqual(
@@ -814,6 +815,52 @@ test("BITE dead-reckoning samples use a stable source", () => {
       timestamp: messages[0].message.updates[0].timestamp,
     },
   );
+  const reference = messages[1].message.updates[0].values[0].value;
+  assert.equal(reference.contract, "ajrm-marine-navigation-reference");
+  assert.equal(reference.position.source, "ajrm-marine-bite-dr");
+  assert.equal(reference.groundTrack.coherent, true);
+  assert.equal(reference.current.origin, "bite-independent-current");
+  assert.equal(reference.current.gpsDependent, false);
+});
+
+test("BITE Traffic scenarios publish an explicit heading Navigation Reference contract", () => {
+  const messages = [];
+  const app = {
+    handleMessage(id, message) {
+      messages.push({ id, message });
+    },
+  };
+
+  publishSyntheticTrafficScenario(app, {
+    pluginId: "signalk-ajrm-marine-console",
+    runId: "test-run",
+    own: {
+      position: BITE_OWN_POSITION,
+      speedMps: 6 * 0.514444,
+      courseRad: Math.PI / 2,
+    },
+    target: {
+      mmsi: "235912347",
+      name: "BITE OVERTAKING TARGET",
+      position: BITE_OWN_POSITION,
+      speedMps: 3 * 0.514444,
+      courseRad: Math.PI / 2,
+    },
+  });
+
+  const referenceValue = messages
+    .filter((item) => item.message.context === "vessels.self")
+    .flatMap((item) => item.message.updates || [])
+    .flatMap((update) => update.values || [])
+    .find((item) => item.path === "plugins.ajrmMarineNavigationReference.state")
+    ?.value;
+  assert.equal(referenceValue.contract, "ajrm-marine-navigation-reference");
+  assert.equal(referenceValue.schemaVersion, 1);
+  assert.equal(referenceValue.clockReference.kind, "heading");
+  assert.equal(referenceValue.clockReference.value, Math.PI / 2);
+  assert.equal(referenceValue.clockReference.gpsDependent, false);
+  assert.equal(referenceValue.groundTrack.coherent, true);
+  assert.equal(referenceValue.groundTrack.courseTrue.value, Math.PI / 2);
 });
 
 test("BITE cleanup moves synthetic targets out of operational range", async () => {

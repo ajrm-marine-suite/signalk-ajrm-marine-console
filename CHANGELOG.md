@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.4
+
+- Give Traffic wording scenarios an explicit temporary Navigation Reference
+  heading contract, so heading-dependent overtaking, passing-side, and COLREG
+  wording is exercised even when the synthetic BITE source is not configured
+  as a real compass.
+- Give dead-reckoning exercises a coherent Navigation Reference GNSS triplet
+  and qualified independent-current evidence, so GPS-loss and recovery tests
+  exercise the current source-aware GPS Integrity contract.
+
 ## 0.6.3
 
 - Recognise Navigation Reference as a backend-only required plugin through its
