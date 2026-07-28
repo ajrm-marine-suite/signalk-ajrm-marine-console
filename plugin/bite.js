@@ -49,6 +49,7 @@ const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
 const INSTRUMENT_ALERTS_PLUGIN_ID = "signalk-ajrm-marine-instrument-alerts";
 const INSTRUMENTS_PLUGIN_ID = "signalk-ajrm-marine-instruments";
 const LOGGER_PLUGIN_ID = "signalk-ajrm-marine-logger";
+const NAVIGATION_REFERENCE_PLUGIN_ID = "signalk-ajrm-marine-navigation-reference";
 const PI_CONTROLLER_PLUGIN_ID = "signalk-ajrm-marine-pi-controller";
 const SIMULATOR_PLUGIN_ID = "signalk-ajrm-marine-simulator";
 const SNAPSHOT_PLUGIN_ID = "signalk-ajrm-marine-snapshot";
@@ -72,8 +73,12 @@ const WATCH_PATHS = {
   harbourEditor: "plugins.ajrmMarineHarbourEditor",
   gpsIntegrity: "plugins.ajrmMarineGpsIntegrity.navigationIntegrity",
   gpsIntegrityNotification: "notifications.navigation.gnss.integrity",
+  navigationReference: "plugins.ajrmMarineNavigationReference.state",
 };
 const REQUIRED_SUITE_PLUGINS = Object.freeze(packageInfo.signalk?.requires || []);
+const RUNTIME_ONLY_REQUIRED_PLUGINS = new Set([
+  NAVIGATION_REFERENCE_PLUGIN_ID,
+]);
 const PREFLIGHT_TEST_ID = "preflight-safety";
 const SKIPPER_SETTINGS_SANITY_TEST_ID = "skipper-settings-sanity";
 const AUDIO_SUMMARY_TEST_ID = "audio-output-summary";
@@ -348,6 +353,7 @@ const OPTIONAL_PLUGIN_STATUS_PATHS = Object.freeze({
   [INSTRUMENT_ALERTS_PLUGIN_ID]: "plugins.ajrmMarineInstrumentAlerts",
   [INSTRUMENTS_PLUGIN_ID]: "plugins.ajrmMarineInstruments",
   [LOGGER_PLUGIN_ID]: "plugins.ajrmMarineLogger.playback",
+  [NAVIGATION_REFERENCE_PLUGIN_ID]: WATCH_PATHS.navigationReference,
   [PI_CONTROLLER_PLUGIN_ID]: "plugins.ajrmMarinePiController",
   [SIMULATOR_PLUGIN_ID]: "plugins.ajrmMarineSimulator",
   [SNAPSHOT_PLUGIN_ID]: "plugins.ajrmMarineSnapshot",
@@ -2136,8 +2142,16 @@ function requiredSuitePluginEvidence(app) {
     ? app.ajrmMarineConsoleAvailableWebapps
     : discoverWebapps();
   const installed = new Set(availableWebapps.map((module) => module.packageName || module.id));
-  const installedMissing = REQUIRED_SUITE_PLUGINS.filter((id) => !installed.has(id));
   const snapshot = collectSnapshot(app);
+  const runtimeOnlyPresent = new Set(
+    snapshot.navigationReference?.contract === "ajrm-marine-navigation-reference"
+      ? [NAVIGATION_REFERENCE_PLUGIN_ID]
+      : [],
+  );
+  const installedMissing = REQUIRED_SUITE_PLUGINS.filter((id) =>
+    !installed.has(id) &&
+    !RUNTIME_ONLY_REQUIRED_PLUGINS.has(id),
+  );
   const runtimeChecks = [
     {
       id: "signalk-ajrm-marine-display",
@@ -2164,6 +2178,11 @@ function requiredSuitePluginEvidence(app) {
       ok: Boolean(captureApi(app)?.start && captureApi(app)?.stop),
       message: "Capture API is unavailable.",
     },
+    {
+      id: NAVIGATION_REFERENCE_PLUGIN_ID,
+      ok: snapshot.navigationReference?.contract === "ajrm-marine-navigation-reference",
+      message: "Navigation Reference runtime projection is missing or not recognised.",
+    },
   ].filter((item) => REQUIRED_SUITE_PLUGINS.includes(item.id));
   const runtimeFailures = runtimeChecks.filter((item) => !item.ok);
   const ok = installedMissing.length === 0 && runtimeFailures.length === 0;
@@ -2177,7 +2196,8 @@ function requiredSuitePluginEvidence(app) {
   return {
     ok,
     required: REQUIRED_SUITE_PLUGINS,
-    installed: REQUIRED_SUITE_PLUGINS.filter((id) => installed.has(id)),
+    installed: REQUIRED_SUITE_PLUGINS.filter((id) =>
+      installed.has(id) || runtimeOnlyPresent.has(id)),
     installedMissing,
     runtimeChecks,
     runtimeFailures,
@@ -2195,8 +2215,9 @@ function optionalPluginEvidence(app, pluginId) {
   const status = optionalPluginStatus(app, pluginId);
   return {
     pluginId,
-    installed: Boolean(module),
-    title: module?.title || "",
+    installed: Boolean(module) ||
+      (RUNTIME_ONLY_REQUIRED_PLUGINS.has(pluginId) && Boolean(status)),
+    title: module?.title || suitePluginTitle(pluginId),
     version: module?.version || "",
     url: module?.url || "",
     kind: module?.kind || "",
@@ -2263,6 +2284,7 @@ function suitePluginTitle(pluginId) {
     "signalk-ajrm-marine-instrument-alerts": "Instrument Alerts",
     "signalk-ajrm-marine-instruments": "Instruments",
     "signalk-ajrm-marine-logger": "Logger",
+    "signalk-ajrm-marine-navigation-reference": "Navigation Reference",
     "signalk-ajrm-marine-notifications": "Notifications",
     "signalk-ajrm-marine-pi-controller": "Pi Controller",
     "signalk-ajrm-marine-simulator": "Simulator",
@@ -2302,6 +2324,7 @@ async function runPluginAvailabilityBite(app, { consoleVersion, test }) {
   const evidence = pluginAvailabilityEvidence(app, test.pluginId);
   const requiredEvidence = test.required ? requiredSuitePluginEvidence(app) : null;
   const runtimeCheck = requiredEvidence?.runtimeChecks?.find((item) => item.id === test.pluginId) || null;
+  const runtimeOnly = RUNTIME_ONLY_REQUIRED_PLUGINS.has(test.pluginId);
   const assertions = [
     assertion(
       "plugin-visible",
@@ -2310,13 +2333,21 @@ async function runPluginAvailabilityBite(app, { consoleVersion, test }) {
         ? `${suitePluginTitle(test.pluginId)} is installed and visible to Console.`
         : `${suitePluginTitle(test.pluginId)} is not installed, not enabled, or not visible to Console.`,
     ),
-    assertion(
-      "webapp-route",
-      evidence.installed && evidence.url.length > 0,
-      evidence.url
-        ? `${suitePluginTitle(test.pluginId)} webapp route is ${evidence.url}.`
-        : `${suitePluginTitle(test.pluginId)} webapp route is missing.`,
-    ),
+    runtimeOnly
+      ? assertion(
+        "runtime-status-route",
+        Boolean(evidence.status),
+        evidence.status
+          ? `${suitePluginTitle(test.pluginId)} backend runtime projection is visible.`
+          : `${suitePluginTitle(test.pluginId)} backend runtime projection is missing.`,
+      )
+      : assertion(
+        "webapp-route",
+        evidence.installed && evidence.url.length > 0,
+        evidence.url
+          ? `${suitePluginTitle(test.pluginId)} webapp route is ${evidence.url}.`
+          : `${suitePluginTitle(test.pluginId)} webapp route is missing.`,
+      ),
   ];
   if (test.required && test.pluginId !== packageInfo.name) {
     assertions.push(assertion(
@@ -7790,6 +7821,7 @@ function collectSnapshot(app) {
     display: readSelfPath(app, WATCH_PATHS.display),
     gpsIntegrity: readSelfPath(app, WATCH_PATHS.gpsIntegrity),
     gpsIntegrityNotification: readSelfPath(app, WATCH_PATHS.gpsIntegrityNotification),
+    navigationReference: readSelfPath(app, WATCH_PATHS.navigationReference),
   };
 }
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.3
+
+- Recognise Navigation Reference as a backend-only required plugin through its
+  live runtime projection instead of incorrectly requiring a webapp entry.
+- Report a missing Navigation Reference projection as disabled/not publishing,
+  rather than claiming the installed package is absent.
+
 ## 0.6.2
 
 - Extend live BITE coverage for stationary-vessel wording and the qualified

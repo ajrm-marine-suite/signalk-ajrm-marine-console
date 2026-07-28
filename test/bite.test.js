@@ -916,6 +916,12 @@ test("Console exposes BITE status and run routes", async () => {
       sequence: 1,
       enabled: true,
     },
+    "plugins.ajrmMarineNavigationReference.state": {
+      contract: "ajrm-marine-navigation-reference",
+      schemaVersion: 1,
+      updatedAt: new Date(startedAtMs).toISOString(),
+      status: "ready",
+    },
     "plugins.ajrmMarineNotifications": {
       contract: "notifications-plus-projection",
       contractVersion: 1,
@@ -1288,7 +1294,9 @@ test("Console exposes BITE status and run routes", async () => {
     };
   }
   const app = {
-    ajrmMarineConsoleAvailableWebapps: packageInfo.signalk.requires.map((id) => ({
+    ajrmMarineConsoleAvailableWebapps: packageInfo.signalk.requires
+      .filter((id) => id !== "signalk-ajrm-marine-navigation-reference")
+      .map((id) => ({
       id,
       packageName: id,
       title: id,
@@ -1897,6 +1905,30 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.scenario, "preflight-safety");
   assert.equal(runBody.assertions.find((item) => item.id === "required-suite-plugins").pass, true);
+
+  const navigationReferenceState =
+    values["plugins.ajrmMarineNavigationReference.state"];
+  delete values["plugins.ajrmMarineNavigationReference.state"];
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "preflight-safety", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, false);
+  assert.doesNotMatch(runBody.summary, /not installed.*navigation-reference/i);
+  assert.match(runBody.summary, /not enabled or not publishing status/i);
+  values["plugins.ajrmMarineNavigationReference.state"] =
+    navigationReferenceState;
 
   statusCode = 0;
   runBody = null;
