@@ -4533,10 +4533,14 @@ async function runGpsLostAgeConsistencyBite(app, { consoleVersion }) {
   const assertions = [
     assertion(
       "gps-lost-age-source-known",
-      evidence.applicable === false || Boolean(evidence.ageSourceTimestamp),
+      evidence.applicable === false ||
+        evidence.ageCheckApplicable === false ||
+        Boolean(evidence.ageSourceTimestamp),
       evidence.applicable === false
         ? "GPS is not currently lost; lost-age consistency is not applicable."
-        : "GPS-lost age has a known source timestamp.",
+        : evidence.ageCheckApplicable === false
+          ? "GPS is unavailable but no position has yet been received, so there is no genuine lost-fix age to report."
+          : "GPS-lost age has a known source timestamp.",
     ),
     assertion(
       "gps-lost-age-not-stale-cache",
@@ -4653,13 +4657,20 @@ async function runDeadReckoningProjectionBite(app, { consoleVersion }) {
   const operational = gpsIntegrity.operationalDeadReckoning || gpsIntegrity.deadReckoning || {};
   const integrity = gpsIntegrity.integrityDeadReckoning || {};
   const vectors = gpsIntegrity.vectors || {};
+  const drBaselineAvailable =
+    validPosition(gpsIntegrity.lastTrustedFix?.position) ||
+    validPosition(operational.position);
   const assertions = [
     assertion(
       "operational-dr-position",
-      gpsIntegrity.trust !== "lost" || validPosition(operational.position),
-      gpsIntegrity.trust === "lost"
+      gpsIntegrity.trust !== "lost" ||
+        !drBaselineAvailable ||
+        validPosition(operational.position),
+      gpsIntegrity.trust === "lost" && drBaselineAvailable
         ? "Lost GPS should leave an operational DR position available."
-        : "GPS is not lost; operational DR position is advisory.",
+        : gpsIntegrity.trust === "lost"
+          ? "GPS is unavailable but no trusted position has yet existed from which dead reckoning could start."
+          : "GPS is not lost; operational DR position is advisory.",
     ),
     assertion(
       "operational-dr-uncertainty",
@@ -4702,6 +4713,7 @@ async function runDeadReckoningProjectionBite(app, { consoleVersion }) {
     assertions,
     observations: [{
       trust: gpsIntegrity.trust || "",
+      drBaselineAvailable,
       operationalSource: operational.source || "",
       integritySource: integrity.source || "",
       vectorKeys: Object.keys(vectors),
@@ -8481,6 +8493,7 @@ function gpsLostAgeEvidence(state = {}, notification = {}, nowMs = Date.now()) {
       : Number.isFinite(trustedMs)
         ? trustedMs
         : NaN;
+  const ageCheckApplicable = applicable && Number.isFinite(ageSourceMs);
   const reportedAgeSeconds = Number.isFinite(Number(gps.positionAgeSeconds))
     ? Math.round(Number(gps.positionAgeSeconds))
     : Number.isFinite(ageSourceMs)
@@ -8494,6 +8507,7 @@ function gpsLostAgeEvidence(state = {}, notification = {}, nowMs = Date.now()) {
     && (messageAgeSeconds == null || messageAgeSeconds > Math.round((nowMs - trustedMs) / 1000) + 30);
   return {
     applicable,
+    ageCheckApplicable,
     trust,
     fixValid: gps.fixValid ?? null,
     ageSourceTimestamp: Number.isFinite(ageSourceMs) ? new Date(ageSourceMs).toISOString() : "",

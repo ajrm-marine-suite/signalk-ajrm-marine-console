@@ -216,7 +216,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.6.6 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.6.7 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

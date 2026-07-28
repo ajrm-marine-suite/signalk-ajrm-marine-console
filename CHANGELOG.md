@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.7
+
+- Treat GPS-loss age and operational dead reckoning as inapplicable when the
+  receiver has never supplied a trusted position, rather than requiring BITE
+  to invent a timestamp or DR origin.
+
 ## 0.6.6
 
 - Include explicit GNSS fix status and source-quality evidence in synthetic

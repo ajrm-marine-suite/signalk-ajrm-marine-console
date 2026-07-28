@@ -158,9 +158,9 @@ Current numbered BITE tests:
 | 3.0 | GPS Integrity availability | Optional GPS Integrity plugin is installed, enabled, and visible to Console when present. |
 | 3.0.1 | DR Plotter availability | Optional DR Plotter plugin is installed, enabled, and visible to Console when present. |
 | 3.1 | GPS Integrity health | GPS Integrity publishes trust, fix, counters, and timestamp state coherently. |
-| 3.2 | GPS lost age consistency | GPS-lost wording is checked against the freshest known GPS source timestamp. |
+| 3.2 | GPS lost age consistency | GPS-lost wording is checked against the freshest known GPS source timestamp; a receiver that has never supplied a position has no invented lost-fix age. |
 | 3.3 | GPS Integrity diagnostics contract | GPS Integrity publishes the diagnostic block Voyage Viewer uses for end-of-day review. |
-| 3.4 | Dead reckoning projection | Operational and independent DR projections expose positions, uncertainty, ages, and vector roles. |
+| 3.4 | Dead reckoning projection | Operational and independent DR projections expose positions, uncertainty, ages, and vector roles once a trusted position exists from which DR can start. |
 | 3.5 | DR GPS-loss exercise | GPS and current are removed, and operational DR must continue using retained current. |
 | 3.6 | GPS recovery realigns DR | GPS restoration must lock operational DR back to the fresh GPS fix. |
 | 3.7 | GPS jump rejection | An impossible GPS jump must be rejected without moving the trusted baseline. |

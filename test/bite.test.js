@@ -2146,6 +2146,62 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusCode, 200);
   assert.equal(runBody.ok, false);
   assert.equal(runBody.assertions.find((item) => item.id === "gps-lost-age-not-stale-cache").pass, false);
+
+  values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = {
+    ...healthyGpsIntegrityProjection,
+    trust: "lost",
+    notificationState: "warn",
+    acceptedGps: false,
+    reasons: ["GPS source reports no fix."],
+    gps: {
+      ...healthyGpsIntegrityProjection.gps,
+      position: null,
+      fixValid: false,
+      explicitGpsUnavailable: true,
+      positionTimestamp: "",
+      lastReceivedPositionTimestamp: "",
+      positionAgeSeconds: null,
+    },
+    lastTrustedFix: null,
+    deadReckoning: null,
+    operationalDeadReckoning: null,
+    integrityDeadReckoning: null,
+  };
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "gps-lost-age-consistency", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.snapshot.evidence.ageCheckApplicable, false);
+
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "dead-reckoning-projection", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.assertions.find((item) => item.id === "operational-dr-position").pass, true);
   values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"] = healthyGpsIntegrityProjection;
 
   statusCode = 0;
