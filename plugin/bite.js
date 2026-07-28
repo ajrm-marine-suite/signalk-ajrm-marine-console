@@ -6715,7 +6715,7 @@ async function runTrafficClearLifecycleBite(app, { pluginId, testId, consoleVers
       const snapshot = collectSnapshot(app);
       const projectedTarget = (snapshot.traffic?.targets || []).find((entry) =>
         matchesTarget(entry, target.name, target.mmsi));
-      if (!dangerSeen && /warning|alarm/i.test(String(projectedTarget?.encounter?.state || ""))) {
+      if (!dangerSeen && isAlertState(projectedTarget?.encounter?.state)) {
         dangerSeen = true;
         phase = "clear";
         lastRefreshAt = 0;
@@ -6756,7 +6756,7 @@ async function runTrafficClearLifecycleBite(app, { pluginId, testId, consoleVers
   );
   const panelMessages = (panel?.entries || []).map((entry) => String(entry?.message || ""));
   const assertions = [
-    assertion("collision-risk-first-seen", dangerSeen, "The synthetic target must first reach warning/alarm state."),
+    assertion("collision-risk-first-seen", dangerSeen, "The synthetic target must first reach warn/alarm/emergency state."),
     assertion(
       "qualified-traffic-clear-published",
       clearEvents.length > 0,
@@ -8852,6 +8852,7 @@ module.exports = {
   evaluateQuietTargetSnapshot,
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
+  isAlertState,
   currentDrifts,
   clearSyntheticEncounter,
   clearSyntheticScenarioTarget,

@@ -14,6 +14,7 @@ const {
   evaluateQuietTargetSnapshot,
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
+  isAlertState,
   clearSyntheticEncounter,
   clearSyntheticScenarioTarget,
   clearSyntheticQuietTarget,
@@ -430,6 +431,15 @@ test("BITE current drift helper treats null current as unavailable", () => {
   assert.equal(currentDrifts({ drift: 0 }), false);
   assert.equal(currentDrifts({ drift: 0.2 }), true);
   assert.equal(currentDrifts({ driftKnots: 0.5 }), true);
+});
+
+test("BITE recognises standard Signal K collision-risk states", () => {
+  assert.equal(isAlertState("warn"), true);
+  assert.equal(isAlertState("alarm"), true);
+  assert.equal(isAlertState("emergency"), true);
+  assert.equal(isAlertState("warning"), true);
+  assert.equal(isAlertState("alert"), false);
+  assert.equal(isAlertState("normal"), false);
 });
 
 test("BITE evaluation passes when Traffic, Notifications, and Audio align", () => {

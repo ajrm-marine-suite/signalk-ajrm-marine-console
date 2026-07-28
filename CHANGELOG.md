@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.8
+
+- Recognise Signal K's standard `warn` state when the Traffic all-clear BITE
+  waits for its initial collision risk, so advisory-level profile settings
+  proceed into the clearance phase.
+
 ## 0.6.7
 
 - Treat GPS-loss age and operational dead reckoning as inapplicable when the
