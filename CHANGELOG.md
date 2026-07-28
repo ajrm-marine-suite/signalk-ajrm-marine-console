@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.5
+
+- Use Navigation Reference's bounded in-process BITE override for synthetic
+  heading, coherent GNSS, and independent-current contracts, preventing the
+  normal 50 ms source recalculation from replacing test evidence before
+  Traffic or GPS Integrity evaluates it.
+- Clear the override after every Traffic or GPS exercise so live source
+  selection resumes immediately and no synthetic reference is persisted.
+
 ## 0.6.4
 
 - Give Traffic wording scenarios an explicit temporary Navigation Reference

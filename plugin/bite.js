@@ -937,6 +937,7 @@ const MAX_REPORTS = 200;
 const AJRM_MARINE_CAPTURE_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineCaptureApi");
 const AJRM_MARINE_DISPLAY_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineDisplayApi");
 const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
+const AJRM_MARINE_NAVIGATION_REFERENCE_API_REGISTRY = Symbol.for("ajrmMarineNavigationReferenceApi");
 const AJRM_MARINE_LOGGER_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineLoggerApi");
 const AJRM_MARINE_SNAPSHOT_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineSnapshotApi");
 
@@ -1495,6 +1496,12 @@ function displayApi(app) {
 
 function trafficApi(app) {
   return app.ajrmMarineTrafficApi || globalThis[AJRM_MARINE_TRAFFIC_API_REGISTRY] || null;
+}
+
+function navigationReferenceApi(app) {
+  return app.ajrmMarineNavigationReferenceApi ||
+    globalThis[AJRM_MARINE_NAVIGATION_REFERENCE_API_REGISTRY] ||
+    null;
 }
 
 function loggerApi(app) {
@@ -2180,8 +2187,14 @@ function requiredSuitePluginEvidence(app) {
     },
     {
       id: NAVIGATION_REFERENCE_PLUGIN_ID,
-      ok: snapshot.navigationReference?.contract === "ajrm-marine-navigation-reference",
-      message: "Navigation Reference runtime projection is missing or not recognised.",
+      ok:
+        snapshot.navigationReference?.contract === "ajrm-marine-navigation-reference" &&
+        typeof navigationReferenceApi(app)?.setBiteOverride === "function" &&
+        typeof navigationReferenceApi(app)?.clearBiteOverride === "function",
+      message:
+        snapshot.navigationReference?.contract !== "ajrm-marine-navigation-reference"
+          ? "Navigation Reference runtime projection is missing or not recognised."
+          : "Navigation Reference is too old for source-aware BITE; install v0.1.1 or later.",
     },
   ].filter((item) => REQUIRED_SUITE_PLUGINS.includes(item.id));
   const runtimeFailures = runtimeChecks.filter((item) => !item.ok);
@@ -7638,24 +7651,21 @@ function publishDeadReckoningExerciseSample(app, {
       ],
     }],
   });
-  if (phase !== "restore-gps") {
-    app.handleMessage?.(pluginId, {
-      context: "vessels.self",
-      updates: [{
-        $source: BITE_DR_SYNTHETIC_SOURCE,
+  if (phase === "restore-gps") {
+    clearBiteNavigationReference(app);
+  } else {
+    applyBiteNavigationReference(app, {
+      pluginId,
+      source: BITE_DR_SYNTHETIC_SOURCE,
+      timestamp,
+      value: syntheticDrNavigationReferenceState({
         timestamp,
-        values: [{
-          path: WATCH_PATHS.navigationReference,
-          value: syntheticDrNavigationReferenceState({
-            timestamp,
-            position: gpsPosition,
-            includeGps,
-            includeCurrent,
-            currentSetTrue: currentSetValue,
-            currentDrift: currentDriftValue,
-          }),
-        }],
-      }],
+        position: gpsPosition,
+        includeGps,
+        includeCurrent,
+        currentSetTrue: currentSetValue,
+        currentDrift: currentDriftValue,
+      }),
     });
   }
 }
@@ -7763,21 +7773,16 @@ function publishSyntheticTrafficScenario(app, {
     }],
   });
   if (includeTestNavigationReference) {
-    app.handleMessage(pluginId, {
-      context: "vessels.self",
-      updates: [{
-        $source: BITE_SYNTHETIC_SOURCE,
+    applyBiteNavigationReference(app, {
+      pluginId,
+      source: BITE_SYNTHETIC_SOURCE,
+      timestamp,
+      value: syntheticNavigationReferenceState({
         timestamp,
-        values: [{
-          path: WATCH_PATHS.navigationReference,
-          value: syntheticNavigationReferenceState({
-            timestamp,
-            position: ownPosition,
-            courseRad: ownCourse,
-            speedMps: ownSpeed,
-          }),
-        }],
-      }],
+        position: ownPosition,
+        courseRad: ownCourse,
+        speedMps: ownSpeed,
+      }),
     });
   }
   app.handleMessage(pluginId, {
@@ -7853,6 +7858,34 @@ function syntheticNavigationReferenceState({
   };
 }
 
+function applyBiteNavigationReference(app, {
+  pluginId,
+  source,
+  timestamp,
+  value,
+}) {
+  const api = navigationReferenceApi(app);
+  if (typeof api?.setBiteOverride === "function") {
+    api.setBiteOverride(value, { ttlMs: 5000 });
+    return;
+  }
+  app.handleMessage?.(pluginId, {
+    context: "vessels.self",
+    updates: [{
+      $source: source,
+      timestamp,
+      values: [{ path: WATCH_PATHS.navigationReference, value }],
+    }],
+  });
+}
+
+function clearBiteNavigationReference(app) {
+  const api = navigationReferenceApi(app);
+  if (typeof api?.clearBiteOverride === "function") {
+    api.clearBiteOverride();
+  }
+}
+
 async function clearSyntheticEncounter(app, { pluginId, runId }) {
   for (let index = 0; index < 3; index += 1) {
     publishSyntheticEncounterClear(app, { pluginId, runId });
@@ -7882,6 +7915,7 @@ async function clearSyntheticScenarioTarget(app, { pluginId, runId, target }) {
     });
     await delay(CLEAR_REFRESH_MS);
   }
+  clearBiteNavigationReference(app);
 }
 
 async function clearSyntheticQuietTarget(app, { pluginId, runId }) {

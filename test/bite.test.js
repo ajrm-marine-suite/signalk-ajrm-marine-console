@@ -863,6 +863,61 @@ test("BITE Traffic scenarios publish an explicit heading Navigation Reference co
   assert.equal(referenceValue.groundTrack.courseTrue.value, Math.PI / 2);
 });
 
+test("BITE Traffic scenarios use and clear the Navigation Reference override API", async () => {
+  const messages = [];
+  const overrides = [];
+  let clears = 0;
+  const app = {
+    ajrmMarineNavigationReferenceApi: {
+      setBiteOverride(value, options) {
+        overrides.push({ value, options });
+      },
+      clearBiteOverride() {
+        clears += 1;
+      },
+    },
+    handleMessage(id, message) {
+      messages.push({ id, message });
+    },
+  };
+  const target = {
+    mmsi: "235912347",
+    name: "BITE OVERTAKING TARGET",
+    position: BITE_OWN_POSITION,
+    speedMps: 3 * 0.514444,
+    courseRad: Math.PI / 2,
+  };
+
+  publishSyntheticTrafficScenario(app, {
+    pluginId: "signalk-ajrm-marine-console",
+    runId: "test-run",
+    own: {
+      position: BITE_OWN_POSITION,
+      speedMps: 6 * 0.514444,
+      courseRad: Math.PI / 2,
+    },
+    target,
+  });
+
+  assert.equal(overrides.length, 1);
+  assert.equal(overrides[0].value.clockReference.kind, "heading");
+  assert.equal(overrides[0].options.ttlMs, 5000);
+  assert.equal(
+    messages
+      .flatMap((item) => item.message.updates || [])
+      .flatMap((update) => update.values || [])
+      .some((item) => item.path === "plugins.ajrmMarineNavigationReference.state"),
+    false,
+  );
+
+  await clearSyntheticScenarioTarget(app, {
+    pluginId: "signalk-ajrm-marine-console",
+    runId: "test-run",
+    target,
+  });
+  assert.equal(clears, 1);
+});
+
 test("BITE cleanup moves synthetic targets out of operational range", async () => {
   const messages = [];
   const app = {
@@ -1472,6 +1527,14 @@ test("Console exposes BITE status and run routes", async () => {
             message: event.message,
           })),
         };
+      },
+    },
+    ajrmMarineNavigationReferenceApi: {
+      setBiteOverride() {
+        return { ok: true };
+      },
+      clearBiteOverride() {
+        return { ok: true };
       },
     },
     ajrmMarineTrafficApi: {
