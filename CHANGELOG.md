@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.9
+
+- Exercise Traffic all-clear with an ordinary vessel MMSI rather than an AIS
+  special-safety identity that remains permanently emergency.
+- Keep the cleared target safely normal but still visible during the 15-second
+  clearance grace, so target loss cannot be mistaken for confirmed clearance.
+- Require the initial encounter to reach alarm or emergency, matching Traffic's
+  qualified all-clear policy.
+
 ## 0.6.8
 
 - Recognise Signal K's standard `warn` state when the Traffic all-clear BITE

@@ -15,6 +15,8 @@ const {
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
   isAlertState,
+  isCollisionClearEligibleState,
+  CLEAR_LIFECYCLE_TARGET_MMSI,
   clearSyntheticEncounter,
   clearSyntheticScenarioTarget,
   clearSyntheticQuietTarget,
@@ -440,6 +442,14 @@ test("BITE recognises standard Signal K collision-risk states", () => {
   assert.equal(isAlertState("warning"), true);
   assert.equal(isAlertState("alert"), false);
   assert.equal(isAlertState("normal"), false);
+});
+
+test("Traffic all-clear BITE uses an ordinary resolvable vessel identity", () => {
+  assert.doesNotMatch(CLEAR_LIFECYCLE_TARGET_MMSI, /^(970|972|974)/);
+  assert.equal(isCollisionClearEligibleState("alarm"), true);
+  assert.equal(isCollisionClearEligibleState("emergency"), true);
+  assert.equal(isCollisionClearEligibleState("warn"), false);
+  assert.equal(isCollisionClearEligibleState("normal"), false);
 });
 
 test("BITE evaluation passes when Traffic, Notifications, and Audio align", () => {

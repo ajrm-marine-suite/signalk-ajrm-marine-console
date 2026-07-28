@@ -59,6 +59,8 @@ const OWN_POSITION = { latitude: 56.21122, longitude: -5.55756 };
 const TARGET_POSITION = { latitude: 56.21122, longitude: -5.54756 };
 const QUIET_TARGET_POSITION = { latitude: 56.24122, longitude: -5.49756 };
 const CLEAR_TARGET_OFFSET_METERS = Object.freeze({ eastMeters: 200000, northMeters: 200000 });
+const CLEAR_LIFECYCLE_SAFE_OFFSET_METERS = Object.freeze({ eastMeters: 3000, northMeters: 0 });
+const CLEAR_LIFECYCLE_TARGET_MMSI = "235900219";
 const DR_EXERCISE_CURRENT_SET_RAD = Math.PI / 2;
 const DR_EXERCISE_CURRENT_DRIFT_MPS = 1 * KNOTS_TO_MPS;
 
@@ -6668,7 +6670,7 @@ async function runTrafficClearLifecycleBite(app, { pluginId, testId, consoleVers
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
   const target = {
-    mmsi: "970000219",
+    mmsi: CLEAR_LIFECYCLE_TARGET_MMSI,
     name: "BITE CLEAR",
     position: offsetPositionMeters(OWN_POSITION, { eastMeters: 220, northMeters: 0 }),
     speedMps: 5 * KNOTS_TO_MPS,
@@ -6684,7 +6686,7 @@ async function runTrafficClearLifecycleBite(app, { pluginId, testId, consoleVers
   };
   const quietTarget = {
     ...target,
-    position: offsetPositionMeters(OWN_POSITION, CLEAR_TARGET_OFFSET_METERS),
+    position: offsetPositionMeters(OWN_POSITION, CLEAR_LIFECYCLE_SAFE_OFFSET_METERS),
     speedMps: 0,
     courseRad: 0,
   };
@@ -6715,7 +6717,7 @@ async function runTrafficClearLifecycleBite(app, { pluginId, testId, consoleVers
       const snapshot = collectSnapshot(app);
       const projectedTarget = (snapshot.traffic?.targets || []).find((entry) =>
         matchesTarget(entry, target.name, target.mmsi));
-      if (!dangerSeen && isAlertState(projectedTarget?.encounter?.state)) {
+      if (!dangerSeen && isCollisionClearEligibleState(projectedTarget?.encounter?.state)) {
         dangerSeen = true;
         phase = "clear";
         lastRefreshAt = 0;
@@ -6756,7 +6758,7 @@ async function runTrafficClearLifecycleBite(app, { pluginId, testId, consoleVers
   );
   const panelMessages = (panel?.entries || []).map((entry) => String(entry?.message || ""));
   const assertions = [
-    assertion("collision-risk-first-seen", dangerSeen, "The synthetic target must first reach warn/alarm/emergency state."),
+    assertion("collision-risk-first-seen", dangerSeen, "The synthetic target must first reach alarm/emergency state."),
     assertion(
       "qualified-traffic-clear-published",
       clearEvents.length > 0,
@@ -8273,6 +8275,10 @@ function isAlertState(state) {
   ].includes(String(state || "").toLowerCase());
 }
 
+function isCollisionClearEligibleState(state) {
+  return ["alarm", "emergency"].includes(String(state || "").toLowerCase());
+}
+
 function findAudioEvidence(audio, {
   startedAtMs,
   targetName,
@@ -8853,6 +8859,8 @@ module.exports = {
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
   isAlertState,
+  isCollisionClearEligibleState,
+  CLEAR_LIFECYCLE_TARGET_MMSI,
   currentDrifts,
   clearSyntheticEncounter,
   clearSyntheticScenarioTarget,
