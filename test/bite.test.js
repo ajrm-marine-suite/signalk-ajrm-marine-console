@@ -17,6 +17,9 @@ const {
   isAlertState,
   isCollisionClearEligibleState,
   CLEAR_LIFECYCLE_TARGET_MMSI,
+  STATIONARY_TEST_TARGET_MMSI,
+  BITE_TRAFFIC_TARGET_MMSIS,
+  clearAllSyntheticBiteTraffic,
   clearSyntheticEncounter,
   clearSyntheticScenarioTarget,
   clearSyntheticQuietTarget,
@@ -450,6 +453,62 @@ test("Traffic all-clear BITE uses an ordinary resolvable vessel identity", () =>
   assert.equal(isCollisionClearEligibleState("emergency"), true);
   assert.equal(isCollisionClearEligibleState("warn"), false);
   assert.equal(isCollisionClearEligibleState("normal"), false);
+});
+
+test("all BITE Traffic identities are ordinary reserved test vessels", () => {
+  assert.equal(new Set(BITE_TRAFFIC_TARGET_MMSIS).size, BITE_TRAFFIC_TARGET_MMSIS.length);
+  assert.ok(BITE_TRAFFIC_TARGET_MMSIS.includes(STATIONARY_TEST_TARGET_MMSI));
+  for (const mmsi of BITE_TRAFFIC_TARGET_MMSIS) {
+    assert.match(mmsi, /^\d{9}$/);
+    assert.doesNotMatch(mmsi, /^(00|970|972|974|99)/);
+  }
+});
+
+test("end-of-BITE cleanup clears every target, both own sources, and Traffic state", async () => {
+  const messages = [];
+  const cleanupCommands = [];
+  let navigationReferenceClears = 0;
+  const app = {
+    handleMessage(id, message) {
+      messages.push({ id, message });
+    },
+    ajrmMarineNavigationReferenceApi: {
+      clearBiteOverride() {
+        navigationReferenceClears += 1;
+      },
+    },
+    ajrmMarineTrafficApi: {
+      clearSyntheticTargets(command) {
+        cleanupCommands.push(command);
+        return { ok: true, removedCount: BITE_TRAFFIC_TARGET_MMSIS.length };
+      },
+    },
+  };
+
+  const result = await clearAllSyntheticBiteTraffic(app, {
+    pluginId: "signalk-ajrm-marine-console",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.targetContextsCleared, BITE_TRAFFIC_TARGET_MMSIS.length);
+  assert.deepEqual(cleanupCommands, [{ sourcePrefix: "ajrm-marine-bite" }]);
+  assert.equal(navigationReferenceClears, 1);
+  const targetMessages = messages.filter((entry) =>
+    String(entry.message.context).includes(":mmsi:")
+  );
+  assert.equal(targetMessages.length, BITE_TRAFFIC_TARGET_MMSIS.length);
+  assert.ok(targetMessages.every((entry) =>
+    entry.message.updates[0].values.some((value) =>
+      value.path === "navigation.position" && value.value === null
+    )
+  ));
+  const ownSources = messages
+    .filter((entry) => entry.message.context === "vessels.self")
+    .map((entry) => entry.message.updates[0].$source)
+    .sort();
+  assert.deepEqual(ownSources, [
+    "ajrm-marine-bite-cleanup",
+    "ajrm-marine-bite-dr-cleanup",
+  ]);
 });
 
 test("BITE evaluation passes when Traffic, Notifications, and Audio align", () => {
@@ -1619,6 +1678,17 @@ test("Console exposes BITE status and run routes", async () => {
         Object.assign(trafficApiAudioPolicy, command);
         return { muted: command.muted === true };
       },
+      async clearSyntheticTargets(command) {
+        trafficCommands.push({ clearSyntheticTargets: command });
+        values["plugins.ajrmMarineNotifications"].active = [];
+        values["plugins.ajrmMarineTraffic.targets"].targets = [];
+        return {
+          ok: true,
+          sourcePrefix: command.sourcePrefix,
+          removedCount: BITE_TRAFFIC_TARGET_MMSIS.length,
+          clearedNotificationCount: 1,
+        };
+      },
     },
     ajrmMarineLoggerApi: {
       async status() {
@@ -1679,7 +1749,9 @@ test("Console exposes BITE status and run routes", async () => {
     },
     getSelfPath(path) {
       if (path === "plugins.ajrmMarineNotifications") {
-        values[path].active[0].timestamp = new Date().toISOString();
+        if (values[path].active?.[0]) {
+          values[path].active[0].timestamp = new Date().toISOString();
+        }
       }
       if (path === "plugins.ajrmMarineNotifications.audio") {
         values[path].timestamp = new Date().toISOString();
@@ -1719,7 +1791,11 @@ test("Console exposes BITE status and run routes", async () => {
           );
         }
       }
-      if (String(message?.context || "").includes("235912345")) {
+      const isSyntheticTargetClear = String(message?.context || "").includes("mmsi:") &&
+        (message?.updates || []).flatMap((update) => update.values || [])
+          .every((item) => item.value === null);
+      const scenarioContext = isSyntheticTargetClear ? "" : String(message?.context || "");
+      if (scenarioContext.includes("235912345")) {
         injectScenarioMessage({
           mmsi: "235912345",
           name: "BITE TEST TARGET",
@@ -1727,14 +1803,14 @@ test("Console exposes BITE status and run routes", async () => {
           state: "alarm",
         });
       }
-      if (String(message?.context || "").includes("235912347")) {
+      if (scenarioContext.includes("235912347")) {
         injectScenarioMessage({
           mmsi: "235912347",
           name: "BITE OVERTAKING TARGET",
           visualMessage: "Traffic advisory. Medium vessel BITE OVERTAKING TARGET at 12 o'clock. You are overtaking it. CPA will be ahead. 80 meters in 2 minutes.",
         });
       }
-      if (String(message?.context || "").includes("235912348")) {
+      if (scenarioContext.includes("235912348")) {
         injectScenarioMessage({
           mmsi: "235912348",
           name: "BITE CLOSE TARGET",
@@ -1742,7 +1818,7 @@ test("Console exposes BITE status and run routes", async () => {
           state: "alarm",
         });
       }
-      if (String(message?.context || "").includes("235912349")) {
+      if (scenarioContext.includes("235912349")) {
         injectScenarioMessage({
           mmsi: "235912349",
           name: "",
@@ -1750,7 +1826,7 @@ test("Console exposes BITE status and run routes", async () => {
           audioMessage: "Traffic advisory. Small craft at 12 o'clock. CPA will be on your port side. 45 meters in 2 minutes.",
         });
       }
-      if (String(message?.context || "").includes("235912350")) {
+      if (scenarioContext.includes("235912350")) {
         injectScenarioMessage({
           mmsi: "235912350",
           name: "BITE HEAD ON TARGET",
@@ -1758,7 +1834,7 @@ test("Console exposes BITE status and run routes", async () => {
           state: "alarm",
         });
       }
-      if (String(message?.context || "").includes("235912351")) {
+      if (scenarioContext.includes("235912351")) {
         injectScenarioMessage({
           mmsi: "235912351",
           name: "BITE GIVE WAY TARGET",
@@ -1766,7 +1842,7 @@ test("Console exposes BITE status and run routes", async () => {
           state: "alarm",
         });
       }
-      if (String(message?.context || "").includes("235912352")) {
+      if (scenarioContext.includes("235912352")) {
         injectScenarioMessage({
           mmsi: "235912352",
           name: "BITE STAND ON TARGET",
@@ -1774,35 +1850,35 @@ test("Console exposes BITE status and run routes", async () => {
           state: "alarm",
         });
       }
-      if (String(message?.context || "").includes("235912353")) {
+      if (scenarioContext.includes("235912353")) {
         injectScenarioMessage({
           mmsi: "235912353",
           name: "BITE TARGET OVERTAKING",
           visualMessage: "Traffic advisory. Medium vessel BITE TARGET OVERTAKING at 6 o'clock. It is overtaking you. CPA will be on your starboard side. 80 meters in 2 minutes.",
         });
       }
-      if (String(message?.context || "").includes("235912354")) {
+      if (scenarioContext.includes("235912354")) {
         injectScenarioMessage({
           mmsi: "235912354",
           name: "BITE SAME COURSE TARGET",
           visualMessage: "Traffic advisory. Medium vessel BITE SAME COURSE TARGET at 2 o'clock. Same general course. CPA will be on your starboard side. 80 meters in 2 minutes.",
         });
       }
-      if (String(message?.context || "").includes("235912355")) {
+      if (scenarioContext.includes("235912355")) {
         injectScenarioMessage({
           mmsi: "235912355",
           name: "BITE ADVISORY TARGET",
           visualMessage: "Traffic advisory. Small craft BITE ADVISORY TARGET at 12 o'clock. Close quarters. CPA 38 meters in 2 minutes.",
         });
       }
-      if (String(message?.context || "").includes("235912356")) {
+      if (scenarioContext.includes("235912356")) {
         injectScenarioMessage({
           mmsi: "235912356",
           name: "BITE CPA DEDUP TARGET",
           visualMessage: "Traffic advisory. Medium vessel BITE CPA DEDUP TARGET at 2 o'clock. Same general course. CPA will be on your starboard side. 80 meters in 2 minutes.",
         });
       }
-      if (String(message?.context || "").includes("235912357")) {
+      if (scenarioContext.includes("235912357")) {
         injectScenarioMessage({
           mmsi: "235912357",
           name: "BITE WORDING MATCH TARGET",
@@ -1810,7 +1886,7 @@ test("Console exposes BITE status and run routes", async () => {
           state: "alarm",
         });
       }
-      if (String(message?.context || "").includes("235912358")) {
+      if (scenarioContext.includes("235912358")) {
         injectScenarioMessage({
           mmsi: "235912358",
           name: "BITE SAFETY RETENTION TARGET",
@@ -2020,7 +2096,7 @@ test("Console exposes BITE status and run routes", async () => {
       },
     },
   );
-  assert.equal(statusCode, 200);
+  assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.ok, true);
   assert.equal(runBody.scenario, "harbour-editor-availability");
   assert.equal(runBody.snapshot.url, "/signalk-ajrm-marine-harbour-editor/");
@@ -2532,7 +2608,7 @@ test("Console exposes BITE status and run routes", async () => {
       },
     },
   );
-  assert.equal(statusCode, 200);
+  assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.contract, "ajrm-marine-console-bite-run-all-report");
   assert.equal(runBody.testId, "run-group:safety");
@@ -2545,16 +2621,18 @@ test("Console exposes BITE status and run routes", async () => {
     { stop: true },
     { enabled: true },
   ]);
-  assert.equal(trafficCommands[0].profiles.current, "coastal");
-  assert.deepEqual(trafficCommands[1], { profile: "coastal" });
-  assert.deepEqual(trafficCommands[2], { autoProfile: { enabled: false } });
-  assert.equal(trafficCommands[3].muted, false);
-  assert.equal(trafficCommands[3].automuteStationary, true);
-  assert.ok(trafficCommands.some((command) => command.muted === false));
-  assert.equal(trafficCommands.at(-4).profiles.current, "coastal");
-  assert.deepEqual(trafficCommands.at(-3), { profile: "coastal" });
-  assert.equal(trafficCommands.at(-2).autoProfile.enabled, true);
-  assert.equal(trafficCommands.at(-1).muted, true);
+  const trafficSettingsCommands = trafficCommands
+    .filter((command) => !command.clearSyntheticTargets);
+  assert.equal(trafficSettingsCommands[0].profiles.current, "coastal");
+  assert.deepEqual(trafficSettingsCommands[1], { profile: "coastal" });
+  assert.deepEqual(trafficSettingsCommands[2], { autoProfile: { enabled: false } });
+  assert.equal(trafficSettingsCommands[3].muted, false);
+  assert.equal(trafficSettingsCommands[3].automuteStationary, true);
+  assert.ok(trafficSettingsCommands.some((command) => command.muted === false));
+  assert.equal(trafficSettingsCommands.at(-4).profiles.current, "coastal");
+  assert.deepEqual(trafficSettingsCommands.at(-3), { profile: "coastal" });
+  assert.equal(trafficSettingsCommands.at(-2).autoProfile.enabled, true);
+  assert.equal(trafficSettingsCommands.at(-1).muted, true);
   assert.equal(runBody.reports.length, 3);
   assert.deepEqual(runBody.reports.map((report) => report.testId), [
     "preflight-safety",

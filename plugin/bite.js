@@ -40,6 +40,7 @@ const VISUAL_AUDIO_MATCH_TEST_TARGET_MMSI = "235912357";
 const VISUAL_AUDIO_MATCH_TEST_TARGET_NAME = "BITE WORDING MATCH TARGET";
 const SAFETY_RETENTION_TEST_TARGET_MMSI = "235912358";
 const SAFETY_RETENTION_TEST_TARGET_NAME = "BITE SAFETY RETENTION TARGET";
+const STATIONARY_TEST_TARGET_MMSI = "235912359";
 const AUDIO_SUMMARY_PRIORITY = 500;
 const AUDIO_SUMMARY_EXPIRES_SECONDS = 600;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
@@ -61,6 +62,24 @@ const QUIET_TARGET_POSITION = { latitude: 56.24122, longitude: -5.49756 };
 const CLEAR_TARGET_OFFSET_METERS = Object.freeze({ eastMeters: 200000, northMeters: 200000 });
 const CLEAR_LIFECYCLE_SAFE_OFFSET_METERS = Object.freeze({ eastMeters: 3000, northMeters: 0 });
 const CLEAR_LIFECYCLE_TARGET_MMSI = "235900219";
+const BITE_TRAFFIC_TARGET_MMSIS = Object.freeze([
+  TEST_TARGET_MMSI,
+  QUIET_TEST_TARGET_MMSI,
+  OVERTAKING_TEST_TARGET_MMSI,
+  CLOSE_QUARTERS_TEST_TARGET_MMSI,
+  UNNAMED_TEST_TARGET_MMSI,
+  HEAD_ON_TEST_TARGET_MMSI,
+  GIVE_WAY_TEST_TARGET_MMSI,
+  STAND_ON_TEST_TARGET_MMSI,
+  TARGET_OVERTAKING_TEST_TARGET_MMSI,
+  SAME_COURSE_TEST_TARGET_MMSI,
+  ADVISORY_NO_PROMPT_TEST_TARGET_MMSI,
+  CPA_DEDUP_TEST_TARGET_MMSI,
+  VISUAL_AUDIO_MATCH_TEST_TARGET_MMSI,
+  SAFETY_RETENTION_TEST_TARGET_MMSI,
+  STATIONARY_TEST_TARGET_MMSI,
+  CLEAR_LIFECYCLE_TARGET_MMSI,
+]);
 const DR_EXERCISE_CURRENT_SET_RAD = Math.PI / 2;
 const DR_EXERCISE_CURRENT_DRIFT_MPS = 1 * KNOTS_TO_MPS;
 
@@ -999,6 +1018,9 @@ function createBiteController(app, { pluginId, version }) {
         await saveReport(report);
         return report;
       } finally {
+        await clearAllSyntheticBiteTraffic(app, { pluginId }).catch((error) => {
+          app.error?.(`[${pluginId}] BITE synthetic cleanup failed: ${error.stack || error.message}`);
+        });
         running = false;
       }
     },
@@ -1225,6 +1247,14 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       });
       reports.push(report);
       if (typeof recordReport === "function") await recordReport(report);
+      if (isTrafficBiteTest(test.id)) {
+        const cleanup = await clearAllSyntheticBiteTraffic(app, { pluginId });
+        progress({
+          phase: "traffic-test-cleaned",
+          currentTestId: test.id,
+          syntheticTrafficCleanup: cleanup,
+        });
+      }
       progress({ phase: report.ok ? "passed" : "failed", currentTestId: test.id });
     }
     if (typeof recordReport === "function" && captureStart && !captureStop) {
@@ -1243,6 +1273,17 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       }));
     }
   } finally {
+    try {
+      const cleanup = await clearAllSyntheticBiteTraffic(app, { pluginId });
+      progress({
+        phase: "synthetic-traffic-cleaned",
+        currentTestId: null,
+        syntheticTrafficCleanup: cleanup,
+      });
+    } catch (error) {
+      restoreError = `Synthetic BITE cleanup failed: ${error.message || String(error)}`;
+      progress({ phase: "synthetic-traffic-cleanup-failed", currentTestId: null });
+    }
     if (capture?.stop && captureStart) {
       try {
         captureStop = await capture.stop({ reason: "BITE run all complete" });
@@ -1780,12 +1821,18 @@ async function runPreflightBite(app, { consoleVersion }) {
 
 async function prepareBiteSettings(app) {
   const traffic = trafficApi(app);
-  if (!traffic?.status || !traffic?.setProfile || !traffic?.setProfiles || !traffic?.setAudioPolicy) {
+  if (
+    !traffic?.status ||
+    !traffic?.setProfile ||
+    !traffic?.setProfiles ||
+    !traffic?.setAudioPolicy ||
+    !traffic?.clearSyntheticTargets
+  ) {
     return {
       ok: false,
       snapshotOk: false,
       defaultsApplied: false,
-      message: "Traffic API cannot snapshot and apply BITE profile/audio settings. Update AJRM Marine Traffic.",
+      message: "Traffic API cannot safely apply and clean up BITE settings/targets. Update AJRM Marine Traffic.",
     };
   }
   const previous = app.ajrmMarineConsoleBiteSettingsSnapshot;
@@ -4292,8 +4339,14 @@ async function runTrafficApiContractBite(app, { consoleVersion }) {
     ),
     assertion(
       "traffic-control-methods",
-      Boolean(traffic?.status && traffic?.setAudioPolicy && traffic?.setProfile && traffic?.setProfiles),
-      "Traffic API should expose status, setAudioPolicy, setProfile, and setProfiles methods.",
+      Boolean(
+        traffic?.status &&
+        traffic?.setAudioPolicy &&
+        traffic?.setProfile &&
+        traffic?.setProfiles &&
+        traffic?.clearSyntheticTargets
+      ),
+      "Traffic API should expose status, settings controls, and source-aware synthetic-target cleanup.",
     ),
     assertion(
       "traffic-status-readable",
@@ -6642,7 +6695,7 @@ async function runTrafficStationaryWordingBite(app, options) {
   return runTrafficMessageScenarioBite(app, {
     ...options,
     target: {
-      mmsi: "970000218",
+      mmsi: STATIONARY_TEST_TARGET_MMSI,
       name: "BITE STATIONARY",
       position: offsetPositionMeters(offshorePosition, { eastMeters: 260, northMeters: 0 }),
       speedMps: 0,
@@ -7932,6 +7985,86 @@ function clearBiteNavigationReference(app) {
   }
 }
 
+function isTrafficBiteTest(testId) {
+  return BITE_GROUP_DEFINITIONS
+    .find((group) => group.id === "traffic")
+    ?.testIds.includes(String(testId || "")) === true;
+}
+
+async function clearAllSyntheticBiteTraffic(app, { pluginId }) {
+  const timestamp = new Date().toISOString();
+  const targetClearValues = [
+    { path: "", value: null },
+    { path: "name", value: null },
+    { path: "navigation.position", value: null },
+    { path: "navigation.speedOverGround", value: null },
+    { path: "navigation.courseOverGroundTrue", value: null },
+    { path: "navigation.state", value: null },
+    { path: "navigation.rateOfTurn", value: null },
+    { path: "design.length", value: null },
+    { path: "design.beam", value: null },
+    { path: "sensors.ais.class", value: null },
+  ];
+  for (const mmsi of BITE_TRAFFIC_TARGET_MMSIS) {
+    app.handleMessage?.(pluginId, {
+      context: `vessels.urn:mrn:imo:mmsi:${mmsi}`,
+      updates: [{
+        $source: `${BITE_SYNTHETIC_SOURCE}-cleanup`,
+        timestamp,
+        values: targetClearValues,
+      }],
+    });
+  }
+  publishBiteOwnVesselClear(app, pluginId, BITE_SYNTHETIC_SOURCE, [
+    "navigation.position",
+    "navigation.speedOverGround",
+    "navigation.speedThroughWater",
+    "navigation.courseOverGroundTrue",
+    "navigation.headingTrue",
+    "navigation.state",
+  ], timestamp);
+  publishBiteOwnVesselClear(app, pluginId, BITE_DR_SYNTHETIC_SOURCE, [
+    "navigation.position",
+    "navigation.speedOverGround",
+    "navigation.speedThroughWater",
+    "navigation.courseOverGroundTrue",
+    "navigation.headingTrue",
+    "navigation.gnss.methodQuality",
+    "navigation.gnss.horizontalDilution",
+    "navigation.gnss.satellites",
+    "environment.current.setTrue",
+    "environment.current.drift",
+    "environment.tide.setTrue",
+    "environment.tide.drift",
+    "plugins.ajrmMarineConsole.bite.deadReckoningExercise",
+  ], timestamp);
+  clearBiteNavigationReference(app);
+  const api = trafficApi(app);
+  if (typeof api?.clearSyntheticTargets !== "function") {
+    throw new Error("Traffic does not expose clearSyntheticTargets; update AJRM Marine Traffic");
+  }
+  const trafficCleanup = await api.clearSyntheticTargets({
+    sourcePrefix: "ajrm-marine-bite",
+  });
+  return {
+    ok: trafficCleanup.ok === true,
+    targetContextsCleared: BITE_TRAFFIC_TARGET_MMSIS.length,
+    ownSourcesCleared: [BITE_SYNTHETIC_SOURCE, BITE_DR_SYNTHETIC_SOURCE],
+    trafficCleanup,
+  };
+}
+
+function publishBiteOwnVesselClear(app, pluginId, source, paths, timestamp) {
+  app.handleMessage?.(pluginId, {
+    context: "vessels.self",
+    updates: [{
+      $source: `${source}-cleanup`,
+      timestamp,
+      values: paths.map((path) => ({ path, value: null })),
+    }],
+  });
+}
+
 async function clearSyntheticEncounter(app, { pluginId, runId }) {
   for (let index = 0; index < 3; index += 1) {
     publishSyntheticEncounterClear(app, { pluginId, runId });
@@ -8861,10 +8994,13 @@ module.exports = {
   isAlertState,
   isCollisionClearEligibleState,
   CLEAR_LIFECYCLE_TARGET_MMSI,
+  STATIONARY_TEST_TARGET_MMSI,
+  BITE_TRAFFIC_TARGET_MMSIS,
   currentDrifts,
   clearSyntheticEncounter,
   clearSyntheticScenarioTarget,
   clearSyntheticQuietTarget,
+  clearAllSyntheticBiteTraffic,
   publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,
   publishSyntheticTrafficScenario,

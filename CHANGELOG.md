@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.10
+
+- Clear every reserved synthetic Traffic vessel after each Traffic BITE and
+  again before finalising a Run All capture.
+- Clear BITE own-vessel navigation and DR sources, the temporary heading
+  reference override, and active synthetic Traffic notifications.
+- Use an ordinary reserved vessel MMSI for the stationary-target test so it
+  cannot be classified as an AIS emergency identity.
+
 ## 0.6.9
 
 - Exercise Traffic all-clear with an ordinary vessel MMSI rather than an AIS
