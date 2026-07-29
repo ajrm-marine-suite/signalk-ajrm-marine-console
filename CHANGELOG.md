@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.11
+
+- Allow the Traffic all-clear lifecycle BITE to wait through Traffic's new
+  one-minute advisory/clear stability hold before deciding that clearance
+  failed.
+
 ## 0.6.10
 
 - Clear every reserved synthetic Traffic vessel after each Traffic BITE and

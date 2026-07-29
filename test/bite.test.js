@@ -8,6 +8,7 @@ const test = require("node:test");
 const createPlugin = require("../plugin");
 const packageInfo = require("../package.json");
 const {
+  TESTS,
   TEST_TARGET_MMSI,
   TEST_TARGET_NAME,
   evaluateCollisionAudioSnapshot,
@@ -453,6 +454,13 @@ test("Traffic all-clear BITE uses an ordinary resolvable vessel identity", () =>
   assert.equal(isCollisionClearEligibleState("emergency"), true);
   assert.equal(isCollisionClearEligibleState("warn"), false);
   assert.equal(isCollisionClearEligibleState("normal"), false);
+});
+
+test("Traffic all-clear BITE allows for the one-minute stability hold", () => {
+  const definition = TESTS.find((entry) => entry.id === "traffic-clear-lifecycle");
+  assert.ok(definition);
+  assert.ok(definition.timeoutSeconds >= 90);
+  assert.match(definition.description, /one-minute advisory\/clear stability hold/i);
 });
 
 test("all BITE Traffic identities are ordinary reserved test vessels", () => {

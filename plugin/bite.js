@@ -759,8 +759,8 @@ const TESTS = [
     id: "traffic-clear-lifecycle",
     number: "2.19",
     title: "Traffic collision all-clear lifecycle",
-    description: "Creates and clears a collision risk, then checks for one qualified all-clear and removal of the target from Display Active Alerts.",
-    timeoutSeconds: 55,
+    description: "Creates and clears a collision risk, waits through Traffic's one-minute advisory/clear stability hold, then checks for one qualified all-clear and removal of the target from Display Active Alerts.",
+    timeoutSeconds: 90,
   },
   {
     id: "gps-vector-arrow-contract",
@@ -8983,6 +8983,7 @@ function delay(ms) {
 }
 
 module.exports = {
+  TESTS,
   TEST_TARGET_MMSI,
   TEST_TARGET_NAME,
   WATCH_PATHS,

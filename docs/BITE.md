@@ -154,7 +154,7 @@ Current numbered BITE tests:
 | 2.11 | Traffic target projection contract | Traffic target projections include identity, encounter state, AIS class evidence, nullable ROT, profile, session, and sequence fields. |
 | 2.12 | Traffic audio policy contract | Traffic's shared mute/automute policy carries voyage/profile/manual-override state explicitly. |
 | 2.18 | Traffic stationary-vessel wording | A stationary target is described as stationary and never as being overtaken by own vessel. |
-| 2.19 | Traffic collision all-clear lifecycle | A real warning/alarm must produce one qualified all-clear after sustained clearance, and the target must leave Display Active Alerts. |
+| 2.19 | Traffic collision all-clear lifecycle | A real warning/alarm must produce one qualified all-clear after Traffic's one-minute advisory/clear stability hold, and the target must leave Display Active Alerts. |
 | 3.0 | GPS Integrity availability | Optional GPS Integrity plugin is installed, enabled, and visible to Console when present. |
 | 3.0.1 | DR Plotter availability | Optional DR Plotter plugin is installed, enabled, and visible to Console when present. |
 | 3.1 | GPS Integrity health | GPS Integrity publishes trust, fix, counters, and timestamp state coherently. |
