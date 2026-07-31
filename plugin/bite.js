@@ -49,7 +49,6 @@ const DR_PLOTTER_PLUGIN_ID = "signalk-ajrm-marine-dr-plotter";
 const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
 const INSTRUMENT_ALERTS_PLUGIN_ID = "signalk-ajrm-marine-instrument-alerts";
 const INSTRUMENTS_PLUGIN_ID = "signalk-ajrm-marine-instruments";
-const LOGGER_PLUGIN_ID = "signalk-ajrm-marine-logger";
 const NAVIGATION_REFERENCE_PLUGIN_ID = "signalk-ajrm-marine-navigation-reference";
 const PI_CONTROLLER_PLUGIN_ID = "signalk-ajrm-marine-pi-controller";
 const SIMULATOR_PLUGIN_ID = "signalk-ajrm-marine-simulator";
@@ -225,13 +224,6 @@ const OPTIONAL_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
     optional: true,
   }),
   pluginAvailabilityTest({
-    pluginId: LOGGER_PLUGIN_ID,
-    id: "logger-availability",
-    number: "9.3",
-    title: "Logger availability",
-    optional: true,
-  }),
-  pluginAvailabilityTest({
     pluginId: VOYAGE_VIEWER_PLUGIN_ID,
     id: "voyage-viewer-availability",
     number: "9.4",
@@ -306,27 +298,6 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     description: "Checks the optional Vessel Database publishes the suite-facing summary used by other apps and captures.",
   }),
   pluginContractTest({
-    pluginId: LOGGER_PLUGIN_ID,
-    id: "logger-api-contract",
-    number: "9.3.1",
-    title: "Logger runtime API contract",
-    description: "Checks the optional Logger exposes the runtime API used by BITE, Capture, and future suite orchestration.",
-  }),
-  pluginContractTest({
-    pluginId: LOGGER_PLUGIN_ID,
-    id: "logger-replay-sanity-contract",
-    number: "9.3.2",
-    title: "Logger replay sanity contract",
-    description: "Checks Logger exposes replay state clearly enough to avoid replaying derived data or stale timestamps as live navigation.",
-  }),
-  pluginContractTest({
-    pluginId: LOGGER_PLUGIN_ID,
-    id: "logger-capture-recording-contract",
-    number: "9.3.3",
-    title: "Logger capture recording contract",
-    description: "Checks Logger exposes active capture recording timestamps, filename, and line/byte counters when Capture/BITE is recording.",
-  }),
-  pluginContractTest({
     pluginId: VOYAGE_VIEWER_PLUGIN_ID,
     id: "voyage-viewer-review-contract",
     number: "9.4.1",
@@ -373,7 +344,6 @@ const OPTIONAL_PLUGIN_STATUS_PATHS = Object.freeze({
   "signalk-ajrm-marine-harbour-editor": WATCH_PATHS.harbourEditor,
   [INSTRUMENT_ALERTS_PLUGIN_ID]: "plugins.ajrmMarineInstrumentAlerts",
   [INSTRUMENTS_PLUGIN_ID]: "plugins.ajrmMarineInstruments",
-  [LOGGER_PLUGIN_ID]: "plugins.ajrmMarineLogger.playback",
   [NAVIGATION_REFERENCE_PLUGIN_ID]: WATCH_PATHS.navigationReference,
   [PI_CONTROLLER_PLUGIN_ID]: "plugins.ajrmMarinePiController",
   [SIMULATOR_PLUGIN_ID]: "plugins.ajrmMarineSimulator",
@@ -1618,15 +1588,6 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "vessel-database-summary-contract") {
     return runVesselDatabaseSummaryContractBite(app, { consoleVersion });
-  }
-  if (testId === "logger-api-contract") {
-    return runLoggerApiContractBite(app, { consoleVersion });
-  }
-  if (testId === "logger-replay-sanity-contract") {
-    return runLoggerReplaySanityContractBite(app, { consoleVersion });
-  }
-  if (testId === "logger-capture-recording-contract") {
-    return runLoggerCaptureRecordingContractBite(app, { consoleVersion });
   }
   if (testId === "voyage-viewer-review-contract") {
     return runVoyageViewerReviewContractBite(app, { consoleVersion });

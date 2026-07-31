@@ -186,9 +186,9 @@ The **Overview** shows the selected webapps with versions and provides the
 extracted AJRM Marine onboard help as a full-width standalone view, without
 loading the chart behind it.
 
-If AJRM Marine Logger is useful while sailing, select the AJRM Marine Logger webapp in the
-Console plugin configuration and it will appear as a normal tab. Console no
-longer has separate incident-record buttons.
+Select AJRM Marine Capture in the Console plugin configuration to make voyage
+recording and replay available as a normal tab. Console has no separate
+incident-record buttons.
 
 Version `0.2.1` provided the first compact single-line sailing toolbar for the
 initial AJRM Marine suite apps.
@@ -216,7 +216,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.6.11 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.6.12 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.12
+
+- Remove the retired Logger from the default app catalogue, package
+  recommendations, and BITE catalogue.
+- Keep Capture as the single voyage recording and replay application.
+
 ## 0.6.11
 
 - Allow the Traffic all-clear lifecycle BITE to wait through Traffic's new

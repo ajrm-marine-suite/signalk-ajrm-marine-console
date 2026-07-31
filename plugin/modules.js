@@ -43,7 +43,6 @@ const CORE_SUITE_WEBAPPS = [
 const OPTIONAL_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-vessel-database",
   "signalk-ajrm-marine-snapshot",
-  "signalk-ajrm-marine-logger",
   "signalk-ajrm-marine-voyage-viewer",
   "signalk-ajrm-marine-simulator",
   "signalk-ajrm-marine-gps-integrity",
@@ -56,6 +55,7 @@ const OPTIONAL_SUITE_WEBAPPS = [
 ];
 
 const DEFAULT_WEBAPPS = [...CORE_SUITE_WEBAPPS, ...OPTIONAL_SUITE_WEBAPPS];
+const RETIRED_WEBAPPS = new Set(["signalk-ajrm-marine-logger"]);
 
 const SUITE_APP_INFO = {
   "signalk-ajrm-marine-display": {
@@ -91,11 +91,6 @@ const SUITE_APP_INFO = {
   "signalk-ajrm-marine-snapshot": {
     title: "Snapshot",
     description: "System snapshots for support and debugging.",
-    groupLabel: "Voyage diagnostics",
-  },
-  "signalk-ajrm-marine-logger": {
-    title: "Logger",
-    description: "Signal K recording and replay.",
     groupLabel: "Voyage diagnostics",
   },
   "signalk-ajrm-marine-voyage-viewer": {
@@ -153,7 +148,11 @@ function discoverWebapps(options = {}) {
   for (const packageDir of packageDirs(nodeModulesDir)) {
     const packageJsonPath = path.join(packageDir, "package.json");
     const pkg = readJson(packageJsonPath);
-    if (!isSignalKWebapp(pkg) || pkg.name === currentPackage) continue;
+    if (
+      !isSignalKWebapp(pkg) ||
+      pkg.name === currentPackage ||
+      RETIRED_WEBAPPS.has(pkg.name)
+    ) continue;
     packages.push(webappModule(pkg));
   }
   return packages.sort((left, right) =>

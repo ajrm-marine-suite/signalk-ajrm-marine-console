@@ -55,11 +55,9 @@ test("Console discovers installed Signal K webapps dynamically", () => {
   const webapps = discoverWebapps({ nodeModulesDir });
   assert.deepEqual(
     webapps.map((module) => module.id).sort(),
-    ["@signalk/freeboard-sk", "signalk-ajrm-marine-logger", "signalk-freeboard-sk"],
+    ["@signalk/freeboard-sk", "signalk-freeboard-sk"],
   );
-  assert.equal(webapps.find((module) => module.id === "signalk-ajrm-marine-logger").url, "/signalk-ajrm-marine-logger/");
   assert.equal(webapps.find((module) => module.id === "@signalk/freeboard-sk").url, "/@signalk/freeboard-sk/");
-  assert.equal(webapps.find((module) => module.id === "signalk-ajrm-marine-logger").version, "1.0.12");
 });
 
 test("Console shortens AJRM Marine suite tab titles only", () => {

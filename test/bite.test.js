@@ -1986,9 +1986,6 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "gps-current-contract").number, "3.16");
   assert.equal(statusBody.tests.find((item) => item.id === "vessel-database-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "vessel-database-summary-contract").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "logger-availability").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "logger-api-contract").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "logger-replay-sanity-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-api-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-availability").enabled, true);
