@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.14
+
+- Add a prominent onboard Help warning that avoidance prompts are limited
+  indications rather than COLREG advice, identify missing situational inputs
+  such as sailing versus motoring, and retain skipper responsibility.
+
 ## 0.6.13
 
 - Correlate Traffic safety-message retention evidence with Audio's explicit

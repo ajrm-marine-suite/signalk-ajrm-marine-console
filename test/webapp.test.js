@@ -45,6 +45,9 @@ test("Console uses one compact toolbar and hidden loading overlay cannot display
   assert.match(help, /AJRM Marine Help/);
   assert.match(help, /id="help-current-settings"/);
   assert.match(help, /id="help-charts"/);
+  assert.match(help, /not advice or a determination under the/);
+  assert.match(help, /whether your\s+vessel is sailing or motoring/);
+  assert.match(help, /skipper remains responsible/);
   assert.doesNotMatch(help, /id="modalHelp"/);
   const helpScript = fs.readFileSync(path.join(root, "public", "help.js"), "utf8");
   assert.match(helpScript, /CPA and TCPA Limits/);
