@@ -138,7 +138,7 @@ Current numbered BITE tests:
 | 1.6 | Stationary automute policy shape | Traffic audio policy exposes whether stationary automute is armed, allowed, and active. |
 | 1.7 | Capture API contract | Capture exposes status, start, stop, automatic-recording, and timestamped voyage-observation controls used by BITE and Display. |
 | 1.8 | Traffic API contract | Traffic exposes status and shared audio-policy control so BITE can unmute safely and restore the prior state. |
-| 1.9 | Audio status detail contract | Audio exposes queue, recent-event, output, dependency, and mute-state detail for debugging delayed speech. |
+| 1.9 | Audio status detail contract | Audio exposes queue length plus structured queued subject/event identity, recent-event, output, dependency, and mute-state detail for debugging delayed speech. |
 | 1.10 | Notifications visual contract | Notifications active visual events carry presentation, delivery, priority, timestamp, and audio-sequence fields. |
 | 1.15 | Display active-alert panel contract | Display derives Active Alerts only from currently active broker events and excludes resolved history. |
 | 2.1 | Collision visual/audio chain | Synthetic collision reaches Traffic, Display-facing visual alerts, Notifications audio delivery, and Audio acceptance. |
@@ -153,6 +153,11 @@ Current numbered BITE tests:
 | 2.10 | Traffic same-course wording | A similar-course passing encounter must say same general course and give the CPA side. |
 | 2.11 | Traffic target projection contract | Traffic target projections include identity, encounter state, AIS class evidence, nullable ROT, profile, session, and sequence fields. |
 | 2.12 | Traffic audio policy contract | Traffic's shared mute/automute policy carries voyage/profile/manual-override state explicitly. |
+| 2.13 | Traffic advisory has no action prompt | Advisory-level wording remains descriptive and does not invent COLREG manoeuvre instructions. |
+| 2.14 | Traffic CPA wording de-duplicated | Passing-side wording does not repeat the CPA phrase. |
+| 2.15 | Traffic visual/audio wording alignment | Named visual and spoken encounter paths preserve the same essential meaning. |
+| 2.16 | Traffic harbour/profile boundary | Auto-profile boundary and stationary-automute decision state remain explicit. |
+| 2.17 | Traffic safety message retained | A collision announcement remains explicitly identifiable in Audio's queue/pipeline after lower-priority audio, without matching spoken prose. |
 | 2.18 | Traffic stationary-vessel wording | A stationary target is described as stationary and never as being overtaken by own vessel. |
 | 2.19 | Traffic collision all-clear lifecycle | A real warning/alarm must produce one qualified all-clear after Traffic's one-minute advisory/clear stability hold, and the target must leave Display Active Alerts. |
 | 3.0 | GPS Integrity availability | Optional GPS Integrity plugin is installed, enabled, and visible to Console when present. |

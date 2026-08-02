@@ -20,6 +20,7 @@ const {
   CLEAR_LIFECYCLE_TARGET_MMSI,
   STATIONARY_TEST_TARGET_MMSI,
   BITE_TRAFFIC_TARGET_MMSIS,
+  findAudioEvidence,
   clearAllSyntheticBiteTraffic,
   clearSyntheticEncounter,
   clearSyntheticScenarioTarget,
@@ -505,9 +506,9 @@ test("end-of-BITE cleanup clears every target, both own sources, and Traffic sta
   );
   assert.equal(targetMessages.length, BITE_TRAFFIC_TARGET_MMSIS.length);
   assert.ok(targetMessages.every((entry) =>
-    entry.message.updates[0].values.some((value) =>
-      value.path === "navigation.position" && value.value === null
-    )
+    entry.message.updates[0].values.length === 1 &&
+    entry.message.updates[0].values[0].path === "" &&
+    entry.message.updates[0].values[0].value === null
   ));
   const ownSources = messages
     .filter((entry) => entry.message.context === "vessels.self")
@@ -562,6 +563,51 @@ test("BITE evaluation passes when Traffic, Notifications, and Audio align", () =
 
   assert.equal(result.result, "pass");
   assert.equal(result.assertions.every((item) => item.pass), true);
+});
+
+test("Audio evidence correlates retained safety audio by explicit subject identity", () => {
+  const startedAtMs = Date.now() - 1000;
+  const evidence = findAudioEvidence({
+    queueEntries: [{
+      state: "queued",
+      eventId: "traffic-collision-235912358-1",
+      subjectKey: "ajrm-marine:traffic:vessel:235912358",
+      mmsi: "235912358",
+      priorityScore: 800,
+      message: "Collision alarm. Small craft at 12 o'clock. Risk of collision.",
+      queuedAt: new Date().toISOString(),
+    }],
+  }, {
+    startedAtMs,
+    targetName: "BITE SAFETY RETENTION TARGET",
+    targetMmsi: "235912358",
+    strict: true,
+  });
+
+  assert.ok(evidence);
+  assert.equal(evidence.state, "queued");
+  assert.equal(evidence.source, "queueEntries");
+  assert.doesNotMatch(evidence.message, /BITE SAFETY RETENTION TARGET/);
+});
+
+test("Audio evidence follows retained safety audio through pipeline states", () => {
+  for (const state of ["active", "preparing", "prepared"]) {
+    const evidence = findAudioEvidence({
+      [state]: {
+        subjectKey: "ajrm-marine:traffic:vessel:235912358",
+        mmsi: "235912358",
+        message: "Collision alarm. Small craft at 12 o'clock.",
+        queuedAt: new Date().toISOString(),
+      },
+    }, {
+      startedAtMs: Date.now() - 1000,
+      targetName: "BITE SAFETY RETENTION TARGET",
+      targetMmsi: "235912358",
+      strict: true,
+    });
+    assert.equal(evidence?.state, state);
+    assert.equal(evidence?.source, state);
+  }
 });
 
 test("BITE target MMSI is a collision-capable vessel, not an AtoN or base station", () => {
@@ -1186,6 +1232,7 @@ test("Console exposes BITE status and run routes", async () => {
       liveStream: false,
       publicHttpStream: false,
       queueLength: 0,
+      queueEntries: [],
       dependencies: {
         ok: true,
         summary: "Piper speech engine ready",
@@ -1496,6 +1543,15 @@ test("Console exposes BITE status and run routes", async () => {
     };
     values["plugins.ajrmMarineAudio"] = {
       ...values["plugins.ajrmMarineAudio"],
+      queueEntries: [{
+        state: "queued",
+        eventId: `traffic-collision-${mmsi}-1`,
+        subjectKey: `ajrm-marine:traffic:vessel:${mmsi}`,
+        mmsi,
+        priorityScore: state === "alarm" ? 800 : 500,
+        message: audioMessage,
+        queuedAt: now,
+      }],
       recentEvents: [{
         ts: now,
         event: "queued",
@@ -1899,6 +1955,7 @@ test("Console exposes BITE status and run routes", async () => {
           mmsi: "235912358",
           name: "BITE SAFETY RETENTION TARGET",
           visualMessage: "Collision alarm. Large vessel BITE SAFETY RETENTION TARGET at 12 o'clock. Risk of collision. CPA 0 meters in 2 minutes.",
+          audioMessage: "Collision alarm. Large vessel at 12 o'clock. Risk of collision. CPA 0 meters in 2 minutes.",
           state: "alarm",
         });
       }

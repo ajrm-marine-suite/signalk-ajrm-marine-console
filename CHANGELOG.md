@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.13
+
+- Correlate Traffic safety-message retention evidence with Audio's explicit
+  subject/MMSI identity rather than requiring the spoken message to contain a
+  vessel name or MMSI.
+- Inspect queued, active, preparing, prepared, and rendered Audio evidence so
+  slow Piper output cannot create a false BITE failure.
+- Clear synthetic BITE target contexts with a single root null update, avoiding
+  Signal K metadata errors from nulling scalar identity fields individually.
+
 ## 0.6.12
 
 - Remove the retired Logger from the default app catalogue, package

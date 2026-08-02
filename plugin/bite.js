@@ -4348,6 +4348,7 @@ async function runAudioStatusDetailContractBite(app, { consoleVersion }) {
   const audio = snapshot.audio || {};
   const dependencies = audio.dependencies || {};
   const recentEvents = Array.isArray(audio.recentEvents) ? audio.recentEvents : [];
+  const queueEntries = Array.isArray(audio.queueEntries) ? audio.queueEntries : [];
   const hasOutputState = ["desktopPlayerOutput", "localPlayback", "liveStream", "publicHttpStream", "browserPlayback"].some((key) =>
     Object.prototype.hasOwnProperty.call(audio, key)
   );
@@ -4366,6 +4367,18 @@ async function runAudioStatusDetailContractBite(app, { consoleVersion }) {
       "audio-queue-length",
       finiteNonNegative(audio.queueLength ?? 0),
       `Audio queue length is ${audio.queueLength ?? 0}.`,
+    ),
+    assertion(
+      "audio-queue-identity",
+      Array.isArray(audio.queueEntries) && queueEntries.every((entry) =>
+        entry &&
+        typeof entry.subjectKey === "string" &&
+        typeof entry.eventId === "string" &&
+        finiteNonNegative(entry.priorityScore ?? 0)
+      ),
+      Array.isArray(audio.queueEntries)
+        ? "Audio queued entries expose explicit subject, event, and priority identity."
+        : "Audio status does not expose queueEntries; install AJRM Marine Audio v0.6.3 or later.",
     ),
     assertion(
       "audio-recent-events-array",
@@ -7956,15 +7969,6 @@ async function clearAllSyntheticBiteTraffic(app, { pluginId }) {
   const timestamp = new Date().toISOString();
   const targetClearValues = [
     { path: "", value: null },
-    { path: "name", value: null },
-    { path: "navigation.position", value: null },
-    { path: "navigation.speedOverGround", value: null },
-    { path: "navigation.courseOverGroundTrue", value: null },
-    { path: "navigation.state", value: null },
-    { path: "navigation.rateOfTurn", value: null },
-    { path: "design.length", value: null },
-    { path: "design.beam", value: null },
-    { path: "sensors.ais.class", value: null },
   ];
   for (const mmsi of BITE_TRAFFIC_TARGET_MMSIS) {
     app.handleMessage?.(pluginId, {
@@ -8382,6 +8386,19 @@ function findAudioEvidence(audio, {
 }) {
   const candidates = [];
   if (audio?.timeline?.event) candidates.push({ ...audio.timeline.event, source: "timeline" });
+  for (const entry of audio?.queueEntries || []) {
+    candidates.push({ ...entry, state: entry.state || "queued", source: "queueEntries" });
+  }
+  for (const [state, value] of [
+    ["active", audio?.active],
+    ["preparing", audio?.preparing],
+    ["prepared", audio?.prepared],
+  ]) {
+    const entry = value?.entry || value;
+    if (entry && typeof entry === "object") {
+      candidates.push({ ...entry, state: entry.state || state, source: state });
+    }
+  }
   for (const event of audio?.recentEvents || []) candidates.push({ ...event, source: "recentEvents" });
   for (const announcement of audio?.recentAnnouncements || []) {
     candidates.push({ ...announcement, state: "rendered", source: "recentAnnouncements" });
@@ -8390,12 +8407,25 @@ function findAudioEvidence(audio, {
     candidates.push({ ...audio.lastAnnouncement, state: "lastAnnouncement", source: "lastAnnouncement" });
   }
   const matches = candidates.filter((candidate) => {
-    const ts = candidate.occurredAt || candidate.ts || candidate.renderedAt || candidate.receivedAt;
+    const ts = candidate.occurredAt || candidate.ts || candidate.renderedAt || candidate.queuedAt ||
+      candidate.receivedAt || candidate.timestamp;
     const message = candidate.message || "";
     const state = String(candidate.state || candidate.event || "");
+    const expectedSubjectKey = targetMmsi
+      ? `ajrm-marine:traffic:vessel:${targetMmsi}`
+      : "";
+    const subjectKey = String(candidate.subjectKey || candidate.vesselId || "");
+    const candidateMmsi = String(candidate.mmsi || candidate.context?.mmsi || "");
+    const hasExplicitIdentity = Boolean(subjectKey || candidateMmsi);
+    const explicitIdentityMatches = Boolean(
+      (expectedSubjectKey && subjectKey === expectedSubjectKey) ||
+      (targetMmsi && candidateMmsi === String(targetMmsi)),
+    );
+    const legacyMessageMatches = !hasExplicitIdentity &&
+      messageMatches(message, targetName, targetMmsi, { allowBiteWildcard: !strict });
     return freshEnough(ts, startedAtMs)
-      && messageMatches(message, targetName, targetMmsi, { allowBiteWildcard: !strict })
-      && /accepted|queued|audio-ready|rendered|speaker|skipped|muted|lastAnnouncement/i.test(state);
+      && (explicitIdentityMatches || legacyMessageMatches)
+      && /accepted|queued|active|preparing|prepared|audio-ready|rendered|speaker|skipped|muted|lastAnnouncement/i.test(state);
   });
   const match = preferSuppressed
     ? matches.find((candidate) => /skipped|muted/i.test(String(candidate.state || candidate.event || ""))) || matches[0]
@@ -8958,6 +8988,7 @@ module.exports = {
   CLEAR_LIFECYCLE_TARGET_MMSI,
   STATIONARY_TEST_TARGET_MMSI,
   BITE_TRAFFIC_TARGET_MMSIS,
+  findAudioEvidence,
   currentDrifts,
   clearSyntheticEncounter,
   clearSyntheticScenarioTarget,
