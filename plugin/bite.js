@@ -41,6 +41,8 @@ const VISUAL_AUDIO_MATCH_TEST_TARGET_NAME = "BITE WORDING MATCH TARGET";
 const SAFETY_RETENTION_TEST_TARGET_MMSI = "235912358";
 const SAFETY_RETENTION_TEST_TARGET_NAME = "BITE SAFETY RETENTION TARGET";
 const STATIONARY_TEST_TARGET_MMSI = "235912359";
+const SAR_AIRCRAFT_TEST_TARGET_MMSI = "111000599";
+const SAR_AIRCRAFT_TEST_TARGET_NAME = "BITE SAR AIRCRAFT";
 const AUDIO_SUMMARY_PRIORITY = 500;
 const AUDIO_SUMMARY_EXPIRES_SECONDS = 600;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
@@ -77,6 +79,7 @@ const BITE_TRAFFIC_TARGET_MMSIS = Object.freeze([
   VISUAL_AUDIO_MATCH_TEST_TARGET_MMSI,
   SAFETY_RETENTION_TEST_TARGET_MMSI,
   STATIONARY_TEST_TARGET_MMSI,
+  SAR_AIRCRAFT_TEST_TARGET_MMSI,
   CLEAR_LIFECYCLE_TARGET_MMSI,
 ]);
 const DR_EXERCISE_CURRENT_SET_RAD = Math.PI / 2;
@@ -734,6 +737,13 @@ const TESTS = [
     timeoutSeconds: 90,
   },
   {
+    id: "traffic-sar-aircraft-non-collision",
+    number: "2.20",
+    title: "SAR aircraft classification",
+    description: "Publishes a synthetic 111MIDXXX SAR aircraft on a close approach and checks it remains visible, is explicitly categorized as a helicopter, and creates no collision or audio alert.",
+    timeoutSeconds: 20,
+  },
+  {
     id: "gps-vector-arrow-contract",
     number: "3.14",
     title: "GPS/DR vector arrow contract",
@@ -865,6 +875,7 @@ const BITE_GROUP_DEFINITIONS = [
       "traffic-safety-message-retained",
       "traffic-stationary-wording",
       "traffic-clear-lifecycle",
+      "traffic-sar-aircraft-non-collision",
     ],
   },
   {
@@ -1687,6 +1698,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "traffic-clear-lifecycle") {
     return runTrafficClearLifecycleBite(app, { pluginId, testId, consoleVersion, timeoutMs });
+  }
+  if (testId === "traffic-sar-aircraft-non-collision") {
+    return runTrafficSarAircraftNonCollisionBite(app, { pluginId, testId, consoleVersion, timeoutMs });
   }
   if (testId === "gps-vector-arrow-contract") return runGpsVectorArrowContractBite(app, { consoleVersion });
   if (testId === "gps-counter-contract") return runGpsCounterContractBite(app, { consoleVersion });
@@ -7165,6 +7179,83 @@ async function runQuietTargetNoAlertBite(app, { pluginId, testId, consoleVersion
   });
 }
 
+async function runTrafficSarAircraftNonCollisionBite(app, {
+  pluginId,
+  testId,
+  consoleVersion,
+  timeoutMs,
+}) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const target = {
+    mmsi: SAR_AIRCRAFT_TEST_TARGET_MMSI,
+    name: SAR_AIRCRAFT_TEST_TARGET_NAME,
+    position: offsetPositionMeters(OWN_POSITION, { eastMeters: 300, northMeters: 0 }),
+    speedMps: 120 * KNOTS_TO_MPS,
+    courseRad: (3 * Math.PI) / 2,
+    lengthMeters: 0,
+    beamMeters: 0,
+    aisClass: null,
+  };
+  const own = {
+    position: OWN_POSITION,
+    speedMps: 5 * KNOTS_TO_MPS,
+    courseRad: Math.PI / 2,
+  };
+  const observations = [];
+  let lastRefreshAt = 0;
+  let finalSnapshot = null;
+  let evaluation = null;
+
+  try {
+    publishSyntheticTrafficScenario(app, { pluginId, runId, target, own });
+    while (Date.now() - startedAtMs <= timeoutMs) {
+      if (Date.now() - lastRefreshAt >= REFRESH_MS) {
+        publishSyntheticTrafficScenario(app, { pluginId, runId, target, own });
+        lastRefreshAt = Date.now();
+      }
+      finalSnapshot = collectSnapshot(app);
+      evaluation = evaluateSarAircraftSnapshot(finalSnapshot, {
+        startedAtMs,
+        targetName: target.name,
+        targetMmsi: target.mmsi,
+      });
+      if (evaluation.observation) observations.push(evaluation.observation);
+      if (evaluation.complete) break;
+      await delay(POLL_MS);
+    }
+    if (!evaluation) {
+      finalSnapshot = collectSnapshot(app);
+      evaluation = evaluateSarAircraftSnapshot(finalSnapshot, {
+        startedAtMs,
+        targetName: target.name,
+        targetMmsi: target.mmsi,
+      });
+    }
+  } finally {
+    await clearSyntheticScenarioTarget(app, { pluginId, runId, target });
+  }
+
+  const result = evaluation?.result || "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: testId,
+    testId,
+    result,
+    startedAt,
+    startedAtMs,
+    target: { mmsi: target.mmsi, name: target.name },
+    assertions: evaluation?.assertions || [],
+    observations: observations.slice(-12),
+    summary: result === "pass"
+      ? "Synthetic SAR aircraft remained visible and explicitly non-collision throughout the alert chain."
+      : `SAR aircraft classification check failed: ${(evaluation?.assertions || []).filter((item) => !item.pass).map((item) => item.id).join(", ") || "unknown"}.`,
+    snapshot: finalSnapshot ? summarizeSnapshot(finalSnapshot) : null,
+  });
+}
+
 function biteReport({
   consoleVersion,
   runId,
@@ -7392,6 +7483,57 @@ function evaluateQuietTargetSnapshot(snapshot, { startedAtMs, targetName, target
           trafficState: trafficAlert?.encounter?.state || "",
           audioState: audioEvidence?.state || "",
           message: audioEvidence?.message || brokerEvidence?.message || displayEvidence?.message || "",
+        }
+      : null,
+  };
+}
+
+function evaluateSarAircraftSnapshot(snapshot, { startedAtMs, targetName, targetMmsi }) {
+  const targets = Array.isArray(snapshot.traffic?.targets) ? snapshot.traffic.targets : [];
+  const target = targets.find((candidate) => matchesTarget(candidate, targetName, targetMmsi)) || null;
+  const quiet = evaluateQuietTargetSnapshot(snapshot, { startedAtMs, targetName, targetMmsi });
+  const assertions = [
+    assertion(
+      "sar-aircraft-visible",
+      Boolean(target),
+      target ? "Traffic projection contains the synthetic SAR aircraft." : "Traffic projection does not contain the synthetic SAR aircraft.",
+    ),
+    assertion(
+      "sar-aircraft-kind",
+      target?.targetKind === "sar-aircraft" && target?.targetKindSource === "itu-mmsi",
+      target
+        ? `Target kind=${target.targetKind || "missing"}; source=${target.targetKindSource || "missing"}.`
+        : "SAR aircraft target classification is unavailable.",
+    ),
+    assertion(
+      "sar-aircraft-helicopter",
+      target?.targetKindDetail === "helicopter",
+      target ? `SAR subtype=${target.targetKindDetail || "unspecified"}.` : "SAR subtype is unavailable.",
+    ),
+    assertion(
+      "sar-aircraft-non-collision",
+      target?.encounter?.collisionCandidate === false &&
+        target?.encounter?.state === "normal" &&
+        target?.encounter?.cpa == null &&
+        target?.encounter?.tcpa == null,
+      target
+        ? `collisionCandidate=${target.encounter?.collisionCandidate}; state=${target.encounter?.state}; CPA=${target.encounter?.cpa}; TCPA=${target.encounter?.tcpa}.`
+        : "SAR aircraft encounter projection is unavailable.",
+    ),
+    ...quiet.assertions,
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return {
+    complete: Boolean(target) && result === "pass",
+    result,
+    assertions,
+    observation: target
+      ? {
+          ts: new Date().toISOString(),
+          targetKind: target.targetKind,
+          targetKindDetail: target.targetKindDetail,
+          collisionCandidate: target.encounter?.collisionCandidate,
+          trafficState: target.encounter?.state,
         }
       : null,
   };
@@ -7847,6 +7989,28 @@ function publishSyntheticTrafficScenario(app, {
   const ownPosition = own?.position || OWN_POSITION;
   const targetCourse = Number.isFinite(Number(target?.courseRad)) ? Number(target.courseRad) : 0;
   const targetSpeed = Number.isFinite(Number(target?.speedMps)) ? Number(target.speedMps) : 0;
+  const targetValues = [
+    {
+      path: "",
+      value: {
+        mmsi: target.mmsi,
+        name: target.name,
+      },
+    },
+    { path: "navigation.position", value: target.position },
+    { path: "navigation.speedOverGround", value: targetSpeed },
+    { path: "navigation.courseOverGroundTrue", value: targetCourse },
+    { path: "navigation.state", value: targetSpeed > 0.2 ? "underWay" : "stopped" },
+  ];
+  if (Number(target.lengthMeters) > 0) {
+    targetValues.push({ path: "design.length", value: { overall: Number(target.lengthMeters) } });
+  }
+  if (Number(target.beamMeters) > 0) {
+    targetValues.push({ path: "design.beam", value: Number(target.beamMeters) });
+  }
+  if (target.aisClass) {
+    targetValues.push({ path: "sensors.ais.class", value: target.aisClass });
+  }
 
   app.handleMessage(pluginId, {
     context: "vessels.self",
@@ -7881,22 +8045,7 @@ function publishSyntheticTrafficScenario(app, {
     updates: [{
       $source: BITE_SYNTHETIC_SOURCE,
       timestamp,
-      values: [
-        {
-          path: "",
-          value: {
-            mmsi: target.mmsi,
-            name: target.name,
-          },
-        },
-        { path: "navigation.position", value: target.position },
-        { path: "navigation.speedOverGround", value: targetSpeed },
-        { path: "navigation.courseOverGroundTrue", value: targetCourse },
-        { path: "navigation.state", value: targetSpeed > 0.2 ? "underWay" : "stopped" },
-        { path: "design.length", value: { overall: target.lengthMeters || 18 } },
-        { path: "design.beam", value: target.beamMeters || 5 },
-        { path: "sensors.ais.class", value: target.aisClass || "B" },
-      ],
+      values: targetValues,
     }],
   });
 }
@@ -9014,12 +9163,14 @@ module.exports = {
   createBiteController,
   evaluateCollisionAudioSnapshot,
   evaluateQuietTargetSnapshot,
+  evaluateSarAircraftSnapshot,
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
   isAlertState,
   isCollisionClearEligibleState,
   CLEAR_LIFECYCLE_TARGET_MMSI,
   STATIONARY_TEST_TARGET_MMSI,
+  SAR_AIRCRAFT_TEST_TARGET_MMSI,
   BITE_TRAFFIC_TARGET_MMSIS,
   findAudioEvidence,
   currentDrifts,

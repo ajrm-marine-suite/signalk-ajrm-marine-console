@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.17
+
+- Add a synthetic SAR helicopter BITE encounter using reserved test MMSI
+  `111000599`.
+- Require Traffic to classify it as an ITU SAR helicopter, keep it visible,
+  and publish no collision candidate, CPA/TCPA, visual alert, or audio alert.
+- Publish the test target without fictional vessel dimensions or AIS A/B class.
+
 ## 0.6.16
 
 - Give the same-course Traffic BITE scenario a longer, wider passing geometry

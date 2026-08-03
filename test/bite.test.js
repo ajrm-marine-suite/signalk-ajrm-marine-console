@@ -13,12 +13,14 @@ const {
   TEST_TARGET_NAME,
   evaluateCollisionAudioSnapshot,
   evaluateQuietTargetSnapshot,
+  evaluateSarAircraftSnapshot,
   evaluateAudioOutputRoutingOptions,
   biteAudioSummaryEvidence,
   isAlertState,
   isCollisionClearEligibleState,
   CLEAR_LIFECYCLE_TARGET_MMSI,
   STATIONARY_TEST_TARGET_MMSI,
+  SAR_AIRCRAFT_TEST_TARGET_MMSI,
   BITE_TRAFFIC_TARGET_MMSIS,
   findAudioEvidence,
   clearAllSyntheticBiteTraffic,
@@ -467,12 +469,17 @@ test("Traffic all-clear BITE allows for the one-minute stability hold", () => {
   assert.match(definition.description, /one-minute advisory\/clear stability hold/i);
 });
 
-test("all BITE Traffic identities are ordinary reserved test vessels", () => {
+test("all BITE Traffic identities use explicit reserved test identities", () => {
   assert.equal(new Set(BITE_TRAFFIC_TARGET_MMSIS).size, BITE_TRAFFIC_TARGET_MMSIS.length);
   assert.ok(BITE_TRAFFIC_TARGET_MMSIS.includes(STATIONARY_TEST_TARGET_MMSI));
+  assert.ok(BITE_TRAFFIC_TARGET_MMSIS.includes(SAR_AIRCRAFT_TEST_TARGET_MMSI));
   for (const mmsi of BITE_TRAFFIC_TARGET_MMSIS) {
     assert.match(mmsi, /^\d{9}$/);
-    assert.doesNotMatch(mmsi, /^(00|970|972|974|99)/);
+    if (mmsi === SAR_AIRCRAFT_TEST_TARGET_MMSI) {
+      assert.equal(mmsi, "111000599");
+    } else {
+      assert.doesNotMatch(mmsi, /^(00|111|970|972|974|99)/);
+    }
   }
 });
 
@@ -897,6 +904,37 @@ test("BITE quiet target evaluation detects false visual or audio leakage", () =>
   assert.equal(result.result, "fail");
   assert.equal(result.assertions.find((item) => item.id === "no-display-alert").pass, false);
   assert.equal(result.assertions.find((item) => item.id === "no-audio-alert").pass, false);
+});
+
+test("BITE SAR aircraft evaluation requires visible helicopter classification without collision output", () => {
+  const result = evaluateSarAircraftSnapshot({
+    traffic: {
+      targets: [{
+        mmsi: SAR_AIRCRAFT_TEST_TARGET_MMSI,
+        name: "BITE SAR AIRCRAFT",
+        targetKind: "sar-aircraft",
+        targetKindDetail: "helicopter",
+        targetKindSource: "itu-mmsi",
+        encounter: {
+          collisionCandidate: false,
+          state: "normal",
+          cpa: null,
+          tcpa: null,
+        },
+      }],
+    },
+    notifications: { active: [] },
+    notificationsAudio: null,
+    audio: { recentEvents: [] },
+  }, {
+    startedAtMs: Date.now() - 1000,
+    targetName: "BITE SAR AIRCRAFT",
+    targetMmsi: SAR_AIRCRAFT_TEST_TARGET_MMSI,
+  });
+
+  assert.equal(result.result, "pass");
+  assert.equal(result.complete, true);
+  assert.ok(result.assertions.every((item) => item.pass));
 });
 
 test("BITE publishes synthetic own-vessel and target deltas", () => {
@@ -1932,6 +1970,31 @@ test("Console exposes BITE status and run routes", async () => {
         (message?.updates || []).flatMap((update) => update.values || [])
           .every((item) => item.value === null);
       const scenarioContext = isSyntheticTargetClear ? "" : String(message?.context || "");
+      if (scenarioContext.includes(SAR_AIRCRAFT_TEST_TARGET_MMSI)) {
+        values["plugins.ajrmMarineTraffic.targets"] = {
+          contract: "ajrm-marine-traffic-targets",
+          contractVersion: 1,
+          sessionId: "traffic-session",
+          sequence: 20,
+          mode: "traffic",
+          authoritative: true,
+          profile: "coastal",
+          targets: [{
+            id: `vessels.urn:mrn:imo:mmsi:${SAR_AIRCRAFT_TEST_TARGET_MMSI}`,
+            mmsi: SAR_AIRCRAFT_TEST_TARGET_MMSI,
+            name: "BITE SAR AIRCRAFT",
+            targetKind: "sar-aircraft",
+            targetKindDetail: "helicopter",
+            targetKindSource: "itu-mmsi",
+            encounter: {
+              collisionCandidate: false,
+              state: "normal",
+              cpa: null,
+              tcpa: null,
+            },
+          }],
+        };
+      }
       if (scenarioContext.includes("235912345")) {
         injectScenarioMessage({
           mmsi: "235912345",
