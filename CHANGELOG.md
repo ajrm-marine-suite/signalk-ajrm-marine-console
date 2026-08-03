@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.15
+
+- Require the dead-reckoning loss and GPS-recovery BITE exercises to observe
+  their newly injected trusted GPS/current baseline before withdrawing GPS.
+- Keep the DR exercise Navigation Reference override alive for the complete
+  exercise so replay data cannot resume midway through a slow assertion.
+- Add regression coverage for stale accepted GPS and retained YDEN current
+  state captured during a live Run All sequence.
+
 ## 0.6.14
 
 - Add a prominent onboard Help warning that avoidance prompts are limited

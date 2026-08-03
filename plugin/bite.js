@@ -81,6 +81,7 @@ const BITE_TRAFFIC_TARGET_MMSIS = Object.freeze([
 ]);
 const DR_EXERCISE_CURRENT_SET_RAD = Math.PI / 2;
 const DR_EXERCISE_CURRENT_DRIFT_MPS = 1 * KNOTS_TO_MPS;
+const DR_EXERCISE_OVERRIDE_TTL_MS = 35000;
 
 const WATCH_PATHS = {
   traffic: "plugins.ajrmMarineTraffic.targets",
@@ -2992,8 +2993,9 @@ async function publishAndWaitForGpsIntegrity(app, {
   satellites = 12,
   timeoutMs,
   predicate,
+  requireFreshTrustedBaseline = false,
 }) {
-  publishDeadReckoningExerciseSample(app, {
+  const publishedAt = publishDeadReckoningExerciseSample(app, {
     pluginId,
     runId,
     phase,
@@ -3004,7 +3006,12 @@ async function publishAndWaitForGpsIntegrity(app, {
     hdop,
     satellites,
   });
-  return waitForGpsIntegrity(app, { timeoutMs, predicate });
+  return waitForGpsIntegrity(app, {
+    timeoutMs,
+    predicate: (state) =>
+      (!requireFreshTrustedBaseline || freshBiteDrTrustedBaseline(state, publishedAt)) &&
+      predicate(state),
+  });
 }
 
 async function waitForGpsIntegrity(app, { timeoutMs, predicate }) {
@@ -4769,7 +4776,7 @@ async function runDeadReckoningLossExerciseBite(app, { pluginId, consoleVersion,
   let finalSnapshot = null;
 
   try {
-    publishDeadReckoningExerciseSample(app, {
+    const baselinePublishedAt = publishDeadReckoningExerciseSample(app, {
       pluginId,
       runId,
       phase: "trusted-baseline",
@@ -4781,7 +4788,7 @@ async function runDeadReckoningLossExerciseBite(app, { pluginId, consoleVersion,
       timeoutMs: Math.min(8000, Math.max(5000, timeoutMs / 3)),
       predicate: (snapshot) => {
         const state = snapshot.gpsIntegrity || {};
-        return state.acceptedGps === true &&
+        return freshBiteDrTrustedBaseline(state, baselinePublishedAt) &&
           validPosition(state.lastTrustedFix?.position) &&
           (currentDrifts(state.current) || currentDrifts(state.lastTrustedCurrent));
       },
@@ -4889,6 +4896,7 @@ async function runGpsRecoveryRealignsDrBite(app, { pluginId, consoleVersion, tim
       includeGps: true,
       includeCurrent: true,
       timeoutMs: Math.min(7000, timeoutMs / 3),
+      requireFreshTrustedBaseline: true,
       predicate: (state) => state.acceptedGps === true && (currentDrifts(state.current) || currentDrifts(state.lastTrustedCurrent)),
     });
     publishDeadReckoningExerciseSample(app, {
@@ -7699,6 +7707,7 @@ function publishDeadReckoningExerciseSample(app, {
       pluginId,
       source: BITE_DR_SYNTHETIC_SOURCE,
       timestamp,
+      ttlMs: DR_EXERCISE_OVERRIDE_TTL_MS,
       value: syntheticDrNavigationReferenceState({
         timestamp,
         position: gpsPosition,
@@ -7711,6 +7720,21 @@ function publishDeadReckoningExerciseSample(app, {
       }),
     });
   }
+  return timestamp;
+}
+
+function freshBiteDrTrustedBaseline(state, publishedAt) {
+  const publishedAtMs = Date.parse(String(publishedAt || ""));
+  const fixTimestampMs = Date.parse(String(state?.lastTrustedFix?.timestamp || ""));
+  const currentTimestampMs = Date.parse(String(state?.lastTrustedCurrent?.timestamp || ""));
+  return state?.acceptedGps === true &&
+    state?.lastTrustedFix?.source === BITE_DR_SYNTHETIC_SOURCE &&
+    state?.lastTrustedCurrent?.source === BITE_DR_SYNTHETIC_SOURCE &&
+    Number.isFinite(publishedAtMs) &&
+    Number.isFinite(fixTimestampMs) &&
+    Number.isFinite(currentTimestampMs) &&
+    fixTimestampMs >= publishedAtMs &&
+    currentTimestampMs >= publishedAtMs;
 }
 
 function syntheticDrNavigationReferenceState({
@@ -7936,10 +7960,11 @@ function applyBiteNavigationReference(app, {
   source,
   timestamp,
   value,
+  ttlMs = 5000,
 }) {
   const api = navigationReferenceApi(app);
   if (typeof api?.setBiteOverride === "function") {
-    api.setBiteOverride(value, { ttlMs: 5000 });
+    api.setBiteOverride(value, { ttlMs });
     return;
   }
   app.handleMessage?.(pluginId, {
@@ -8990,6 +9015,7 @@ module.exports = {
   BITE_TRAFFIC_TARGET_MMSIS,
   findAudioEvidence,
   currentDrifts,
+  freshBiteDrTrustedBaseline,
   clearSyntheticEncounter,
   clearSyntheticScenarioTarget,
   clearSyntheticQuietTarget,

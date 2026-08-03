@@ -26,6 +26,7 @@ const {
   clearSyntheticScenarioTarget,
   clearSyntheticQuietTarget,
   currentDrifts,
+  freshBiteDrTrustedBaseline,
   publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,
   publishSyntheticTrafficScenario,
@@ -293,7 +294,7 @@ function fakeDrIntegrityFromInjectedValues(previous, values) {
       lastTrustedFix: {
         position,
         timestamp: now,
-        source: "navigation.position",
+        source: "ajrm-marine-bite-dr",
       },
       lastTrustedCurrent: {
         setTrue: values["environment.current.setTrue"],
@@ -301,6 +302,7 @@ function fakeDrIntegrityFromInjectedValues(previous, values) {
         setTrueDegrees: 90,
         driftKnots: 1,
         timestamp: now,
+        source: "ajrm-marine-bite-dr",
       },
       current: {
         available: true,
@@ -1082,6 +1084,58 @@ test("BITE Traffic scenarios use and clear the Navigation Reference override API
     target,
   });
   assert.equal(clears, 1);
+});
+
+test("BITE DR baselines reject stale accepted GPS and current state", () => {
+  const publishedAt = "2026-08-03T05:31:13.609Z";
+  const baseline = {
+    acceptedGps: true,
+    lastTrustedFix: {
+      source: "ajrm-marine-bite-dr",
+      timestamp: publishedAt,
+    },
+    lastTrustedCurrent: {
+      source: "ajrm-marine-bite-dr",
+      timestamp: publishedAt,
+    },
+  };
+
+  assert.equal(freshBiteDrTrustedBaseline(baseline, publishedAt), true);
+  assert.equal(freshBiteDrTrustedBaseline({
+    ...baseline,
+    lastTrustedFix: {
+      source: "ajrm-marine-bite",
+      timestamp: "2026-08-03T05:31:12.851Z",
+    },
+    lastTrustedCurrent: {
+      source: "YDEN.legacy",
+      timestamp: "2026-07-19T18:03:42.632Z",
+    },
+  }, publishedAt), false);
+});
+
+test("BITE DR navigation overrides cover the complete active exercise", () => {
+  const overrides = [];
+  const app = {
+    ajrmMarineNavigationReferenceApi: {
+      setBiteOverride(value, options) {
+        overrides.push({ value, options });
+      },
+    },
+    handleMessage() {},
+  };
+
+  publishDeadReckoningExerciseSample(app, {
+    pluginId: "signalk-ajrm-marine-console",
+    runId: "test-run",
+    phase: "gps-lost-current-unavailable",
+    position: BITE_OWN_POSITION,
+    includeGps: false,
+    includeCurrent: false,
+  });
+
+  assert.equal(overrides.length, 1);
+  assert.equal(overrides[0].options.ttlMs, 35000);
 });
 
 test("BITE cleanup moves synthetic targets out of operational range", async () => {
