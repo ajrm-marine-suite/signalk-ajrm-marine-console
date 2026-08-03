@@ -6146,15 +6146,27 @@ async function runTrafficTargetOvertakingWordingBite(app, { pluginId, testId, co
 }
 
 async function runTrafficSameCourseWordingBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
+  const scenario = sameCourseBiteScenario();
   return runTrafficMessageScenarioBite(app, {
     pluginId,
     testId,
     consoleVersion,
     timeoutMs,
+    target: scenario.target,
+    own: scenario.own,
+    expectedPatterns: [/Same general course/i, /CPA will be on your (port|starboard) side/i],
+    forbiddenPatterns: [/CPA will be ahead\. CPA /i],
+    passSummary: "Same-course passing wording was present in the Traffic alert chain.",
+    failSummary: "Traffic same-course wording check failed",
+  });
+}
+
+function sameCourseBiteScenario() {
+  return {
     target: {
       mmsi: SAME_COURSE_TEST_TARGET_MMSI,
       name: SAME_COURSE_TEST_TARGET_NAME,
-      position: offsetPositionMeters(OWN_POSITION, { eastMeters: -40, northMeters: -80 }),
+      position: offsetPositionMeters(OWN_POSITION, { eastMeters: -40, northMeters: -140 }),
       speedMps: 4 * KNOTS_TO_MPS,
       courseRad: (80 * Math.PI) / 180,
       lengthMeters: 18,
@@ -6166,11 +6178,7 @@ async function runTrafficSameCourseWordingBite(app, { pluginId, testId, consoleV
       speedMps: 5 * KNOTS_TO_MPS,
       courseRad: Math.PI / 2,
     },
-    expectedPatterns: [/Same general course/i, /CPA will be on your (port|starboard) side/i],
-    forbiddenPatterns: [/CPA will be ahead\. CPA /i],
-    passSummary: "Same-course passing wording was present in the Traffic alert chain.",
-    failSummary: "Traffic same-course wording check failed",
-  });
+  };
 }
 
 async function runTrafficAdvisoryNoActionPromptBite(app, { pluginId, testId, consoleVersion, timeoutMs }) {
@@ -9016,6 +9024,7 @@ module.exports = {
   findAudioEvidence,
   currentDrifts,
   freshBiteDrTrustedBaseline,
+  sameCourseBiteScenario,
   clearSyntheticEncounter,
   clearSyntheticScenarioTarget,
   clearSyntheticQuietTarget,

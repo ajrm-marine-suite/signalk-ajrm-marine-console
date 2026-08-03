@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.16
+
+- Give the same-course Traffic BITE scenario a longer, wider passing geometry
+  so it remains in the intended side-CPA wording branch instead of collapsing
+  into close quarters before Traffic's alert chain settles.
+- Add regression coverage for the scenario's separation, speed, and course
+  relationship.
+
 ## 0.6.15
 
 - Require the dead-reckoning loss and GPS-recovery BITE exercises to observe

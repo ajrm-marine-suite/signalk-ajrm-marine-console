@@ -27,6 +27,7 @@ const {
   clearSyntheticQuietTarget,
   currentDrifts,
   freshBiteDrTrustedBaseline,
+  sameCourseBiteScenario,
   publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,
   publishSyntheticTrafficScenario,
@@ -1136,6 +1137,24 @@ test("BITE DR navigation overrides cover the complete active exercise", () => {
 
   assert.equal(overrides.length, 1);
   assert.equal(overrides[0].options.ttlMs, 35000);
+});
+
+test("BITE same-course geometry leaves time before a side CPA", () => {
+  const { own, target } = sameCourseBiteScenario();
+  const northMeters =
+    ((target.position.latitude - own.position.latitude) * Math.PI / 180) *
+    EARTH_RADIUS_METERS;
+  const eastMeters =
+    ((target.position.longitude - own.position.longitude) * Math.PI / 180) *
+    EARTH_RADIUS_METERS * Math.cos(own.position.latitude * Math.PI / 180);
+  const courseDifferenceDegrees = Math.abs(
+    ((own.courseRad - target.courseRad) * 180) / Math.PI,
+  );
+
+  assert.ok(northMeters < -135 && northMeters > -145);
+  assert.ok(eastMeters < -35 && eastMeters > -45);
+  assert.ok(own.speedMps > target.speedMps);
+  assert.ok(courseDifferenceDegrees < 45);
 });
 
 test("BITE cleanup moves synthetic targets out of operational range", async () => {
