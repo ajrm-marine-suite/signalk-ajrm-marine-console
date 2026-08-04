@@ -14,6 +14,7 @@ const {
   selectedWebappIds,
   suiteAppCatalog,
   webappOrder,
+  workspaceProfiles,
 } = require("../plugin/modules");
 
 function writePackage(nodeModulesDir, name, value = {}) {
@@ -200,6 +201,49 @@ test("Console suite catalogue includes missing apps grey-list data", () => {
   assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-alerts").title, "Alert Panel");
   assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-alerts").groupLabel, "Optional");
   assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-harbour-editor").selected, true);
+});
+
+test("Console publishes task-focused workspace menus from available modules", () => {
+  const available = [
+    { id: "signalk-ajrm-marine-display", title: "Display", kind: "webapp" },
+    { id: "signalk-ajrm-marine-capture", title: "Capture", kind: "webapp" },
+    { id: "signalk-ajrm-marine-voyage-viewer", title: "Voyage Viewer", kind: "webapp" },
+    { id: "signalk-ajrm-marine-simulator", title: "Simulator", kind: "webapp" },
+    { id: "third-party-webapp", title: "Third Party", kind: "webapp" },
+  ];
+  const modules = configuredModules(
+    { webapps: Object.fromEntries(available.map((module) => [module.id, true])) },
+    available,
+  );
+  const profiles = workspaceProfiles(modules);
+
+  assert.deepEqual(profiles.map((profile) => profile.label), [
+    "Setup",
+    "Voyaging",
+    "Reviewing",
+    "Debugging",
+    "Show All Plugins",
+  ]);
+  assert.deepEqual(
+    profiles.find((profile) => profile.id === "voyaging").moduleIds,
+    ["overview", "signalk-ajrm-marine-display", "signalk-ajrm-marine-capture"],
+  );
+  assert.deepEqual(
+    profiles.find((profile) => profile.id === "reviewing").moduleIds,
+    [
+      "overview",
+      "signalk-ajrm-marine-voyage-viewer",
+      "signalk-ajrm-marine-capture",
+      "signalk-ajrm-marine-display",
+    ],
+  );
+  assert.ok(profiles.find((profile) => profile.id === "debugging").moduleIds.includes("bite"));
+  assert.ok(profiles.find((profile) => profile.id === "setup").moduleIds.includes("signalk-admin"));
+  assert.deepEqual(
+    profiles.find((profile) => profile.id === "show-all").moduleIds,
+    modules.map((module) => module.id),
+  );
+  assert.ok(profiles.find((profile) => profile.id === "show-all").moduleIds.includes("third-party-webapp"));
 });
 
 test("Console orders selected webapp tabs from config", () => {

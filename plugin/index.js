@@ -9,6 +9,7 @@ const {
   discoverWebapps,
   selectedWebappIds,
   suiteAppCatalog,
+  workspaceProfiles,
 } = require("./modules");
 const { createBiteController } = require("./bite");
 
@@ -125,6 +126,7 @@ module.exports = function ajrmMarineConsole(app) {
         .filter((module) => module.kind === "webapp")
         .map((module) => module.id),
       modules,
+      workspaces: workspaceProfiles(modules),
       defaultModule: defaultModule(options, modules),
       services: serviceSummary(),
       generatedAt: new Date().toISOString(),

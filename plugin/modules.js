@@ -140,6 +140,83 @@ const SUITE_APP_INFO = {
   },
 };
 
+const WORKSPACE_PROFILES = [
+  {
+    id: "setup",
+    label: "Setup",
+    description: "Configuration, data sources, sound, instruments, harbour regions, vessel details, and Pi administration.",
+    moduleIds: [
+      "overview",
+      "signalk-admin",
+      "signalk-ajrm-marine-display",
+      "signalk-ajrm-marine-traffic",
+      "signalk-ajrm-marine-notifications",
+      "signalk-ajrm-marine-audio",
+      "signalk-ajrm-marine-gps-integrity",
+      "signalk-ajrm-marine-vessel-database",
+      "signalk-ajrm-marine-instruments",
+      "signalk-ajrm-marine-instrument-alerts",
+      "signalk-ajrm-marine-harbour-editor",
+      "signalk-ajrm-marine-pi-controller",
+    ],
+  },
+  {
+    id: "voyaging",
+    label: "Voyaging",
+    description: "The operational displays and controls normally needed while underway or at anchor.",
+    moduleIds: [
+      "overview",
+      "signalk-ajrm-marine-display",
+      "signalk-ajrm-marine-instruments",
+      "signalk-ajrm-marine-alerts",
+      "signalk-ajrm-marine-instrument-alerts",
+      "signalk-ajrm-marine-capture",
+      "signalk-ajrm-marine-dr-plotter",
+    ],
+  },
+  {
+    id: "reviewing",
+    label: "Reviewing",
+    description: "Voyage replay, recorded evidence, tracks, navigation integrity, vessel details, and snapshots.",
+    moduleIds: [
+      "overview",
+      "signalk-ajrm-marine-voyage-viewer",
+      "signalk-ajrm-marine-capture",
+      "signalk-ajrm-marine-display",
+      "signalk-ajrm-marine-dr-plotter",
+      "signalk-ajrm-marine-gps-integrity",
+      "signalk-ajrm-marine-vessel-database",
+      "signalk-ajrm-marine-snapshot",
+    ],
+  },
+  {
+    id: "debugging",
+    label: "Debugging",
+    description: "BITE, simulation, diagnostics, internal alert flow, replay evidence, and server administration.",
+    moduleIds: [
+      "overview",
+      "bite",
+      "signalk-admin",
+      "signalk-ajrm-marine-simulator",
+      "signalk-ajrm-marine-snapshot",
+      "signalk-ajrm-marine-capture",
+      "signalk-ajrm-marine-traffic",
+      "signalk-ajrm-marine-notifications",
+      "signalk-ajrm-marine-audio",
+      "signalk-ajrm-marine-gps-integrity",
+      "signalk-ajrm-marine-dr-plotter",
+      "signalk-ajrm-marine-pi-controller",
+    ],
+  },
+  {
+    id: "show-all",
+    label: "Show All Plugins",
+    description: "Every Console tab enabled in the Signal K plugin configuration.",
+    allModules: true,
+    moduleIds: [],
+  },
+];
+
 function discoverWebapps(options = {}) {
   const nodeModulesDir =
     options.nodeModulesDir || path.dirname(path.resolve(__dirname, ".."));
@@ -205,6 +282,16 @@ function suiteAppCatalog(
       version: module?.version || "",
     };
   });
+}
+
+function workspaceProfiles(modules = []) {
+  const available = new Set(modules.map((module) => module.id));
+  return WORKSPACE_PROFILES.map((profile) => ({
+    ...profile,
+    moduleIds: profile.allModules
+      ? modules.map((module) => module.id)
+      : profile.moduleIds.filter((id) => available.has(id)),
+  }));
 }
 
 function defaultModule(options = {}, modules = configuredModules(options)) {
@@ -357,10 +444,12 @@ module.exports = {
   OPTIONAL_SUITE_WEBAPPS,
   OVERVIEW_MODULE,
   SIGNALK_ADMIN_MODULE,
+  WORKSPACE_PROFILES,
   configuredModules,
   defaultModule,
   discoverWebapps,
   selectedWebappIds,
   suiteAppCatalog,
   webappOrder,
+  workspaceProfiles,
 };

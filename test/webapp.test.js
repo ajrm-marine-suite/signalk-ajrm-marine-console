@@ -12,6 +12,8 @@ test("Console uses one compact toolbar and hidden loading overlay cannot display
   const css = fs.readFileSync(path.join(root, "public", "styles.css"), "utf8");
   assert.match(html, /<header class="consolebar">/);
   assert.match(html, /<nav id="tabs" class="tabs"/);
+  assert.match(html, /id="workspaceSelect"/);
+  assert.match(html, /id="workspaceDescription"/);
   assert.doesNotMatch(html, /Sailing workspace/);
   assert.doesNotMatch(html, /<h1>AJRM Marine Console/);
   assert.doesNotMatch(html, /Record incident/);
@@ -53,6 +55,16 @@ test("Console uses one compact toolbar and hidden loading overlay cannot display
   assert.match(helpScript, /CPA and TCPA Limits/);
   assert.match(helpScript, /Vessel size categories/);
   assert.match(helpScript, /Harbour switching/);
+});
+
+test("Console workspace selector persists and filters only the top navigation", () => {
+  const script = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
+  assert.match(script, /ajrmMarineConsole\.workspace/);
+  assert.match(script, /function visibleConsoleModules\(\)/);
+  assert.match(script, /function selectWorkspace\(id\)/);
+  assert.match(script, /localStorage\.setItem\(WORKSPACE_KEY, id\)/);
+  assert.match(script, /visibleConsoleModules\(\)\s*\.map/s);
+  assert.match(script, /selectWorkspace\("show-all"\)/);
 });
 
 test("Console updates viewport height for iPad Safari iframe layout", () => {

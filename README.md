@@ -35,9 +35,11 @@ you want those features:
 - AJRM Marine Pi Controller
 
 Console lists every suite app on the Overview screen. Missing apps are greyed
-out, while installed apps appear normally. Every installed AJRM Marine suite
-webapp is selected for the tab bar by default; untick apps in the Console plugin
-settings if you want a shorter operational toolbar.
+out, while installed apps appear normally. The Overview **Top menu** selector
+switches the tab bar between Setup, Voyaging, Reviewing, Debugging, and Show All
+Plugins without enabling, disabling, starting, or stopping any plugin. Its
+selection is remembered by that browser. Plugin configuration still determines
+which installed webapps are eligible to appear at all.
 
 Capture is required because BITE and support diagnostics use it to create
 evidence bundles. Vessel Database is optional: the suite works without it, but
@@ -216,7 +218,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.6.16 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.6.18 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

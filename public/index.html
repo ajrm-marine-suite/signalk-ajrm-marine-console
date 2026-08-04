@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#071826" />
     <title>AJRM Marine Console</title>
-    <link rel="stylesheet" href="./styles.css?v=0.6.16" />
-    <script defer src="./app.js?v=0.6.16"></script>
+    <link rel="stylesheet" href="./styles.css?v=0.6.18" />
+    <script defer src="./app.js?v=0.6.18"></script>
   </head>
   <body>
     <header class="consolebar">
@@ -32,6 +32,11 @@
             </p>
           </div>
           <div class="overview-actions">
+            <label class="workspace-picker" for="workspaceSelect">
+              <span>Top menu</span>
+              <select id="workspaceSelect" aria-describedby="workspaceDescription"></select>
+              <small id="workspaceDescription"></small>
+            </label>
             <button id="overviewHelpButton" class="help-button large" type="button">
               Onboard help
             </button>

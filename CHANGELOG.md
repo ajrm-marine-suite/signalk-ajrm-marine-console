@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.18
+
+- Add a persistent Overview selector for Setup, Voyaging, Reviewing,
+  Debugging, and Show All Plugins views.
+- Filter only the top Console menu; plugin installation, enablement, and
+  background operation are unchanged.
+- Keep Overview available in every view and expand to Show All when a hidden
+  plugin is deliberately opened from its Overview card.
+
 ## 0.6.17
 
 - Add a synthetic SAR helicopter BITE encounter using reserved test MMSI

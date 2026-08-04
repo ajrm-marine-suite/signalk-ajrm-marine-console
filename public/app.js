@@ -7,6 +7,7 @@ const BITE_RUN_ALL_URL = "/signalk/v1/api/ajrmMarineConsole/bite/run-all";
 const BITE_RUN_GROUP_URL = "/signalk/v1/api/ajrmMarineConsole/bite/run-group";
 const AUDIO_STATUS_URL = "/signalk/v1/api/ajrmMarineAudio/status";
 const ACTIVE_MODULE_KEY = "ajrmMarineConsole.activeModule";
+const WORKSPACE_KEY = "ajrmMarineConsole.workspace";
 const AUDIO_ACCESS_TOKEN_STORAGE_KEY = "ajrmMarineAudio.accessToken";
 const BROWSER_OUTPUT_MODE_STORAGE_KEY = "ajrmMarineAudio.browserOutputMode";
 const BROWSER_OUTPUT_STORAGE_KEY = "ajrmMarineAudio.browserOutput";
@@ -16,6 +17,8 @@ const BITE_STATUS_REFRESH_MS = 1000;
 const SILENT_AUDIO_DATA_URL =
   "data:audio/wav;base64,UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 let activeFrame = null;
+let activeModuleId = null;
+let activeWorkspaceId = "voyaging";
 let consoleStatus = null;
 let lastConsoleAudioUrl = "";
 let lastConsoleAnnouncementKey = "";
@@ -49,6 +52,8 @@ const els = {
   frameHost: document.getElementById("frameHost"),
   frameMessage: document.getElementById("frameMessage"),
   moduleCards: document.getElementById("moduleCards"),
+  workspaceSelect: document.getElementById("workspaceSelect"),
+  workspaceDescription: document.getElementById("workspaceDescription"),
   biteRunAll: document.getElementById("biteRunAll"),
   biteTests: document.getElementById("biteTests"),
   biteLog: document.getElementById("biteLog"),
@@ -69,12 +74,16 @@ async function start() {
   try {
     consoleStatus = await jsonRequest(CONSOLE_STATUS_URL);
     els.version.textContent = `v${consoleStatus.version}`;
+    initializeWorkspace();
     renderNavigation();
     const stored = localStorage.getItem(ACTIVE_MODULE_KEY);
+    const visibleIds = new Set(visibleConsoleModules().map((module) => module.id));
     selectModule(
-      consoleStatus.modules.some((module) => module.id === stored)
+      visibleIds.has(stored)
         ? stored
-        : consoleStatus.defaultModule,
+        : visibleIds.has(consoleStatus.defaultModule)
+          ? consoleStatus.defaultModule
+          : "overview",
     );
     setConnection(true);
     refreshBiteStatus();
@@ -133,12 +142,13 @@ function updateViewportHeight() {
 }
 
 function renderNavigation() {
-  els.tabs.innerHTML = consoleStatus.modules
+  els.tabs.innerHTML = visibleConsoleModules()
     .map(
       (module) =>
         `<button class="tab" type="button" data-module="${escapeHtml(module.id)}">${escapeHtml(module.icon)} ${escapeHtml(module.title)}</button>`,
     )
     .join("");
+  renderWorkspacePicker();
   const overviewApps =
     Array.isArray(consoleStatus.suiteApps) && consoleStatus.suiteApps.length
       ? consoleStatus.suiteApps
@@ -149,6 +159,65 @@ function renderNavigation() {
         moduleCardHtml(module),
     )
     .join("") || '<p class="empty-note">No webapps are selected. Choose installed Signal K webapps in the AJRM Marine Console plugin configuration.</p>';
+}
+
+function initializeWorkspace() {
+  const profiles = consoleWorkspaces();
+  const stored = localStorage.getItem(WORKSPACE_KEY);
+  activeWorkspaceId = profiles.some((profile) => profile.id === stored)
+    ? stored
+    : profiles.some((profile) => profile.id === "voyaging")
+      ? "voyaging"
+      : profiles[0]?.id || "show-all";
+}
+
+function consoleWorkspaces() {
+  if (Array.isArray(consoleStatus?.workspaces) && consoleStatus.workspaces.length) {
+    return consoleStatus.workspaces;
+  }
+  return [{
+    id: "show-all",
+    label: "Show All Plugins",
+    description: "Every configured Console tab.",
+    allModules: true,
+    moduleIds: (consoleStatus?.modules || []).map((module) => module.id),
+  }];
+}
+
+function activeWorkspace() {
+  return consoleWorkspaces().find((profile) => profile.id === activeWorkspaceId)
+    || consoleWorkspaces()[0];
+}
+
+function visibleConsoleModules() {
+  const profile = activeWorkspace();
+  if (!profile || profile.allModules === true) return consoleStatus?.modules || [];
+  const visible = new Set(["overview", ...(profile.moduleIds || [])]);
+  return (consoleStatus?.modules || []).filter((module) => visible.has(module.id));
+}
+
+function renderWorkspacePicker() {
+  const profiles = consoleWorkspaces();
+  els.workspaceSelect.innerHTML = profiles
+    .map((profile) => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.label)}</option>`)
+    .join("");
+  els.workspaceSelect.value = activeWorkspaceId;
+  els.workspaceDescription.textContent = activeWorkspace()?.description || "";
+}
+
+function selectWorkspace(id) {
+  if (!consoleWorkspaces().some((profile) => profile.id === id)) return;
+  activeWorkspaceId = id;
+  localStorage.setItem(WORKSPACE_KEY, id);
+  renderNavigation();
+  if (
+    activeModuleId &&
+    !visibleConsoleModules().some((module) => module.id === activeModuleId)
+  ) {
+    selectModule("overview");
+  } else if (activeModuleId) {
+    selectModule(activeModuleId);
+  }
 }
 
 function renderBitePanel() {
@@ -619,6 +688,7 @@ function moduleCardHtml(module) {
 function selectModule(id) {
   const module = consoleStatus.modules.find((candidate) => candidate.id === id);
   if (!module) return;
+  activeModuleId = id;
   localStorage.setItem(ACTIVE_MODULE_KEY, id);
   for (const tab of els.tabs.querySelectorAll("[data-module]")) {
     tab.classList.toggle("active", tab.dataset.module === id);
@@ -952,7 +1022,15 @@ els.tabs.addEventListener("click", (event) => {
 });
 els.moduleCards.addEventListener("click", (event) => {
   const button = event.target.closest("[data-module]");
-  if (button) selectModule(button.dataset.module);
+  if (button) {
+    if (!visibleConsoleModules().some((module) => module.id === button.dataset.module)) {
+      selectWorkspace("show-all");
+    }
+    selectModule(button.dataset.module);
+  }
+});
+els.workspaceSelect.addEventListener("change", () => {
+  selectWorkspace(els.workspaceSelect.value);
 });
 els.biteTests.addEventListener("click", (event) => {
   const toggle = event.target.closest("[data-bite-group-toggle]");

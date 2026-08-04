@@ -97,6 +97,34 @@ h1, h2, p { margin-top: 0; }
 .hero p:last-child { margin-bottom: 0; color: #a9c5d6; }
 .large { min-width: 10rem; min-height: 4rem; }
 .overview-actions { display: flex; gap: .6rem; }
+.workspace-picker {
+  display: grid;
+  gap: .28rem;
+  min-width: min(23rem, 48vw);
+  color: #a9c5d6;
+  font-size: .72rem;
+  font-weight: 800;
+}
+.workspace-picker select {
+  width: 100%;
+  border: 1px solid #3d7595;
+  border-radius: .55rem;
+  padding: .58rem .7rem;
+  background: #071826;
+  color: #edf8ff;
+  font: inherit;
+  font-size: .88rem;
+}
+.workspace-picker select:focus-visible {
+  outline: 3px solid #facc15;
+  outline-offset: 2px;
+}
+.workspace-picker small {
+  max-width: 23rem;
+  color: #7898aa;
+  font-weight: 600;
+  line-height: 1.25;
+}
 .help-button, .help-toolbar button {
   border: 1px solid #3d7595;
   border-bottom-color: #0d3348;
