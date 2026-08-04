@@ -98,7 +98,7 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
   audio-policy restore.
 - Display deriving Active Alerts only from the broker's current active set, so
   resolved traffic and instrument messages do not remain as historical alerts.
-- Logger exposing persistent replay-cache usage and disk-pruning limits.
+- Capture exposing canonical recording/replay contracts, durable finalisation, and portable voyage downloads.
 - Audio status exposing queue/recent-event/output/dependency detail for delayed
   speech debugging.
 - Notifications visual events carrying presentation, priority, delivery, and
@@ -112,8 +112,8 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
 - Audio accepting, queueing, rendering, skipping, or muting matching BITE audio.
 - GPS Integrity retaining vector-role, counter, and current/last-trusted-current
   fields needed by DR Plotter and voyage review.
-- Optional plugin contracts such as Vessel Database summary publication, Logger
-  runtime API availability, Harbour Editor default harbour data status, and Pi
+- Optional plugin contracts such as Vessel Database summary publication, Voyage
+  Viewer bundle analysis, Instruments derived paths, Harbour Editor default data, and Pi
   Controller host telemetry.
 - Any mute condition being explicit rather than silent.
 - A final spoken BITE summary being requested so the skipper can confirm the
@@ -136,11 +136,12 @@ Current numbered BITE tests:
 | 1.4 | Audio renderer readiness | Piper/FFmpeg/rendering dependencies and output availability are explicit. |
 | 1.5 | Notifications broker health | Broker active/history/audio sequence state is visible and bounded. |
 | 1.6 | Stationary automute policy shape | Traffic audio policy exposes whether stationary automute is armed, allowed, and active. |
-| 1.7 | Capture API contract | Capture exposes status, start, stop, automatic-recording, and timestamped voyage-observation controls used by BITE and Display. |
+| 1.7 | Capture API contract | Capture exposes recording, canonical replay, route selection, durable download, and timestamped voyage-observation controls, plus explicit portable input/replay contracts. |
 | 1.8 | Traffic API contract | Traffic exposes status and shared audio-policy control so BITE can unmute safely and restore the prior state. |
 | 1.9 | Audio status detail contract | Audio exposes queue length plus structured queued subject/event identity, recent-event, output, dependency, and mute-state detail for debugging delayed speech. |
 | 1.10 | Notifications visual contract | Notifications active visual events carry presentation, delivery, priority, timestamp, and audio-sequence fields. |
 | 1.15 | Display active-alert panel contract | Display derives Active Alerts only from currently active broker events and excludes resolved history. |
+| 1.16 | Display route Capture contract | An open Display route uses the versioned route contract and Capture preserves its identity, revision, and direction at voyage start. |
 | 2.1 | Collision visual/audio chain | Synthetic collision reaches Traffic, Display-facing visual alerts, Notifications audio delivery, and Audio acceptance. |
 | 2.2 | Quiet target no-alert | Stopped/far-away synthetic target does not create a fresh visual or audible alert. |
 | 2.3 | Traffic overtaking wording | A synthetic overtaking encounter must include overtaking and CPA-direction wording through the alert chain. |
@@ -179,21 +180,22 @@ Current numbered BITE tests:
 | 3.15 | GPS Integrity counter contract | GPS Integrity counters are present, non-negative, and internally plausible. |
 | 3.16 | GPS/DR current contract | Live and retained current/set data are explicit enough for lost-GPS dead reckoning. |
 | 9.1 | Vessel Database availability | Optional Vessel Database plugin is installed, enabled, and visible to Console when present. |
-| 9.1.1 | Vessel Database summary contract | Vessel Database publishes the suite-facing summary used by capture/debugging, including vessel count, fill policy, and stats. |
+| 9.1.1 | Vessel Database summary contract | Vessel Database publishes vessel/test-record counts, fill policy, lookup state, and stats without running an online lookup during BITE. |
 | 9.2 | Snapshot availability | Optional Snapshot plugin is installed, enabled, and visible to Console when present. |
-| 9.3 | Logger availability | Optional Logger plugin is installed, enabled, and visible to Console when present. |
-| 9.3.1 | Logger runtime API contract | Logger exposes status/start/stop/path API methods to the live Signal K process. |
-| 9.3.2 | Logger replay sanity contract | Logger exposes safe replay timestamp/filter state and persistent replay-cache usage, size limit, and free-disk reserve. |
 | 9.4 | Voyage Viewer availability | Optional Voyage Viewer plugin is installed, enabled, and visible to Console when present. |
+| 9.4.1 | Voyage Viewer review contract | Voyage Viewer exposes its voyage-only review model and in-process analysis API. |
+| 9.4.2 | Completed BITE bundle round trip | After Capture stops, Voyage Viewer opens the completed ZIP and finds versioned review and BITE evidence. |
 | 9.5 | Simulator availability | Optional Simulator plugin is installed, enabled, and visible to Console when present. |
 | 9.6 | Alert Panel availability | Optional Alert Panel plugin is installed, enabled, and visible to Console when present. |
 | 9.7 | Instruments availability | Optional Instruments plugin is installed, enabled, and visible to Console when present. |
+| 9.7.1 | Instruments derived-path contract | Pilot helm and XTE expose explicit nullable values, units, autopilot engagement gating, and port/starboard sign semantics. |
 | 9.8 | Instrument Alerts availability | Optional Instrument Alerts plugin is installed, enabled, and visible to Console when present. |
 | 9.8.1 | Instrument Alerts depth-callout contract | Depth callouts expose active, scheduled-expiry, and last-clear-reason state so a stuck callout is detectable. |
+| 9.8.2 | Instrument Alerts XTE contract | XTE monitoring uses the derived metre path, absolute thresholds, port/starboard wording, and clears safely when XTE is null. |
 | 9.9 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
 | 9.9.1 | Harbour Editor default data contract | Harbour Editor reports enabled local/default harbour data and seed state without relying on Git storage. |
 | 9.10 | Pi Controller availability | Optional Pi Controller plugin is installed, enabled, and visible to Console when present. |
-| 9.10.1 | Pi Controller telemetry contract | Pi Controller publishes host/process telemetry useful to Capture, Logger, and Snapshot diagnostics. |
+| 9.10.1 | Pi Controller telemetry contract | Pi Controller publishes host/process telemetry useful to Capture and Snapshot diagnostics. |
 | 99 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |
 
 Portable evaluator regression tests also cover stale audio evidence, broker-only
@@ -247,7 +249,7 @@ The soak BITE should run longer scenarios to exercise:
 - manual mute and unmute
 - GPS loss and recovery
 - voyage capture file boundaries
-- Logger replay at `1x`, `10x`, `20x`, and `Max`
+- Capture canonical replay at fixed `1x`, including EOF auto-finalisation and interrupted-voyage recovery in an explicitly disruptive maintenance run
 
 The output should be compared as a semantic event stream, not by exact wall-clock
 timestamps. CPA distances, TCPA wording, and event times may vary slightly; the

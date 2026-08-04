@@ -309,11 +309,33 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     description: "Checks Voyage Viewer advertises voyage-review capability and its current voyage-bundle source model.",
   }),
   pluginContractTest({
+    pluginId: VOYAGE_VIEWER_PLUGIN_ID,
+    id: "voyage-viewer-bundle-round-trip",
+    number: "9.4.2",
+    title: "Completed BITE bundle round trip",
+    description: "After Capture stops, checks the completed BITE ZIP can be analysed by Voyage Viewer and contains BITE evidence.",
+    postFinalisation: true,
+  }),
+  pluginContractTest({
+    pluginId: INSTRUMENTS_PLUGIN_ID,
+    id: "instruments-derived-path-contract",
+    number: "9.7.1",
+    title: "Instruments derived-path contract",
+    description: "Checks pilot helm and XTE publish explicit nullable, unit, engagement, and port/starboard semantics.",
+  }),
+  pluginContractTest({
     pluginId: INSTRUMENT_ALERTS_PLUGIN_ID,
     id: "instrument-alerts-depth-callout-capability",
     number: "9.8.1",
     title: "Instrument Alerts depth callout capability",
     description: "Checks Instrument Alerts advertises the anchoring depth callout capability before BITE relies on it.",
+  }),
+  pluginContractTest({
+    pluginId: INSTRUMENT_ALERTS_PLUGIN_ID,
+    id: "instrument-alerts-xte-contract",
+    number: "9.8.2",
+    title: "Instrument Alerts XTE contract",
+    description: "Checks the built-in XTE monitor uses metres, absolute magnitude, port/starboard direction, and safe null handling.",
   }),
   pluginContractTest({
     pluginId: HARBOUR_EDITOR_PLUGIN_ID,
@@ -600,6 +622,13 @@ const TESTS = [
     timeoutSeconds: 5,
   },
   {
+    id: "display-route-capture-contract",
+    number: "1.16",
+    title: "Display route Capture contract",
+    description: "Checks an open Display route is represented by the explicit route contract and preserved in the active Capture voyage.",
+    timeoutSeconds: 5,
+  },
+  {
     id: "gps-explicit-no-fix-immediate",
     number: "3.12",
     title: "GPS explicit no-fix immediate",
@@ -848,6 +877,7 @@ const BITE_GROUP_DEFINITIONS = [
       "bite-bundled-report-contract",
       "audio-diagnostics-contract",
       "display-active-alert-panel-contract",
+      "display-route-capture-contract",
     ],
   },
   {
@@ -939,10 +969,12 @@ const DEFAULT_REPORTS_DIRECTORY = path.join(
 const MAX_REPORTS = 200;
 const AJRM_MARINE_CAPTURE_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineCaptureApi");
 const AJRM_MARINE_DISPLAY_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineDisplayApi");
+const AJRM_MARINE_INSTRUMENTS_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineInstrumentsApi");
 const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
 const AJRM_MARINE_NAVIGATION_REFERENCE_API_REGISTRY = Symbol.for("ajrmMarineNavigationReferenceApi");
 const AJRM_MARINE_LOGGER_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineLoggerApi");
 const AJRM_MARINE_SNAPSHOT_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineSnapshotApi");
+const AJRM_MARINE_VOYAGE_VIEWER_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineVoyageViewerApi");
 
 function createBiteController(app, { pluginId, version }) {
   let running = false;
@@ -1127,7 +1159,9 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
     error.statusCode = 400;
     throw error;
   }
-  const selectedTests = runnableBiteTestsForApp(app, { groupId });
+  const runnableTests = runnableBiteTestsForApp(app, { groupId });
+  const selectedTests = runnableTests.filter((test) => test.postFinalisation !== true);
+  const postFinalisationTests = runnableTests.filter((test) => test.postFinalisation === true);
   const runLabel = group ? `${group.title} group` : "Run all";
   const captureComment = `AJRM Marine BITE ${runLabel} ${new Date().toISOString()}`;
   let captureStart = null;
@@ -1148,7 +1182,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       startedAt,
       groupId: group?.id || "",
       groupTitle: group?.title || "",
-      testIds: selectedTests.map((test) => test.id),
+      testIds: runnableTests.map((test) => test.id),
       capture: {
         comment: captureComment,
         started: Boolean(captureStart),
@@ -1273,6 +1307,21 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       } catch (error) {
         captureError = error.message || String(error);
         progress({ phase: "capture-stop-failed", currentTestId: null });
+      }
+    }
+    if (captureStart && captureStop && !captureError) {
+      for (const test of postFinalisationTests) {
+        progress({ phase: "running", currentTestId: test.id });
+        const report = await runBiteTestById(app, {
+          pluginId,
+          testId: test.id,
+          consoleVersion,
+          timeoutMs: boundedTimeout(testTimeoutSeconds(test, timeoutSeconds)),
+          priorReports: reports,
+        });
+        reports.push(report);
+        if (typeof recordReport === "function") await recordReport(report);
+        progress({ phase: report.ok ? "passed" : "failed", currentTestId: test.id });
       }
     }
     if (capture?.setAutomaticRecordingEnabled && captureWasAutomatic !== null) {
@@ -1491,11 +1540,16 @@ function runnableBiteTestsForApp(app, { groupId = "" } = {}) {
       if (group && item.id === AUDIO_SUMMARY_TEST_ID) return true;
       return !selectedIds || selectedIds.has(item.id);
     })
-    .sort((left, right) => {
-      if (left.id === AUDIO_SUMMARY_TEST_ID) return 1;
-      if (right.id === AUDIO_SUMMARY_TEST_ID) return -1;
-      return biteTestOrder(left) - biteTestOrder(right);
-    });
+    .sort((left, right) => biteRunOrder(left) - biteRunOrder(right));
+}
+
+function biteRunOrder(test) {
+  if (test?.id === AUDIO_SUMMARY_TEST_ID) return Number.MAX_SAFE_INTEGER;
+  const groupIndex = BITE_GROUP_DEFINITIONS.findIndex((group) => group.testIds.includes(test?.id));
+  const group = groupIndex >= 0 ? BITE_GROUP_DEFINITIONS[groupIndex] : null;
+  const testIndex = group ? group.testIds.indexOf(test.id) : -1;
+  if (groupIndex < 0 || testIndex < 0) return Number.MAX_SAFE_INTEGER - 1;
+  return groupIndex * 1000 + testIndex;
 }
 
 function biteTestOrder(test) {
@@ -1519,6 +1573,10 @@ function displayApi(app) {
   return app.ajrmMarineDisplayApi || globalThis[AJRM_MARINE_DISPLAY_API_REGISTRY] || null;
 }
 
+function instrumentsApi(app) {
+  return app.ajrmMarineInstrumentsApi || globalThis[AJRM_MARINE_INSTRUMENTS_API_REGISTRY] || null;
+}
+
 function trafficApi(app) {
   return app.ajrmMarineTrafficApi || globalThis[AJRM_MARINE_TRAFFIC_API_REGISTRY] || null;
 }
@@ -1535,6 +1593,10 @@ function loggerApi(app) {
 
 function snapshotApi(app) {
   return app.ajrmMarineSnapshotApi || globalThis[AJRM_MARINE_SNAPSHOT_API_REGISTRY] || null;
+}
+
+function voyageViewerApi(app) {
+  return app.ajrmMarineVoyageViewerApi || globalThis[AJRM_MARINE_VOYAGE_VIEWER_API_REGISTRY] || null;
 }
 
 function biteCaptureStartSettleMs() {
@@ -1595,6 +1657,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "display-active-alert-panel-contract") {
     return runDisplayActiveAlertPanelContractBite(app, { consoleVersion });
   }
+  if (testId === "display-route-capture-contract") {
+    return runDisplayRouteCaptureContractBite(app, { consoleVersion });
+  }
   if (testId === "audio-output-summary") {
     return runAudioOutputSummaryBite(app, { pluginId, consoleVersion, priorReports, timeoutMs });
   }
@@ -1604,8 +1669,17 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "voyage-viewer-review-contract") {
     return runVoyageViewerReviewContractBite(app, { consoleVersion });
   }
+  if (testId === "voyage-viewer-bundle-round-trip") {
+    return runVoyageViewerBundleRoundTripBite(app, { consoleVersion });
+  }
+  if (testId === "instruments-derived-path-contract") {
+    return runInstrumentsDerivedPathContractBite(app, { consoleVersion });
+  }
   if (testId === "instrument-alerts-depth-callout-capability") {
     return runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersion });
+  }
+  if (testId === "instrument-alerts-xte-contract") {
+    return runInstrumentAlertsXteContractBite(app, { consoleVersion });
   }
   if (testId === "harbour-editor-availability") {
     return runHarbourEditorAvailabilityBite(app, { consoleVersion });
@@ -2298,6 +2372,7 @@ function pluginContractTest(options) {
     optional: true,
     pluginId,
     groupId: options.groupId || "",
+    postFinalisation: options.postFinalisation === true,
   };
 }
 
@@ -2790,6 +2865,74 @@ async function runDisplayActiveAlertPanelContractBite(app, { consoleVersion }) {
       ? "Display Active Alerts contains only currently active broker events."
       : `Display Active Alerts contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: { brokerActiveCount: activeKeys.size, brokerRecentOnlyCount: recentOnlyKeys.size, panel, apiError },
+  });
+}
+
+async function runDisplayRouteCaptureContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const display = displayApi(app);
+  const capture = captureApi(app);
+  let route = null;
+  let captureStatus = null;
+  let error = "";
+  try {
+    route = typeof display?.currentRoute === "function" ? await display.currentRoute() : null;
+    captureStatus = typeof capture?.status === "function" ? await capture.status() : null;
+  } catch (caught) {
+    error = caught?.message || String(caught);
+  }
+  const voyage = captureStatus?.currentVoyage || null;
+  const capturedRoute = voyage?.routeAtStart || null;
+  const routeFieldsMatch = !route || Boolean(capturedRoute) &&
+    String(capturedRoute.resourceId || "") === String(route.resourceId || "") &&
+    String(capturedRoute.resource?.name || "") === String(route.resource?.name || "") &&
+    capturedRoute.reversed === route.reversed &&
+    Number(capturedRoute.revision) === Number(route.revision);
+  const assertions = [
+    assertion(
+      "display-route-api-visible",
+      typeof display?.currentRoute === "function" && typeof display?.restoreRoute === "function",
+      "Display should expose currentRoute and restoreRoute through its runtime API.",
+    ),
+    assertion(
+      "display-route-readable",
+      !error,
+      error ? `Display/Capture route state could not be read: ${error}` : "Display route state is readable.",
+    ),
+    assertion(
+      "active-route-contract",
+      !route || route.contract === "ajrm-marine-display-active-route-v1",
+      route ? "The active Display route uses the recognised route contract." : "No Display route is currently open.",
+    ),
+    assertion(
+      "active-route-captured-at-voyage-start",
+      !voyage || routeFieldsMatch,
+      !voyage
+        ? "Capture is idle; no route-at-start comparison is required."
+        : route
+          ? "Capture routeAtStart matches the open Display route, including direction and revision."
+          : capturedRoute
+            ? "Capture recorded a route at voyage start, but Display no longer has that route open."
+            : "No route was open when the active Capture voyage started.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "display-route-capture-contract",
+    testId: "display-route-capture-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ route, capturedRoute, voyageId: voyage?.id || null }],
+    summary: result === "pass"
+      ? "Display route state is explicit and preserved by Capture."
+      : `Display route Capture contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { route, capturedRoute, voyageId: voyage?.id || null, error },
   });
 }
 
@@ -3534,6 +3677,18 @@ async function runVesselDatabaseSummaryContractBite(app, { consoleVersion }) {
       ["learned", "updated", "filled", "ignored", "errors"].some((key) => finiteNonNegative(stats[key])),
       "Vessel Database summary should expose at least one non-negative stats counter.",
     ),
+    assertion(
+      "test-vessel-count-visible",
+      finiteNonNegative(summary.testVesselCount) || finiteNonNegative(summary.biteVesselCount),
+      finiteNonNegative(summary.testVesselCount) || finiteNonNegative(summary.biteVesselCount)
+        ? `Vessel Database explicitly reports ${Number(summary.testVesselCount ?? summary.biteVesselCount)} BITE/SIM test vessel record(s).`
+        : "Vessel Database should report its BITE/SIM test-vessel count so maintenance needs are visible.",
+    ),
+    assertion(
+      "online-lookup-state-visible",
+      Boolean(summary.lookup) && typeof summary.lookup.running === "boolean",
+      "Vessel Database should expose bounded online-lookup job state without performing a network lookup during BITE.",
+    ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
   return biteReport({
@@ -3547,13 +3702,106 @@ async function runVesselDatabaseSummaryContractBite(app, { consoleVersion }) {
     assertions,
     observations: [evidence],
     summary: result === "pass"
-      ? "Vessel Database summary contract is available."
+      ? `Vessel Database summary contract is available.${Number(summary.testVesselCount ?? summary.biteVesselCount) > 0 ? ` ${Number(summary.testVesselCount ?? summary.biteVesselCount)} BITE/SIM record(s) can be removed with Delete test vessels when no longer needed.` : ""}`
       : `Vessel Database summary contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: {
       url: evidence.url,
       version: evidence.version,
       summary,
     },
+  });
+}
+
+async function runInstrumentsDerivedPathContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, INSTRUMENTS_PLUGIN_ID);
+  const api = instrumentsApi(app);
+  let status = null;
+  let apiError = "";
+  try {
+    status = typeof api?.status === "function" ? await api.status() : null;
+  } catch (error) {
+    apiError = error?.message || String(error);
+  }
+  const contract = status?.derivedPaths || {};
+  const pilotContract = contract.pilotHelmAngle || {};
+  const xteContract = contract.crossTrackError || {};
+  const pilotValue = readSelfPath(app, "plugins.ajrmMarineInstruments.pilotHelmAngle");
+  const xteValue = readSelfPath(app, "plugins.ajrmMarineInstruments.crossTrackError");
+  const autopilotState = String(status?.rudder?.autopilotState || "").toLowerCase();
+  const engagedStates = Array.isArray(pilotContract.autopilotEngagedStates)
+    ? pilotContract.autopilotEngagedStates.map((value) => String(value).toLowerCase())
+    : [];
+  const autopilotEngaged = engagedStates.includes(autopilotState);
+  const assertions = [
+    assertion(
+      "instruments-visible",
+      evidence.installed && typeof api?.status === "function",
+      evidence.installed ? "Instruments runtime status API is visible." : "Instruments is not installed, enabled, or visible to Console.",
+    ),
+    assertion(
+      "instruments-status-readable",
+      Boolean(status) && !apiError,
+      apiError ? `Instruments status threw: ${apiError}` : "Instruments status is readable.",
+    ),
+    assertion(
+      "derived-path-contract",
+      contract.contract === "ajrm-marine-instruments-derived-paths-v1" && Number(contract.contractVersion) === 1,
+      "Instruments should expose the recognised derived-path contract.",
+    ),
+    assertion(
+      "pilot-helm-semantics",
+      pilotContract.path === "plugins.ajrmMarineInstruments.pilotHelmAngle" &&
+        pilotContract.unit === "rad" &&
+        pilotContract.nullable === true &&
+        pilotContract.nullUnlessAutopilotEngaged === true,
+      "Pilot helm should explicitly use radians and be nullable outside engaged autopilot modes.",
+    ),
+    assertion(
+      "pilot-helm-value-shape",
+      pilotValue == null || Number.isFinite(Number(pilotValue)),
+      "Pilot helm should publish either a finite angle or explicit null.",
+    ),
+    assertion(
+      "pilot-helm-gate",
+      autopilotEngaged || pilotValue == null,
+      autopilotEngaged
+        ? `Autopilot state ${autopilotState} is engaged; a nullable pilot helm measurement is allowed.`
+        : "Autopilot is not engaged and the derived pilot helm path is null.",
+    ),
+    assertion(
+      "xte-semantics",
+      xteContract.path === "plugins.ajrmMarineInstruments.crossTrackError" &&
+        xteContract.unit === "m" &&
+        xteContract.nullable === true &&
+        xteContract.signed === true &&
+        xteContract.negativeDirection === "port" &&
+        xteContract.positiveDirection === "starboard",
+      "XTE should explicitly use signed metres with negative=port and positive=starboard.",
+    ),
+    assertion(
+      "xte-value-shape",
+      xteValue == null || Number.isFinite(Number(xteValue)),
+      "XTE should publish either a finite metre value or explicit null.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "instruments-derived-path-contract",
+    testId: "instruments-derived-path-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ pilotValue, xteValue, autopilotState, autopilotEngaged }],
+    summary: result === "pass"
+      ? "Instruments derived pilot-helm and XTE paths have explicit safe semantics."
+      : `Instruments derived-path contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { status, apiError, pilotValue, xteValue },
   });
 }
 
@@ -3823,6 +4071,7 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
   const rawDirectory = logDirectory || status.captureDirectory || status.rawDirectory;
   const clipDirectory = status.clipDirectory || status.directories?.clips || status.paths?.clips;
   const voyageOnly = capabilities.voyageOnly === true;
+  const api = voyageViewerApi(app);
   const assertions = [
     assertion(
       "voyage-viewer-visible",
@@ -3864,6 +4113,11 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
         ? "Voyage Review should expose a schema version or stable true capability."
         : "Voyage Review capability is not available.",
     ),
+    assertion(
+      "runtime-analysis-api-visible",
+      capabilities.runtimeAnalysisApi === true && typeof api?.analyseVoyage === "function",
+      "Voyage Viewer should expose its in-process analysis API for post-finalisation suite verification.",
+    ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
   return biteReport({
@@ -3885,6 +4139,80 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
       review,
       capabilities,
       voyageOnly,
+    },
+  });
+}
+
+async function runVoyageViewerBundleRoundTripBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const capture = captureApi(app);
+  const viewer = voyageViewerApi(app);
+  let captureStatus = null;
+  let analysis = null;
+  let error = "";
+  try {
+    captureStatus = typeof capture?.status === "function" ? await capture.status() : null;
+    const fileName = captureStatus?.lastBundle?.fileName || captureStatus?.finalisation?.bundle?.fileName || "";
+    if (!fileName) throw new Error("Capture did not report a completed voyage ZIP");
+    if (typeof viewer?.analyseVoyage !== "function") throw new Error("Voyage Viewer runtime analysis API is unavailable");
+    analysis = await viewer.analyseVoyage(fileName);
+  } catch (caught) {
+    error = caught?.message || String(caught);
+  }
+  const lastBundle = captureStatus?.lastBundle || captureStatus?.finalisation?.bundle || null;
+  const bite = analysis?.review?.bite || null;
+  const assertions = [
+    assertion(
+      "capture-finalisation-complete",
+      captureStatus?.finalisation?.state === "complete" && lastBundle?.format === "zip" && Boolean(lastBundle?.fileName),
+      lastBundle?.fileName
+        ? `Capture completed durable ZIP ${lastBundle.fileName}.`
+        : "Capture did not expose a completed durable BITE ZIP.",
+    ),
+    assertion(
+      "viewer-runtime-analysis-api",
+      typeof viewer?.analyseVoyage === "function",
+      "Voyage Viewer runtime analysis API should be available after Capture finalises.",
+    ),
+    assertion(
+      "completed-bundle-readable",
+      Boolean(analysis) && !error,
+      error ? `Voyage Viewer could not analyse the completed BITE ZIP: ${error}` : "Voyage Viewer analysed the completed BITE ZIP.",
+    ),
+    assertion(
+      "completed-bundle-review-contract",
+      Number.isFinite(Number(analysis?.review?.schemaVersion)) && Number.isFinite(Number(analysis?.review?.engineVersion)),
+      "The completed BITE ZIP should produce a versioned Voyage Viewer review.",
+    ),
+    assertion(
+      "completed-bundle-bite-evidence",
+      bite?.available === true && Number(bite?.total) > 0,
+      bite?.available
+        ? `Voyage Viewer found ${bite.total} bundled BITE report(s).`
+        : "Voyage Viewer did not find BITE evidence in the completed ZIP.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "voyage-viewer-bundle-round-trip",
+    testId: "voyage-viewer-bundle-round-trip",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ fileName: lastBundle?.fileName || null, bite }],
+    summary: result === "pass"
+      ? "The completed BITE ZIP round-trips through Voyage Viewer with bundled BITE evidence."
+      : `Completed BITE bundle round trip failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      lastBundle,
+      finalisation: captureStatus?.finalisation || null,
+      analysis: analysis ? { fileName: analysis.fileName, review: analysis.review } : null,
+      error,
     },
   });
 }
@@ -3968,6 +4296,67 @@ async function runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersi
       ? "Instrument Alerts advertises the anchoring depth callout capability."
       : `Instrument Alerts depth callout capability failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: { status, depthCallout, capabilities },
+  });
+}
+
+async function runInstrumentAlertsXteContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, INSTRUMENT_ALERTS_PLUGIN_ID);
+  const status = evidence.status || {};
+  const monitors = Array.isArray(status.monitors) ? status.monitors : [];
+  const monitor = monitors.find((item) =>
+    item?.id === "cross-track-error" || item?.path === "plugins.ajrmMarineInstruments.crossTrackError"
+  ) || null;
+  const sourceValue = readSelfPath(app, "plugins.ajrmMarineInstruments.crossTrackError");
+  const assertions = [
+    assertion(
+      "instrument-alerts-visible",
+      evidence.installed,
+      evidence.installed
+        ? "Instrument Alerts is installed and visible to Console."
+        : "Instrument Alerts is not installed, enabled, or visible to Console.",
+    ),
+    assertion(
+      "xte-monitor-present",
+      Boolean(monitor),
+      monitor ? "The built-in XTE monitor is present." : "The built-in XTE monitor is missing.",
+    ),
+    assertion(
+      "xte-monitor-source-and-unit",
+      monitor?.path === "plugins.ajrmMarineInstruments.crossTrackError" &&
+        monitor?.unit === "metres" && monitor?.conversion === "none",
+      "The XTE monitor should consume the derived metre path without conversion.",
+    ),
+    assertion(
+      "xte-monitor-direction",
+      monitor?.absoluteValue === true && monitor?.directionMode === "portStarboard",
+      "The XTE monitor should threshold absolute magnitude while announcing port/starboard direction.",
+    ),
+    assertion(
+      "xte-null-safe",
+      sourceValue != null || monitor?.state?.activeLevel == null,
+      sourceValue != null
+        ? "A current XTE value is present; null-state clearing is not active."
+        : "XTE is null and the monitor has no active alert level.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "instrument-alerts-xte-contract",
+    testId: "instrument-alerts-xte-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ sourceValue, monitor }],
+    summary: result === "pass"
+      ? "Instrument Alerts XTE monitoring has explicit direction and null-safe semantics."
+      : `Instrument Alerts XTE contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: { sourceValue, monitor },
   });
 }
 
@@ -4278,6 +4667,12 @@ async function runCaptureApiContractBite(app, { consoleVersion }) {
       "Capture API should expose appendObservation and observations so Display can add timestamped voyage notes.",
     ),
     assertion(
+      "canonical-replay-methods",
+      ["startRecomputedReplay", "recordRouteSelection", "prepareVoyageDownload"]
+        .every((method) => typeof capture?.[method] === "function"),
+      "Capture API should expose recomputed replay, route selection, and durable voyage-download methods.",
+    ),
+    assertion(
       "capture-status-readable",
       Boolean(status && typeof status === "object"),
       status
@@ -4288,6 +4683,21 @@ async function runCaptureApiContractBite(app, { consoleVersion }) {
       "capture-enabled-state-explicit",
       !status || typeof status.enabled === "boolean" || typeof status.automaticRecordingEnabled === "boolean",
       "Capture status should expose whether automatic recording is enabled.",
+    ),
+    assertion(
+      "portable-capture-file-mode",
+      !status || status.captureFileMode === "portable",
+      "Capture should explicitly report portable voyage-bundle file mode.",
+    ),
+    assertion(
+      "canonical-input-contract",
+      !status || status.canonicalInputContract === "ajrm-marine-canonical-input-v1",
+      "Capture should expose the canonical input contract used by recording and replay.",
+    ),
+    assertion(
+      "replay-contract",
+      !status || status.replayContract === "ajrm-marine-monotonic-replay-v1",
+      "Capture should expose the fixed-rate replay contract.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";

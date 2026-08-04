@@ -1374,6 +1374,9 @@ test("Console exposes BITE status and run routes", async () => {
       vesselCount: 24,
       databasePath: "/tmp/ajrm-vessels.json",
       fillMissingData: true,
+      testVesselCount: 2,
+      biteVesselCount: 2,
+      lookup: { running: false, processed: 0, failed: 0 },
       stats: {
         learned: 2,
         updated: 3,
@@ -1439,6 +1442,7 @@ test("Console exposes BITE status and run routes", async () => {
       current: { driftKnots: 1.2, setTrueDegrees: 90 },
       gps: { latitude: 56.21122, longitude: -5.55756 },
       navigation: { sogKnots: 3.2, cogDegrees: 62 },
+      rudder: { autopilotState: "standby", angleRadians: null },
       exhaustWater: { temperatureCelsius: 26.4 },
       controls: { refreshIntervalSeconds: 3 },
     },
@@ -1457,6 +1461,15 @@ test("Console exposes BITE status and run routes", async () => {
           active: false,
           lastValue: 8.6,
         },
+      }, {
+        id: "cross-track-error",
+        path: "plugins.ajrmMarineInstruments.crossTrackError",
+        unit: "metres",
+        conversion: "none",
+        directionMode: "portStarboard",
+        absoluteValue: true,
+        enabled: false,
+        state: { activeLevel: null, lastValue: null },
       }],
       capabilities: {
         anchoringDepthCallout: true,
@@ -1529,6 +1542,7 @@ test("Console exposes BITE status and run routes", async () => {
         plot: true,
         download: true,
         review: true,
+        runtimeAnalysisApi: true,
       },
       review: {
         supported: true,
@@ -1538,6 +1552,7 @@ test("Console exposes BITE status and run routes", async () => {
   };
   const messages = [];
   const captureCommands = [];
+  let captureStopped = false;
   const trafficCommands = [];
   const trafficProfiles = {
     contract: "ajrm-marine-traffic-profiles",
@@ -1773,13 +1788,23 @@ test("Console exposes BITE status and run routes", async () => {
       async status() {
         return {
           enabled: true,
-          currentVoyage: {
+          captureFileMode: "portable",
+          canonicalInputContract: "ajrm-marine-canonical-input-v1",
+          replayContract: "ajrm-marine-monotonic-replay-v1",
+          currentVoyage: captureStopped ? null : {
             id: "voyage-bite",
             startedAt: new Date(startedAtMs).toISOString(),
             comment: "AJRM Marine BITE test voyage",
             captureMode: "diagnostic",
             captureFileMode: "portable",
+            routeAtStart: null,
           },
+          lastBundle: captureStopped ? { format: "zip", fileName: "voyage-bite.zip" } : null,
+          finalisation: captureStopped ? {
+            contract: "ajrm-marine-capture-finalisation",
+            state: "complete",
+            bundle: { format: "zip", fileName: "voyage-bite.zip" },
+          } : null,
         };
       },
       async setAutomaticRecordingEnabled(enabled) {
@@ -1787,12 +1812,14 @@ test("Console exposes BITE status and run routes", async () => {
         return { enabled };
       },
       async start() {
+        captureStopped = false;
         captureCommands.push({ start: true });
         return { id: "voyage-bite" };
       },
       async stop() {
+        captureStopped = true;
         captureCommands.push({ stop: true });
-        return { fileName: "voyage-bite.zip" };
+        return { format: "zip", fileName: "voyage-bite.zip" };
       },
       async appendObservation() {
         return { observation: { id: "observation-bite" } };
@@ -1800,6 +1827,9 @@ test("Console exposes BITE status and run routes", async () => {
       async observations() {
         return { observations: [] };
       },
+      async startRecomputedReplay() { return { ok: true }; },
+      async recordRouteSelection() { return { ok: true }; },
+      async prepareVoyageDownload() { return { ok: true }; },
     },
     ajrmMarineDisplayApi: {
       status() {
@@ -1812,6 +1842,47 @@ test("Console exposes BITE status and run routes", async () => {
             id: event.eventId || event.id,
             message: event.message,
           })),
+        };
+      },
+      async currentRoute() { return null; },
+      async restoreRoute() { return null; },
+    },
+    ajrmMarineInstrumentsApi: {
+      status() {
+        return {
+          ...values["plugins.ajrmMarineInstruments"],
+          derivedPaths: {
+            contract: "ajrm-marine-instruments-derived-paths-v1",
+            contractVersion: 1,
+            pilotHelmAngle: {
+              path: "plugins.ajrmMarineInstruments.pilotHelmAngle",
+              unit: "rad",
+              nullable: true,
+              nullUnlessAutopilotEngaged: true,
+              autopilotEngagedStates: ["auto", "heading", "wind", "route"],
+            },
+            crossTrackError: {
+              path: "plugins.ajrmMarineInstruments.crossTrackError",
+              unit: "m",
+              nullable: true,
+              signed: true,
+              negativeDirection: "port",
+              positiveDirection: "starboard",
+            },
+          },
+        };
+      },
+    },
+    ajrmMarineVoyageViewerApi: {
+      status() { return values["plugins.ajrmMarineVoyageViewer"]; },
+      async analyseVoyage(fileName) {
+        return {
+          fileName,
+          review: {
+            schemaVersion: 2,
+            engineVersion: 17,
+            bite: { available: true, total: 4, passed: 4, failed: 0 },
+          },
         };
       },
     },
@@ -2181,11 +2252,14 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-api-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-bundle-round-trip").postFinalisation, true);
   assert.equal(statusBody.tests.find((item) => item.id === "simulator-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "alert-panel-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "instruments-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "instruments-derived-path-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-depth-callout-capability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-xte-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "pi-controller-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "pi-controller-telemetry-contract").enabled, true);
   assert.deepEqual(
@@ -2219,11 +2293,11 @@ test("Console exposes BITE status and run routes", async () => {
   );
   for (const [groupId, expectedIds] of [
     ["signalk-ajrm-marine-snapshot", ["snapshot-availability", "snapshot-api-contract"]],
-    ["signalk-ajrm-marine-voyage-viewer", ["voyage-viewer-availability", "voyage-viewer-review-contract"]],
+    ["signalk-ajrm-marine-voyage-viewer", ["voyage-viewer-availability", "voyage-viewer-review-contract", "voyage-viewer-bundle-round-trip"]],
     ["signalk-ajrm-marine-simulator", ["simulator-availability"]],
     ["signalk-ajrm-marine-alerts", ["alert-panel-availability"]],
-    ["signalk-ajrm-marine-instruments", ["instruments-availability"]],
-    ["signalk-ajrm-marine-instrument-alerts", ["instrument-alerts-availability", "instrument-alerts-depth-callout-capability"]],
+    ["signalk-ajrm-marine-instruments", ["instruments-availability", "instruments-derived-path-contract"]],
+    ["signalk-ajrm-marine-instrument-alerts", ["instrument-alerts-availability", "instrument-alerts-depth-callout-capability", "instrument-alerts-xte-contract"]],
   ]) {
     assert.deepEqual(statusBody.groups.find((item) => item.id === groupId).testIds, expectedIds);
   }
@@ -2296,6 +2370,40 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-visible").pass, true);
   assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-coherent").pass, true);
   values["plugins.ajrmMarineVoyageViewer"] = voyageOnlyViewerStatus;
+
+  for (const testId of [
+    "instruments-derived-path-contract",
+    "instrument-alerts-xte-contract",
+  ]) {
+    statusCode = 0;
+    runBody = null;
+    await routes.get("POST /ajrmMarineConsole/bite/run")(
+      { body: { testId, timeoutSeconds: 5 } },
+      {
+        set() {},
+        status(code) { statusCode = code; },
+        json(value) { runBody = value; },
+      },
+    );
+    assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
+    assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+  }
+
+  captureStopped = true;
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "voyage-viewer-bundle-round-trip", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) { statusCode = code; },
+      json(value) { runBody = value; },
+    },
+  );
+  assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.assertions.find((item) => item.id === "completed-bundle-bite-evidence").pass, true);
+  captureStopped = false;
 
   app.ajrmMarineConsoleAvailableWebapps.push({
     id: "signalk-ajrm-marine-harbour-editor",
@@ -2968,6 +3076,7 @@ test("Console exposes BITE status and run routes", async () => {
     "bite-bundled-report-contract",
     "audio-diagnostics-contract",
     "display-active-alert-panel-contract",
+    "display-route-capture-contract",
     "audio-output-summary",
   ]);
 

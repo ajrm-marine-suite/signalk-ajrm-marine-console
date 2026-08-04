@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.20
+
+- Keep each BITE heading expanded until all of its enabled child tests have
+  completed, including the setup transition between the two safety checks.
+- Run BITE children in their visible group order so heading 0 completes before
+  Required Plugins begins.
+- Expand Capture BITE coverage for canonical replay, route recording, and
+  durable portable downloads; add Display route/Capture continuity checks.
+- Add derived pilot-helm/XTE and Instrument Alerts XTE contract checks, richer
+  Vessel Database maintenance evidence, and a post-finalisation Voyage Viewer
+  round-trip of the completed BITE ZIP.
+- Retire obsolete Logger tests and documentation now that recording and replay
+  are owned by Capture.
+
 ## 0.6.19
 
 - Update BITE 7.2 for Voyage Viewer 0.6.9's explicit voyage-only review

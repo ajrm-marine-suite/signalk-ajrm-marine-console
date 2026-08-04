@@ -125,6 +125,9 @@ test("Console unloads all inactive webapp iframes and owns root browser audio", 
   assert.match(script, /window\.clearTimeout\(biteStatusPollTimer\)/);
   assert.doesNotMatch(script, /window\.setInterval\(\(\) => \{\s*refreshBiteStatus\(\);/);
   assert.match(script, /const biteExpandedGroups = new Set\(\)/);
+  assert.match(script, /function biteProgressKeepsGroupExpanded\(group, tests\)/);
+  assert.match(script, /completedCount > 0 && completedCount < enabledTestIds\.length/);
+  assert.match(script, /biteExpandedGroups\.has\(group\.id\) \|\| biteProgressKeepsGroupExpanded\(group, tests\)/);
   assert.match(script, /const autoExpandedGroupId = group && !biteExpandedGroups\.has\(group\.id\) \? group\.id : ""/);
   assert.match(script, /if \(autoExpandedGroupId\) biteExpandedGroups\.delete\(autoExpandedGroupId\)/);
   assert.match(script, /function startBiteStatusPolling\(\)/);

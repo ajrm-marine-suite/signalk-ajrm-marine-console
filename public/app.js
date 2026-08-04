@@ -297,7 +297,7 @@ function biteGroups() {
 function biteGroupHtml(group, allTests, groupIndex = 0) {
   const tests = group.testIds.map((testId) => allTests.find((test) => test.id === testId)).filter(Boolean);
   const state = biteGroupState(group, tests);
-  const expanded = biteExpandedGroups.has(group.id) || state === "running";
+  const expanded = biteExpandedGroups.has(group.id) || biteProgressKeepsGroupExpanded(group, tests);
   const enabled = tests.some((test) => test.enabled !== false);
   const summary = biteGroupSummary(group, tests, state);
   const groupNumber = biteGroupDisplayNumber(group, groupIndex);
@@ -320,9 +320,25 @@ function biteGroupHtml(group, allTests, groupIndex = 0) {
   </section>`;
 }
 
+function biteProgressKeepsGroupExpanded(group, tests) {
+  if (!biteIsRunning()) return false;
+  if (biteRunningGroupId === group.id) return true;
+  const progress = biteStatus?.currentRunAll;
+  const currentTestId = progress?.currentTestId || biteRunningTestId || null;
+  if (tests.some((test) => test.id === currentTestId)) return true;
+  if (!progress?.running || currentTestId) return false;
+  const enabledTestIds = tests
+    .filter((test) => test.enabled !== false)
+    .map((test) => test.id);
+  const completedTestIds = new Set(
+    (progress.reports || []).map((report) => report?.testId).filter(Boolean),
+  );
+  const completedCount = enabledTestIds.filter((testId) => completedTestIds.has(testId)).length;
+  return completedCount > 0 && completedCount < enabledTestIds.length;
+}
+
 function biteGroupState(group, tests) {
-  const currentTestId = biteStatus?.currentRunAll?.currentTestId || biteRunningTestId || null;
-  if (biteIsRunning() && (biteRunningGroupId === group.id || tests.some((test) => test.id === currentTestId))) return "running";
+  if (biteProgressKeepsGroupExpanded(group, tests)) return "running";
   const available = tests.filter((test) => test.enabled !== false);
   if (!available.length) return "disabled";
   const results = available.map((test) => biteResults[test.id]).filter(Boolean);
