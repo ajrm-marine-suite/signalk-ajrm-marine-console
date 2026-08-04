@@ -306,7 +306,7 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     id: "voyage-viewer-review-contract",
     number: "9.4.1",
     title: "Voyage Viewer review contract",
-    description: "Checks Voyage Viewer advertises voyage-review capability and can see the Capture directories it needs for post-voyage analysis.",
+    description: "Checks Voyage Viewer advertises voyage-review capability and its current voyage-bundle source model.",
   }),
   pluginContractTest({
     pluginId: INSTRUMENT_ALERTS_PLUGIN_ID,
@@ -3820,7 +3820,9 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
     status.reviewSupported === true;
   const voyageDirectory = status.voyageDirectory || status.directories?.voyages || status.paths?.voyages;
   const logDirectory = status.logDirectory || status.directories?.logs || status.paths?.logs;
+  const rawDirectory = logDirectory || status.captureDirectory || status.rawDirectory;
   const clipDirectory = status.clipDirectory || status.directories?.clips || status.paths?.clips;
+  const voyageOnly = capabilities.voyageOnly === true;
   const assertions = [
     assertion(
       "voyage-viewer-visible",
@@ -3835,14 +3837,20 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
       "Voyage Viewer should expose the voyage directory it reads from.",
     ),
     assertion(
-      "raw-log-directory-visible",
-      Boolean(logDirectory || status.captureDirectory || status.rawDirectory),
-      "Voyage Viewer should expose raw log/capture directory information.",
+      "review-source-model-visible",
+      voyageOnly || Boolean(rawDirectory),
+      voyageOnly
+        ? "Voyage Viewer explicitly uses completed voyage bundles as its only review source."
+        : "Legacy Voyage Viewer should expose raw log/capture directory information.",
     ),
     assertion(
-      "clip-directory-visible",
-      Boolean(clipDirectory || status.clipDirectory === null),
-      "Voyage Viewer should expose clip directory information, even if clips are disabled.",
+      "review-source-model-coherent",
+      voyageOnly
+        ? !rawDirectory && !clipDirectory
+        : Boolean(clipDirectory || status.clipDirectory === null),
+      voyageOnly
+        ? "Voyage-only mode should not advertise retired raw-log or clip sources."
+        : "Legacy Voyage Viewer should expose clip directory information, even if clips are disabled.",
     ),
     assertion(
       "review-capability-visible",
@@ -3867,15 +3875,16 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
     startedAt,
     startedAtMs,
     assertions,
-    observations: [{ evidence, review }],
+    observations: [{ evidence, review, voyageOnly }],
     summary: result === "pass"
-      ? "Voyage Viewer exposes directory and review capability metadata for offline analysis."
+      ? `Voyage Viewer exposes a coherent ${voyageOnly ? "voyage-only" : "legacy multi-source"} review contract.`
       : `Voyage Viewer review contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: {
       status,
-      directories: { voyageDirectory, logDirectory, clipDirectory },
+      directories: { voyageDirectory, logDirectory, rawDirectory, clipDirectory },
       review,
       capabilities,
+      voyageOnly,
     },
   });
 }

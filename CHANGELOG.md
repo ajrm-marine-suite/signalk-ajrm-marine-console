@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.19
+
+- Update BITE 7.2 for Voyage Viewer 0.6.9's explicit voyage-only review
+  contract.
+- Stop requiring the retired raw-log and clip directories while still checking
+  that legacy multi-source Viewer releases describe those sources coherently.
+
 ## 0.6.18
 
 - Add a persistent Overview selector for Setup, Voyaging, Reviewing,

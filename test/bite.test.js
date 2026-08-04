@@ -1522,11 +1522,10 @@ test("Console exposes BITE status and run routes", async () => {
     },
     "plugins.ajrmMarineVoyageViewer": {
       ok: true,
-      version: "0.5.14",
+      version: "0.6.9",
       voyageDirectory: "/tmp/ajrm-capture/voyages",
-      logDirectory: "/tmp/ajrm-capture/buffer",
-      clipDirectory: "/tmp/ajrm-capture/clips",
       capabilities: {
+        voyageOnly: true,
         plot: true,
         download: true,
         review: true,
@@ -2246,6 +2245,58 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "stationary-automute-policy-shape").enabled, undefined);
   assert.equal(statusBody.latestReportsByTest, undefined);
 
+  let statusCode = 0;
+  let runBody;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "voyage-viewer-review-contract", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.ok, true);
+  assert.equal(runBody.snapshot.voyageOnly, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-visible").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-coherent").pass, true);
+
+  const voyageOnlyViewerStatus = values["plugins.ajrmMarineVoyageViewer"];
+  values["plugins.ajrmMarineVoyageViewer"] = {
+    ...voyageOnlyViewerStatus,
+    version: "0.6.8",
+    logDirectory: "/tmp/ajrm-capture/buffer",
+    clipDirectory: "/tmp/ajrm-capture/clips",
+    capabilities: {
+      ...voyageOnlyViewerStatus.capabilities,
+      voyageOnly: false,
+    },
+  };
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "voyage-viewer-review-contract", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.ok, true);
+  assert.equal(runBody.snapshot.voyageOnly, false);
+  assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-visible").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-coherent").pass, true);
+  values["plugins.ajrmMarineVoyageViewer"] = voyageOnlyViewerStatus;
+
   app.ajrmMarineConsoleAvailableWebapps.push({
     id: "signalk-ajrm-marine-harbour-editor",
     packageName: "signalk-ajrm-marine-harbour-editor",
@@ -2280,8 +2331,8 @@ test("Console exposes BITE status and run routes", async () => {
     ["harbour-editor-availability", "harbour-editor-default-data-contract"],
   );
 
-  let statusCode = 0;
-  let runBody;
+  statusCode = 0;
+  runBody = null;
   await routes.get("POST /ajrmMarineConsole/bite/run")(
     { body: { testId: "harbour-editor-availability", timeoutSeconds: 5 } },
     {
