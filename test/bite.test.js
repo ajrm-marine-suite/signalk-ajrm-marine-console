@@ -1552,6 +1552,7 @@ test("Console exposes BITE status and run routes", async () => {
   };
   const messages = [];
   const captureCommands = [];
+  const captureObservations = [];
   let captureStopped = false;
   const trafficCommands = [];
   const trafficProfiles = {
@@ -1821,8 +1822,13 @@ test("Console exposes BITE status and run routes", async () => {
         captureCommands.push({ stop: true });
         return { format: "zip", fileName: "voyage-bite.zip" };
       },
-      async appendObservation() {
-        return { observation: { id: "observation-bite" } };
+      async appendObservation(options) {
+        captureObservations.push({ ...options });
+        return {
+          id: `observation-bite-${captureObservations.length}`,
+          recordedAt: new Date().toISOString(),
+          ...options,
+        };
       },
       async observations() {
         return { observations: [] };
@@ -1878,6 +1884,10 @@ test("Console exposes BITE status and run routes", async () => {
       async analyseVoyage(fileName) {
         return {
           fileName,
+          observations: [
+            { text: "BITE test comment: Capture started before the automated checks." },
+            { text: "BITE test comment: Automated checks completed before Capture finalisation." },
+          ],
           review: {
             schemaVersion: 2,
             engineVersion: 17,
@@ -2403,6 +2413,37 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.assertions.find((item) => item.id === "completed-bundle-bite-evidence").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "completed-bundle-start-comment-visible").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "completed-bundle-completion-comment-visible").pass, true);
+  const analyseVoyageWithComments = app.ajrmMarineVoyageViewerApi.analyseVoyage;
+  app.ajrmMarineVoyageViewerApi.analyseVoyage = async (fileName) => ({
+    fileName,
+    observations: [
+      { text: "BITE test comment: Capture started before the automated checks." },
+    ],
+    review: {
+      schemaVersion: 2,
+      engineVersion: 17,
+      bite: { available: true, total: 4, passed: 4, failed: 0 },
+    },
+  });
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "voyage-viewer-bundle-round-trip", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) { statusCode = code; },
+      json(value) { runBody = value; },
+    },
+  );
+  assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.ok, false);
+  assert.equal(
+    runBody.assertions.find((item) => item.id === "completed-bundle-completion-comment-visible").pass,
+    false,
+  );
+  app.ajrmMarineVoyageViewerApi.analyseVoyage = analyseVoyageWithComments;
   captureStopped = false;
 
   app.ajrmMarineConsoleAvailableWebapps.push({
@@ -2978,6 +3019,15 @@ test("Console exposes BITE status and run routes", async () => {
     { stop: true },
     { enabled: true },
   ]);
+  assert.deepEqual(
+    captureObservations.slice(-2).map((item) => item.text),
+    [
+      "BITE test comment: Capture started before the automated checks.",
+      "BITE test comment: Automated checks completed before Capture finalisation.",
+    ],
+  );
+  assert.ok(captureObservations.slice(-2).every((item) => item.includeSnapshot === false));
+  assert.ok(captureObservations.slice(-2).every((item) => item.source === "ajrm-marine-console-bite"));
   const trafficSettingsCommands = trafficCommands
     .filter((command) => !command.clearSyntheticTargets);
   assert.equal(trafficSettingsCommands[0].profiles.current, "coastal");

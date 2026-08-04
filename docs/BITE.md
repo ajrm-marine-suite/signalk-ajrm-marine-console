@@ -96,6 +96,9 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
 - Capture and Traffic APIs exposing the control methods BITE needs for
   diagnostic recording, timestamped voyage observations, and shared
   audio-policy restore.
+- Every captured BITE run recording a start comment and a pre-finalisation
+  comment; the post-finalisation Viewer check must read both back as Voyage
+  notes from the completed ZIP.
 - Display deriving Active Alerts only from the broker's current active set, so
   resolved traffic and instrument messages do not remain as historical alerts.
 - Capture exposing canonical recording/replay contracts, durable finalisation, and portable voyage downloads.
@@ -184,7 +187,7 @@ Current numbered BITE tests:
 | 9.2 | Snapshot availability | Optional Snapshot plugin is installed, enabled, and visible to Console when present. |
 | 9.4 | Voyage Viewer availability | Optional Voyage Viewer plugin is installed, enabled, and visible to Console when present. |
 | 9.4.1 | Voyage Viewer review contract | Voyage Viewer exposes its voyage-only review model and in-process analysis API. |
-| 9.4.2 | Completed BITE bundle round trip | After Capture stops, Voyage Viewer opens the completed ZIP and finds versioned review and BITE evidence. |
+| 9.4.2 | Completed BITE bundle round trip | After Capture stops, Voyage Viewer opens the completed ZIP and finds versioned review, BITE evidence, and both timestamped BITE voyage comments. |
 | 9.5 | Simulator availability | Optional Simulator plugin is installed, enabled, and visible to Console when present. |
 | 9.6 | Alert Panel availability | Optional Alert Panel plugin is installed, enabled, and visible to Console when present. |
 | 9.7 | Instruments availability | Optional Instruments plugin is installed, enabled, and visible to Console when present. |

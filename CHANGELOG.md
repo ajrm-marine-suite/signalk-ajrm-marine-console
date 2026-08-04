@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.21
+
+- Add two deterministic timestamped comments to every BITE voyage: one after
+  Capture starts and one immediately before finalisation.
+- Make a missing or failed BITE comment fail the run rather than silently
+  producing incomplete voyage-review evidence.
+- Extend the completed-bundle round-trip check to require Voyage Viewer to
+  expose both comments from the final ZIP.
+
 ## 0.6.20
 
 - Keep each BITE heading expanded until all of its enabled child tests have

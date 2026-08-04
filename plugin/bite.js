@@ -110,6 +110,10 @@ const METERS_PER_NM = 1852;
 const BITE_SYNTHETIC_SOURCE = "ajrm-marine-bite";
 const BITE_DR_SYNTHETIC_SOURCE = "ajrm-marine-bite-dr";
 const BITE_TRAFFIC_PROFILE = "coastal";
+const BITE_VOYAGE_START_COMMENT =
+  "BITE test comment: Capture started before the automated checks.";
+const BITE_VOYAGE_COMPLETE_COMMENT =
+  "BITE test comment: Automated checks completed before Capture finalisation.";
 const BITE_TRAFFIC_PROFILES = Object.freeze({
   current: BITE_TRAFFIC_PROFILE,
   anchor: {
@@ -1167,6 +1171,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
   let captureStart = null;
   let captureStop = null;
   let captureError = null;
+  const captureObservations = [];
   let captureWasAutomatic = null;
   let trafficWasMuted = null;
   let restoreError = null;
@@ -1190,6 +1195,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
         stop: captureStop,
         error: captureError,
         automaticRecordingBeforeTest: captureWasAutomatic,
+        observations: [...captureObservations],
       },
       trafficAudio: {
         mutedBeforeTest: trafficWasMuted,
@@ -1248,6 +1254,18 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       progress({ phase: "capture-started", currentTestId: null });
       await delay(biteCaptureStartSettleMs());
       progress({ phase: "capture-start-settled", currentTestId: null });
+      const startObservation = await appendBiteVoyageComment(
+        capture,
+        BITE_VOYAGE_START_COMMENT,
+        "start",
+      );
+      captureObservations.push(startObservation);
+      progress({
+        phase: startObservation.ok
+          ? "capture-comment-recorded"
+          : "capture-comment-failed",
+        currentTestId: null,
+      });
     } else {
       captureError = "AJRM Marine Capture API is unavailable; BITE reports will still be written but no voyage bundle will be created.";
       progress({ phase: "capture-unavailable", currentTestId: null });
@@ -1273,6 +1291,20 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
       }
       progress({ phase: report.ok ? "passed" : "failed", currentTestId: test.id });
     }
+    if (captureStart) {
+      const completionObservation = await appendBiteVoyageComment(
+        capture,
+        BITE_VOYAGE_COMPLETE_COMMENT,
+        "before-finalisation",
+      );
+      captureObservations.push(completionObservation);
+      progress({
+        phase: completionObservation.ok
+          ? "capture-comment-recorded"
+          : "capture-comment-failed",
+        currentTestId: null,
+      });
+    }
     if (typeof recordReport === "function" && captureStart && !captureStop) {
       await recordReport(runAllReport({
         consoleVersion,
@@ -1285,6 +1317,7 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
         captureComment,
         restoreError,
         group,
+        captureObservations,
         phase: "before-capture-stop",
       }));
     }
@@ -1367,7 +1400,41 @@ async function runAllBiteTests(app, { pluginId, consoleVersion, timeoutSeconds, 
     captureComment,
     restoreError,
     group,
+    captureObservations,
   });
+}
+
+async function appendBiteVoyageComment(capture, text, phase) {
+  if (typeof capture?.appendObservation !== "function") {
+    return {
+      ok: false,
+      phase,
+      text,
+      error: "Capture observation API is unavailable.",
+    };
+  }
+  try {
+    const result = await capture.appendObservation({
+      text,
+      includeSnapshot: false,
+      source: "ajrm-marine-console-bite",
+    });
+    const observation = result?.observation || result;
+    return {
+      ok: true,
+      phase,
+      text,
+      observationId: observation?.id || null,
+      recordedAt: observation?.recordedAt || null,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      phase,
+      text,
+      error: error?.message || String(error),
+    };
+  }
 }
 
 function backgroundRunStartedProgress({ consoleVersion, groupId = "" }) {
@@ -1391,6 +1458,7 @@ function backgroundRunStartedProgress({ consoleVersion, groupId = "" }) {
       stop: null,
       error: null,
       automaticRecordingBeforeTest: null,
+      observations: [],
     },
     trafficAudio: {
       mutedBeforeTest: null,
@@ -1428,6 +1496,8 @@ function backgroundRunFailureReport({ consoleVersion, groupId = "", error }) {
       start: null,
       stop: null,
       error: message,
+      observationError: null,
+      observations: [],
       restoreError: null,
     },
     reports: [],
@@ -1446,12 +1516,19 @@ function runAllReport({
   captureComment,
   restoreError,
   group = null,
+  captureObservations = [],
   stoppedByPreflight = false,
   phase = "complete",
 }) {
   const finishedAt = new Date().toISOString();
   const failed = reports.filter((report) => !report.ok);
-  const ok = failed.length === 0 && !captureError && !restoreError;
+  const captureObservationError =
+    captureObservations.find((item) => !item.ok)?.error || null;
+  const ok =
+    failed.length === 0 &&
+    !captureError &&
+    !captureObservationError &&
+    !restoreError;
   return {
     ok,
     contract: "ajrm-marine-console-bite-run-all-report",
@@ -1473,12 +1550,21 @@ function runAllReport({
       start: captureStart,
       stop: captureStop,
       error: captureError,
+      observationError: captureObservationError,
+      observations: captureObservations,
       restoreError,
     },
     reports,
     summary: stoppedByPreflight
       ? `BITE run all stopped by pre-test check: ${preflightReason(failed[0])}`
-      : runAllSummary({ failed, captureStart, captureStop, captureError, restoreError, count: reports.length }),
+      : runAllSummary({
+        failed,
+        captureStart,
+        captureStop,
+        captureError: captureError || captureObservationError,
+        restoreError,
+        count: reports.length,
+      }),
   };
 }
 
@@ -4163,6 +4249,9 @@ async function runVoyageViewerBundleRoundTripBite(app, { consoleVersion }) {
   }
   const lastBundle = captureStatus?.lastBundle || captureStatus?.finalisation?.bundle || null;
   const bite = analysis?.review?.bite || null;
+  const voyageComments = Array.isArray(analysis?.observations)
+    ? analysis.observations.map((item) => item?.text).filter(Boolean)
+    : [];
   const assertions = [
     assertion(
       "capture-finalisation-complete",
@@ -4193,6 +4282,16 @@ async function runVoyageViewerBundleRoundTripBite(app, { consoleVersion }) {
         ? `Voyage Viewer found ${bite.total} bundled BITE report(s).`
         : "Voyage Viewer did not find BITE evidence in the completed ZIP.",
     ),
+    assertion(
+      "completed-bundle-start-comment-visible",
+      voyageComments.includes(BITE_VOYAGE_START_COMMENT),
+      "Voyage Viewer should expose the BITE start comment from the completed ZIP.",
+    ),
+    assertion(
+      "completed-bundle-completion-comment-visible",
+      voyageComments.includes(BITE_VOYAGE_COMPLETE_COMMENT),
+      "Voyage Viewer should expose the BITE completion comment from the completed ZIP.",
+    ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
   return biteReport({
@@ -4204,14 +4303,20 @@ async function runVoyageViewerBundleRoundTripBite(app, { consoleVersion }) {
     startedAt,
     startedAtMs,
     assertions,
-    observations: [{ fileName: lastBundle?.fileName || null, bite }],
+    observations: [{ fileName: lastBundle?.fileName || null, bite, voyageComments }],
     summary: result === "pass"
-      ? "The completed BITE ZIP round-trips through Voyage Viewer with bundled BITE evidence."
+      ? "The completed BITE ZIP round-trips through Voyage Viewer with bundled BITE evidence and both voyage comments."
       : `Completed BITE bundle round trip failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: {
       lastBundle,
       finalisation: captureStatus?.finalisation || null,
-      analysis: analysis ? { fileName: analysis.fileName, review: analysis.review } : null,
+      analysis: analysis
+        ? {
+          fileName: analysis.fileName,
+          review: analysis.review,
+          observations: analysis.observations || [],
+        }
+        : null,
       error,
     },
   });
