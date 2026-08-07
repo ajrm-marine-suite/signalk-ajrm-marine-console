@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1
+
+- Stop presenting Notifications as a separate Console webapp. Notifications
+  0.7.0 is a backend authority; Console Alerts and BITE provide its operator and
+  diagnostic views.
+
 ## 0.7.0
 
 - Absorb the former AJRM Marine Alert Panel as Console's built-in read-only

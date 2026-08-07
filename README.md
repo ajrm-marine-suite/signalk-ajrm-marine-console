@@ -33,7 +33,7 @@ you want those features:
 - AJRM Marine Harbour Editor
 - AJRM Marine Pi Controller
 
-Console lists every suite app on the Overview screen. Missing apps are greyed
+Console lists every suite webapp on the Overview screen. Missing webapps are greyed
 out, while installed apps appear normally. The Overview **Top menu** selector
 switches the tab bar between Setup, Voyaging, Reviewing, Debugging, and Show All
 Plugins without enabling, disabling, starting, or stopping any plugin. Its
@@ -51,6 +51,10 @@ and independent dead-reckoning state that DR Plotter renders.
 The read-only Alert Panel is built into Console from version 0.7.0. It reads
 the standard suite projection from Notifications; Console does not classify,
 retain, silence, or speak alerts.
+
+Notifications is a backend authority from version 0.7.0 and no longer adds a
+separate diagnostics webapp to the Signal K application menu. Its runtime
+details remain available through OpenAPI and Console's Alerts/BITE views.
 
 AJRM Marine Logger is retired. Capture now owns canonical voyage recording,
 server-side replay, recovery, evidence collection, and ZIP finalisation.

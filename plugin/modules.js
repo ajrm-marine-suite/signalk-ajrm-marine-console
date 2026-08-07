@@ -47,7 +47,6 @@ const SIGNALK_ADMIN_MODULE = {
 const CORE_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-display",
   "signalk-ajrm-marine-traffic",
-  "signalk-ajrm-marine-notifications",
   "signalk-ajrm-marine-audio",
   "signalk-ajrm-marine-capture",
 ];
@@ -80,11 +79,6 @@ const SUITE_APP_INFO = {
   "signalk-ajrm-marine-traffic": {
     title: "Traffic",
     description: "AIS closest-approach, profiles, and alert decisions.",
-    groupLabel: "Core",
-  },
-  "signalk-ajrm-marine-notifications": {
-    title: "Notifications",
-    description: "Shared alert broker for visual and audio consumers.",
     groupLabel: "Core",
   },
   "signalk-ajrm-marine-audio": {
@@ -159,7 +153,6 @@ const WORKSPACE_PROFILES = [
       "signalk-admin",
       "signalk-ajrm-marine-display",
       "signalk-ajrm-marine-traffic",
-      "signalk-ajrm-marine-notifications",
       "signalk-ajrm-marine-audio",
       "signalk-ajrm-marine-gps-integrity",
       "signalk-ajrm-marine-vessel-database",
@@ -210,7 +203,6 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-snapshot",
       "signalk-ajrm-marine-capture",
       "signalk-ajrm-marine-traffic",
-      "signalk-ajrm-marine-notifications",
       "signalk-ajrm-marine-audio",
       "signalk-ajrm-marine-gps-integrity",
       "signalk-ajrm-marine-dr-plotter",
