@@ -1385,13 +1385,6 @@ test("Console exposes BITE status and run routes", async () => {
         errors: 0,
       },
     },
-    "plugins.ajrmMarineLogger.playback": {
-      active: false,
-      speed: 1,
-      fileName: "",
-      freshTimestamps: true,
-      excludeDerivedData: true,
-    },
     "plugins.ajrmMarineAlerts": {
       ok: true,
       plugin: "signalk-ajrm-marine-alerts",
@@ -1771,13 +1764,6 @@ test("Console exposes BITE status and run routes", async () => {
       url: "/signalk-ajrm-marine-vessel-database/",
       version: "0.5.2",
     }, {
-      id: "signalk-ajrm-marine-logger",
-      packageName: "signalk-ajrm-marine-logger",
-      title: "AJRM Marine Logger",
-      kind: "webapp",
-      url: "/signalk-ajrm-marine-logger/",
-      version: "0.5.14",
-    }, {
       id: "signalk-ajrm-marine-pi-controller",
       packageName: "signalk-ajrm-marine-pi-controller",
       title: "AJRM Marine Pi Controller",
@@ -1789,7 +1775,6 @@ test("Console exposes BITE status and run routes", async () => {
       async status() {
         return {
           enabled: true,
-          captureFileMode: "portable",
           canonicalInputContract: "ajrm-marine-canonical-input-v1",
           replayContract: "ajrm-marine-monotonic-replay-v1",
           currentVoyage: captureStopped ? null : {
@@ -1797,7 +1782,6 @@ test("Console exposes BITE status and run routes", async () => {
             startedAt: new Date(startedAtMs).toISOString(),
             comment: "AJRM Marine BITE test voyage",
             captureMode: "diagnostic",
-            captureFileMode: "portable",
             routeAtStart: null,
           },
           lastBundle: captureStopped ? { format: "zip", fileName: "voyage-bite.zip" } : null,
@@ -1943,41 +1927,6 @@ test("Console exposes BITE status and run routes", async () => {
           removedCount: BITE_TRAFFIC_TARGET_MMSIS.length,
           clearedNotificationCount: 1,
         };
-      },
-    },
-    ajrmMarineLoggerApi: {
-      async status() {
-        return {
-          ok: true,
-          recording: {
-            active: true,
-            fileName: "capture-bite.jsonl",
-            startedAt: new Date(startedAtMs).toISOString(),
-            lines: 42,
-            bytes: 12345,
-          },
-          playback: { active: false },
-          freshTimestamps: true,
-          excludeDerivedData: true,
-          options: {
-            replayCacheMaxGigabytes: 8,
-            replayCacheMinimumFreeGigabytes: 2,
-          },
-          replayCache: {
-            entries: 1,
-            bytes: 12345,
-          },
-          paths: { recordings: "/tmp/ajrm-logger" },
-        };
-      },
-      paths() {
-        return { recordings: "/tmp/ajrm-logger" };
-      },
-      async startCapture() {
-        return { ok: true };
-      },
-      async stopCapture() {
-        return { ok: true };
       },
     },
     ajrmMarineSnapshotApi: {

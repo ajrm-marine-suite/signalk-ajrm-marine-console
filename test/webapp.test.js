@@ -76,7 +76,7 @@ test("Console updates viewport height for iPad Safari iframe layout", () => {
   assert.match(script, /window\.addEventListener\("orientationchange"/);
 });
 
-test("Console frontend treats Logger as an ordinary selectable webapp", () => {
+test("Console frontend contains no retired Logger-specific controls", () => {
   const script = fs.readFileSync(path.join(root, "public", "app.js"), "utf8");
   assert.doesNotMatch(script, /toggleIncidentCapture/);
   assert.doesNotMatch(script, /incidentCapture/);

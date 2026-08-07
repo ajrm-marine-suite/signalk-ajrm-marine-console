@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.23
+
+- Remove three unreachable standalone Logger BITE implementations and their
+  obsolete in-process API registry.
+- Update Capture contract BITE to validate canonical input and replay directly,
+  without requiring the removed `captureFileMode` compatibility field.
+- Remove Logger from current Pi Controller telemetry wording while continuing
+  to hide an accidentally installed retirement marker from Console tabs.
+
 ## 0.6.22
 
 - Refresh onboard Help and BITE documentation for Capture-led recording and

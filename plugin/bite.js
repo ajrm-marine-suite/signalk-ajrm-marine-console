@@ -353,7 +353,7 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     id: "pi-controller-telemetry-contract",
     number: "9.10.1",
     title: "Pi Controller telemetry contract",
-    description: "Checks Pi Controller publishes host telemetry paths that Capture, Logger, and Snapshot can include.",
+    description: "Checks Pi Controller publishes host telemetry paths that Capture and Snapshot can include.",
   }),
   pluginContractTest({
     pluginId: SNAPSHOT_PLUGIN_ID,
@@ -976,7 +976,6 @@ const AJRM_MARINE_DISPLAY_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineDispl
 const AJRM_MARINE_INSTRUMENTS_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineInstrumentsApi");
 const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
 const AJRM_MARINE_NAVIGATION_REFERENCE_API_REGISTRY = Symbol.for("ajrmMarineNavigationReferenceApi");
-const AJRM_MARINE_LOGGER_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineLoggerApi");
 const AJRM_MARINE_SNAPSHOT_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineSnapshotApi");
 const AJRM_MARINE_VOYAGE_VIEWER_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineVoyageViewerApi");
 
@@ -1671,10 +1670,6 @@ function navigationReferenceApi(app) {
   return app.ajrmMarineNavigationReferenceApi ||
     globalThis[AJRM_MARINE_NAVIGATION_REFERENCE_API_REGISTRY] ||
     null;
-}
-
-function loggerApi(app) {
-  return app.ajrmMarineLoggerApi || globalThis[AJRM_MARINE_LOGGER_API_REGISTRY] || null;
 }
 
 function snapshotApi(app) {
@@ -2482,7 +2477,6 @@ function suitePluginTitle(pluginId) {
     "signalk-ajrm-marine-harbour-editor": "Harbour Editor",
     "signalk-ajrm-marine-instrument-alerts": "Instrument Alerts",
     "signalk-ajrm-marine-instruments": "Instruments",
-    "signalk-ajrm-marine-logger": "Logger",
     "signalk-ajrm-marine-navigation-reference": "Navigation Reference",
     "signalk-ajrm-marine-notifications": "Notifications",
     "signalk-ajrm-marine-pi-controller": "Pi Controller",
@@ -3891,254 +3885,6 @@ async function runInstrumentsDerivedPathContractBite(app, { consoleVersion }) {
   });
 }
 
-async function runLoggerApiContractBite(app, { consoleVersion }) {
-  const runId = randomUUID();
-  const startedAtMs = Date.now();
-  const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, LOGGER_PLUGIN_ID);
-  const api = loggerApi(app);
-  let status = null;
-  let statusError = "";
-  let paths = null;
-  try {
-    status = typeof api?.status === "function" ? await api.status() : null;
-  } catch (error) {
-    statusError = error?.message || String(error);
-  }
-  try {
-    paths = typeof api?.paths === "function" ? api.paths() : null;
-  } catch (_error) {
-    paths = null;
-  }
-  const assertions = [
-    assertion(
-      "logger-visible",
-      evidence.installed,
-      evidence.installed
-        ? "Logger is installed and visible to Console."
-        : "Logger is not installed, not enabled, or not visible to Console.",
-    ),
-    assertion(
-      "api-visible",
-      Boolean(api),
-      api ? "Logger runtime API is visible." : "Logger runtime API is missing.",
-    ),
-    assertion(
-      "api-methods",
-      ["status", "startCapture", "stopCapture", "paths"].every((method) => typeof api?.[method] === "function"),
-      "Logger runtime API should expose status, startCapture, stopCapture, and paths methods.",
-    ),
-    assertion(
-      "status-readable",
-      Boolean(status) && !statusError,
-      statusError ? `Logger status threw: ${statusError}` : "Logger status is readable.",
-    ),
-    assertion(
-      "status-shape",
-      status?.ok === true || Boolean(status?.recording || status?.playback || status?.paths),
-      "Logger status should expose ok/recording/playback/path state.",
-    ),
-    assertion(
-      "paths-visible",
-      Boolean(paths) || Boolean(status?.paths),
-      "Logger API should expose the configured recording paths.",
-    ),
-  ];
-  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
-  return biteReport({
-    consoleVersion,
-    runId,
-    scenario: "logger-api-contract",
-    testId: "logger-api-contract",
-    result,
-    startedAt,
-    startedAtMs,
-    assertions,
-    observations: [evidence],
-    summary: result === "pass"
-      ? "Logger runtime API contract is available."
-      : `Logger runtime API contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: {
-      url: evidence.url,
-      version: evidence.version,
-      status,
-      statusError,
-      paths,
-    },
-  });
-}
-
-async function runLoggerReplaySanityContractBite(app, { consoleVersion }) {
-  const runId = randomUUID();
-  const startedAtMs = Date.now();
-  const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, LOGGER_PLUGIN_ID);
-  const api = loggerApi(app);
-  let status = null;
-  let statusError = "";
-  try {
-    status = typeof api?.status === "function" ? await api.status() : null;
-  } catch (error) {
-    statusError = error?.message || String(error);
-  }
-  const playback = status?.playback || evidence.status || {};
-  const assertions = [
-    assertion(
-      "logger-visible",
-      evidence.installed,
-      evidence.installed
-        ? "Logger is installed and visible to Console."
-        : "Logger is not installed, not enabled, or not visible to Console.",
-    ),
-    assertion(
-      "playback-state-visible",
-      Boolean(playback && typeof playback === "object"),
-      "Logger should expose a playback state object.",
-    ),
-    assertion(
-      "playback-active-explicit",
-      typeof playback.active === "boolean",
-      "Logger playback state should explicitly expose whether replay is active.",
-    ),
-    assertion(
-      "playback-speed-visible",
-      playback.speed == null || Number.isFinite(Number(playback.speed)),
-      playback.speed == null
-        ? "Logger playback speed is omitted; accepting idle logger status."
-        : `Logger playback speed is ${playback.speed}.`,
-    ),
-    assertion(
-      "fresh-timestamp-policy-visible",
-      playback.active !== true ||
-        playback.freshTimestamps === true ||
-        playback.retimestamp === true ||
-        playback.timestampMode === "fresh",
-      playback.active === true
-        ? "Active Logger replay should publish fresh Signal K update timestamps."
-        : "Logger replay is idle; fresh timestamp policy is not currently exercised.",
-    ),
-    assertion(
-      "derived-data-replay-disabled-or-explicit",
-      playback.derivedDataReplay === false ||
-        playback.replayDerivedData === false ||
-        playback.excludeDerivedData === true ||
-        playback.active !== true,
-      playback.active === true
-        ? "Active Logger replay should avoid replaying derived suite data unless explicitly configured safe."
-        : "Logger replay is idle; derived data replay is not currently active.",
-    ),
-    assertion(
-      "replay-cache-policy-visible",
-      Boolean(
-        status?.replayCache &&
-        typeof status.replayCache === "object" &&
-        status?.options?.replayCacheMaxGigabytes != null &&
-        status?.options?.replayCacheMinimumFreeGigabytes != null
-      ),
-      "Logger should expose persistent replay-cache usage, its size limit, and its free-disk reserve.",
-    ),
-  ];
-  if (statusError) {
-    assertions.push(assertion("status-readable", false, `Logger status threw: ${statusError}`));
-  }
-  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
-  return biteReport({
-    consoleVersion,
-    runId,
-    scenario: "logger-replay-sanity-contract",
-    testId: "logger-replay-sanity-contract",
-    result,
-    startedAt,
-    startedAtMs,
-    assertions,
-    observations: [{ evidence, playback }],
-    summary: result === "pass"
-      ? "Logger replay state is explicit enough for safe voyage replay."
-      : `Logger replay sanity contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: { status, playback, statusError },
-  });
-}
-
-async function runLoggerCaptureRecordingContractBite(app, { consoleVersion }) {
-  const runId = randomUUID();
-  const startedAtMs = Date.now();
-  const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, LOGGER_PLUGIN_ID);
-  const api = loggerApi(app);
-  let status = null;
-  let statusError = "";
-  try {
-    status = typeof api?.status === "function" ? await api.status() : null;
-  } catch (error) {
-    statusError = error?.message || String(error);
-  }
-  const recording = status?.recording || status?.capture || evidence.status?.recording || {};
-  const active = recording.active === true;
-  const lineCount = recording.lines ?? recording.lineCount ?? recording.records ?? recording.recordCount;
-  const byteCount = recording.bytes ?? recording.byteCount ?? recording.sizeBytes;
-  const assertions = [
-    assertion(
-      "logger-visible",
-      evidence.installed,
-      evidence.installed
-        ? "Logger is installed and visible to Console."
-        : "Logger is not installed, not enabled, or not visible to Console.",
-    ),
-    assertion(
-      "status-readable",
-      Boolean(status) && !statusError,
-      statusError ? `Logger status threw: ${statusError}` : "Logger status is readable.",
-    ),
-    assertion(
-      "recording-active-explicit",
-      typeof recording.active === "boolean",
-      "Logger recording state should explicitly expose whether recording is active.",
-    ),
-    assertion(
-      "recording-file-visible",
-      !active || Boolean(recording.fileName || recording.file || recording.path),
-      active
-        ? "Active Logger recording should expose its file name or path."
-        : "Logger recording is idle; no recording filename required.",
-    ),
-    assertion(
-      "recording-timestamps-visible",
-      !active || Boolean(recording.startedAt || recording.from || recording.startTime),
-      active
-        ? "Active Logger recording should expose a start timestamp."
-        : "Logger recording is idle; no recording timestamp required.",
-    ),
-    assertion(
-      "recording-counters-visible",
-      !active || finiteNonNegative(lineCount) || finiteNonNegative(byteCount),
-      active
-        ? "Active Logger recording should expose line or byte counters."
-        : "Logger recording is idle; counters are advisory.",
-    ),
-    assertion(
-      "recording-paths-visible",
-      Boolean(status?.paths || evidence.status?.paths || recording.path || recording.file),
-      "Logger should expose recording paths so Capture/Voyage Viewer downloads can find logs.",
-    ),
-  ];
-  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
-  return biteReport({
-    consoleVersion,
-    runId,
-    scenario: "logger-capture-recording-contract",
-    testId: "logger-capture-recording-contract",
-    result,
-    startedAt,
-    startedAtMs,
-    assertions,
-    observations: [{ evidence, recording }],
-    summary: result === "pass"
-      ? "Logger exposes capture recording state and paths clearly enough for voyage bundles."
-      : `Logger capture recording contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: { status, statusError, recording },
-  });
-}
-
 async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -4788,11 +4534,6 @@ async function runCaptureApiContractBite(app, { consoleVersion }) {
       "capture-enabled-state-explicit",
       !status || typeof status.enabled === "boolean" || typeof status.automaticRecordingEnabled === "boolean",
       "Capture status should expose whether automatic recording is enabled.",
-    ),
-    assertion(
-      "portable-capture-file-mode",
-      !status || status.captureFileMode === "portable",
-      "Capture should explicitly report portable voyage-bundle file mode.",
     ),
     assertion(
       "canonical-input-contract",
