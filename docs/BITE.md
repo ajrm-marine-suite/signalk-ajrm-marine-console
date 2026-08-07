@@ -65,9 +65,10 @@ where available. Deeper behaviour tests remain grouped by subsystem.
 
 Optional plugin contract tests are added only where they verify suite-facing
 runtime behaviour that other apps depend on. They deliberately do not duplicate
-the plugin's own npm unit tests. For example, BITE checks that Logger exposes
-its runtime API to the live Signal K process, not how Logger parses an
-individual file internally.
+the plugin's own npm unit tests. Capture tests exercise its live API, canonical
+recording/replay contract, durable finalisation, observations, and portable
+download through the running Signal K process rather than retesting its JSONL
+parser in BITE.
 
 Run all starts with test `0`, which verifies the required AJRM Marine Suite
 plugins are installed and operational before any synthetic data is injected. It

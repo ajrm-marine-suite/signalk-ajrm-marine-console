@@ -25,7 +25,7 @@ you want those features:
 
 - Optional standard-path navigation conversion for third-party displays:
   SK Derived Data (`signalk-derived-data`)
-- Voyage diagnostics: AJRM Marine Snapshot, Logger, and Voyage Viewer
+- Voyage diagnostics: AJRM Marine Snapshot and Voyage Viewer
 - Navigation integrity: AJRM Marine GPS Integrity and DR Plotter
 - Instruments: AJRM Marine Instruments and Instrument Alerts
 - AJRM Marine Vessel Database
@@ -48,6 +48,9 @@ Instrument Alerts is also optional and standalone because it reads standard
 Signal K instrument paths, so it can be used with other instrument displays. DR
 Plotter depends on GPS Integrity because GPS Integrity publishes the operational
 and independent dead-reckoning state that DR Plotter renders.
+
+AJRM Marine Logger is retired. Capture now owns canonical voyage recording,
+server-side replay, recovery, evidence collection, and ZIP finalisation.
 
 ## Navigation data setup
 
@@ -218,7 +221,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.6.21 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.6.22 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

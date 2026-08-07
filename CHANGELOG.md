@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.22
+
+- Refresh onboard Help and BITE documentation for Capture-led recording and
+  replay, shared chart-folder controls, chart cycling, and map-icon tooltips.
+
 ## 0.6.21
 
 - Add two deterministic timestamped comments to every BITE voyage: one after
