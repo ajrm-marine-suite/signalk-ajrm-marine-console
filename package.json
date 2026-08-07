@@ -1,6 +1,6 @@
 {
   "name": "signalk-ajrm-marine-console",
-  "version": "0.6.23",
+  "version": "0.7.0",
   "description": "Suite entry point, navigation shell, and shared help for AJRM Marine applications.",
   "main": "plugin/index.js",
   "scripts": {
@@ -62,7 +62,6 @@
       "signalk-ajrm-marine-simulator",
       "signalk-ajrm-marine-gps-integrity",
       "signalk-ajrm-marine-dr-plotter",
-      "signalk-ajrm-marine-alerts",
       "signalk-ajrm-marine-instruments",
       "signalk-ajrm-marine-instrument-alerts",
       "signalk-ajrm-marine-harbour-editor",

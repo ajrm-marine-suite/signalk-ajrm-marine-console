@@ -19,7 +19,7 @@ test("Console package is the AJRM Marine Suite AppStore entry point", () => {
   assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-vessel-database"));
   assert.ok(!packageInfo.signalk.recommends.includes("signalk-ajrm-marine-capture"));
   assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-snapshot"));
-  assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-alerts"));
+  assert.ok(!packageInfo.signalk.recommends.includes("signalk-ajrm-marine-alerts"));
   assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-gps-integrity"));
   assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-harbour-editor"));
   assert.ok(packageInfo.signalk.recommends.includes("signalk-derived-data"));
@@ -58,7 +58,7 @@ test("Console publishes an installable sailing module manifest", () => {
   assert.equal(status.defaultModule, "overview");
   assert.deepEqual(
     status.modules.map((module) => module.id),
-    ["overview", "bite", "signalk-admin"],
+    ["overview", "bite", "alerts", "signalk-admin"],
   );
   assert.deepEqual(status.selectedWebapps, []);
   assert.deepEqual(status.services, []);
@@ -134,11 +134,12 @@ test("Console config schema renders discovered webapps as checkbox booleans", ()
   );
   assert.match(
     schema.properties.tabOrder.description,
-    /BITE is always second, Signal K is always third/,
+    /BITE is always second, Alerts is always third, and Signal K is always fourth/,
   );
-  assert.deepEqual(schema.properties.defaultModule.enum.slice(0, 3), [
+  assert.deepEqual(schema.properties.defaultModule.enum.slice(0, 4), [
     "overview",
     "bite",
+    "alerts",
     "signalk-admin",
   ]);
   assert.equal(schema.properties.selectedWebapps, undefined);

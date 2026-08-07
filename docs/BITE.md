@@ -190,7 +190,7 @@ Current numbered BITE tests:
 | 9.4.1 | Voyage Viewer review contract | Voyage Viewer exposes its voyage-only review model and in-process analysis API. |
 | 9.4.2 | Completed BITE bundle round trip | After Capture stops, Voyage Viewer opens the completed ZIP and finds versioned review, BITE evidence, and both timestamped BITE voyage comments. |
 | 9.5 | Simulator availability | Optional Simulator plugin is installed, enabled, and visible to Console when present. |
-| 9.6 | Alert Panel availability | Optional Alert Panel plugin is installed, enabled, and visible to Console when present. |
+| 9.6 | Console Alerts view availability | Console publishes its built-in read-only Alerts view and can read the Notifications projection. |
 | 9.7 | Instruments availability | Optional Instruments plugin is installed, enabled, and visible to Console when present. |
 | 9.7.1 | Instruments derived-path contract | Pilot helm and XTE expose explicit nullable values, units, autopilot engagement gating, and port/starboard sign semantics. |
 | 9.8 | Instrument Alerts availability | Optional Instrument Alerts plugin is installed, enabled, and visible to Console when present. |

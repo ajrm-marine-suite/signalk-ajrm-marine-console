@@ -46,7 +46,7 @@ const SAR_AIRCRAFT_TEST_TARGET_NAME = "BITE SAR AIRCRAFT";
 const AUDIO_SUMMARY_PRIORITY = 500;
 const AUDIO_SUMMARY_EXPIRES_SECONDS = 600;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
-const ALERT_PANEL_PLUGIN_ID = "signalk-ajrm-marine-alerts";
+const ALERT_PANEL_PLUGIN_ID = packageInfo.name;
 const DR_PLOTTER_PLUGIN_ID = "signalk-ajrm-marine-dr-plotter";
 const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
 const INSTRUMENT_ALERTS_PLUGIN_ID = "signalk-ajrm-marine-instrument-alerts";
@@ -265,8 +265,9 @@ const OPTIONAL_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
     pluginId: ALERT_PANEL_PLUGIN_ID,
     id: "alert-panel-availability",
     number: "9.6",
-    title: "Alert Panel availability",
-    optional: true,
+    title: "Console Alerts view availability",
+    required: true,
+    groupId: "console-alerts",
   }),
   pluginAvailabilityTest({
     pluginId: INSTRUMENTS_PLUGIN_ID,
@@ -368,7 +369,7 @@ const PLUGIN_AVAILABILITY_TESTS = Object.freeze([
   ...OPTIONAL_PLUGIN_AVAILABILITY_TESTS,
 ]);
 const OPTIONAL_PLUGIN_STATUS_PATHS = Object.freeze({
-  [ALERT_PANEL_PLUGIN_ID]: "plugins.ajrmMarineAlerts",
+  [ALERT_PANEL_PLUGIN_ID]: "plugins.ajrmMarineConsole",
   [DR_PLOTTER_PLUGIN_ID]: "plugins.ajrmMarineDrPlotter",
   "signalk-ajrm-marine-gps-integrity": WATCH_PATHS.gpsIntegrity,
   "signalk-ajrm-marine-harbour-editor": WATCH_PATHS.harbourEditor,
@@ -832,10 +833,12 @@ const TESTS = [
 const OPTIONAL_PLUGIN_BITE_GROUPS = OPTIONAL_PLUGIN_AVAILABILITY_TESTS
   .filter((test) => test.groupId !== "gps-dr")
   .map((test) => ({
-    id: test.pluginId,
+    id: test.groupId || test.pluginId,
     number: test.number,
-    title: suitePluginTitle(test.pluginId),
-    description: `Optional ${suitePluginTitle(test.pluginId)} plugin availability and status check.`,
+    title: test.title || suitePluginTitle(test.pluginId),
+    description: test.required
+      ? "Required built-in Console view availability check."
+      : `Optional ${suitePluginTitle(test.pluginId)} plugin availability and status check.`,
     pluginId: test.pluginId,
     testIds: [
       test.id,
@@ -2467,7 +2470,6 @@ function shortPluginId(pluginId) {
 
 function suitePluginTitle(pluginId) {
   const titles = {
-    "signalk-ajrm-marine-alerts": "Alert Panel",
     "signalk-ajrm-marine-audio": "Audio",
     "signalk-ajrm-marine-capture": "Capture",
     "signalk-ajrm-marine-console": "Console",

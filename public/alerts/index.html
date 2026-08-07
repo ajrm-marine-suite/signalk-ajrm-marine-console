@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>AJRM Marine Console Alerts</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">AJRM Marine</p>
+          <h1>Alert Panel</h1>
+        </div>
+        <p id="connectionStatus" class="status-pill">Connecting…</p>
+      </header>
+
+      <section class="controls" aria-label="Viewer controls">
+        <label>
+          Layout
+          <select id="selectLayout">
+            <option value="auto">Auto</option>
+            <option value="watch">Watch</option>
+            <option value="phone">Phone</option>
+            <option value="tablet">Tablet</option>
+          </select>
+        </label>
+        <label>
+          Font
+          <select id="selectFontSize">
+            <option value="normal">Normal</option>
+            <option value="large">Large</option>
+            <option value="xlarge">Extra large</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="summary-grid" aria-label="Alert summary">
+        <article>
+          <span id="activeCount">0</span>
+          <p>Active</p>
+        </article>
+        <article>
+          <span id="recentCount">0</span>
+          <p>Recent</p>
+        </article>
+        <article>
+          <span>Visual</span>
+          <p>Alerts only</p>
+        </article>
+      </section>
+
+      <section>
+        <div class="section-heading">
+          <h2>Active alerts</h2>
+          <p id="updatedAt">Waiting for notifications…</p>
+        </div>
+        <div id="activeList" class="card-list" aria-live="polite"></div>
+      </section>
+
+      <section>
+        <div class="section-heading">
+          <h2>Recent activity</h2>
+          <p>Read-only history from AJRM Marine Notifications.</p>
+        </div>
+        <div id="recentList" class="card-list compact"></div>
+      </section>
+
+      <footer>
+        <p>
+          Read-only crew viewer. Audio controls and browser playback live in
+          AJRM Marine Audio to avoid duplicate or competing announcements.
+        </p>
+        <p id="versionText"></p>
+      </footer>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
+

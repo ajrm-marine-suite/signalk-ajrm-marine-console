@@ -128,6 +128,10 @@ module.exports = function ajrmMarineConsole(app) {
       modules,
       workspaces: workspaceProfiles(modules),
       defaultModule: defaultModule(options, modules),
+      alertPanel: {
+        refreshIntervalMs: options.alertsRefreshIntervalMs,
+        recentActivityHours: options.alertsRecentActivityHours,
+      },
       services: serviceSummary(),
       generatedAt: new Date().toISOString(),
     };
@@ -160,6 +164,8 @@ function normalizeOptions(value) {
     defaultModule: String(value.defaultModule || "overview"),
     webapps: Object.fromEntries(Array.from(selected).map((id) => [id, true])),
     tabOrder: isObject(value.tabOrder) ? value.tabOrder : {},
+    alertsRefreshIntervalMs: clampNumber(value.alertsRefreshIntervalMs, 500, 30000, 2000),
+    alertsRecentActivityHours: clampNumber(value.alertsRecentActivityHours, 0.25, 168, 12),
   };
 }
 
@@ -213,7 +219,7 @@ function schemaFor(availableWebapps = discoverWebapps()) {
         type: "object",
         title: "Tab order",
         description:
-          "Optional ordering for selected webapp tabs. Overview is always first, BITE is always second, Signal K is always third, and selected webapps are sorted by these numbers.",
+          "Optional ordering for selected webapp tabs. Overview is always first, BITE is always second, Alerts is always third, and Signal K is always fourth. Selected webapps are sorted by these numbers.",
         properties: tabOrderProperties,
         additionalProperties: false,
         default: Object.fromEntries(
@@ -223,9 +229,23 @@ function schemaFor(availableWebapps = discoverWebapps()) {
       defaultModule: {
         type: "string",
         title: "Default tab",
-        enum: ["overview", "bite", "signalk-admin", ...enumValues],
-        enumNames: ["Overview", "BITE", "Signal K", ...enumNames],
+        enum: ["overview", "bite", "alerts", "signalk-admin", ...enumValues],
+        enumNames: ["Overview", "BITE", "Alerts", "Signal K", ...enumNames],
         default: "overview",
+      },
+      alertsRefreshIntervalMs: {
+        type: "integer",
+        title: "Alert Panel refresh interval (ms)",
+        default: 2000,
+        minimum: 500,
+        maximum: 30000,
+      },
+      alertsRecentActivityHours: {
+        type: "number",
+        title: "Alert Panel recent activity retention (hours)",
+        default: 12,
+        minimum: 0.25,
+        maximum: 168,
       },
     },
   };
@@ -233,6 +253,13 @@ function schemaFor(availableWebapps = discoverWebapps()) {
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function clampNumber(value, minimum, maximum, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number)
+    ? Math.min(maximum, Math.max(minimum, number))
+    : fallback;
 }
 
 function webappLabel(module) {

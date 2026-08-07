@@ -100,7 +100,7 @@ test("Console module visibility and default selection are configurable with weba
   );
   assert.deepEqual(
     modules.map((module) => module.id),
-    ["overview", "bite", "signalk-admin", "signalk-freeboard-sk"],
+    ["overview", "bite", "alerts", "signalk-admin", "signalk-freeboard-sk"],
   );
   assert.equal(
     defaultModule({ defaultModule: "signalk-ajrm-marine-logger" }, modules),
@@ -142,7 +142,7 @@ test("Console supports checkbox-style webapp selection settings", () => {
       },
       available,
     ).map((module) => module.id),
-    ["overview", "bite", "signalk-admin", "signalk-ajrm-marine-capture"],
+    ["overview", "bite", "alerts", "signalk-admin", "signalk-ajrm-marine-capture"],
   );
 });
 
@@ -160,7 +160,7 @@ test("Console selects installed suite webapps by default", () => {
   );
   assert.deepEqual(
     configuredModules({}, available).map((module) => module.id),
-    ["overview", "bite", "signalk-admin", ...expected],
+    ["overview", "bite", "alerts", "signalk-admin", ...expected],
   );
 });
 
@@ -198,8 +198,6 @@ test("Console suite catalogue includes missing apps grey-list data", () => {
   assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-capture").role, "core");
   assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-capture").groupLabel, "Core");
   assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-dr-plotter").groupLabel, "GPS / DR");
-  assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-alerts").title, "Alert Panel");
-  assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-alerts").groupLabel, "Optional");
   assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-harbour-editor").selected, true);
 });
 
@@ -226,7 +224,7 @@ test("Console publishes task-focused workspace menus from available modules", ()
   ]);
   assert.deepEqual(
     profiles.find((profile) => profile.id === "voyaging").moduleIds,
-    ["overview", "signalk-ajrm-marine-display", "signalk-ajrm-marine-capture"],
+    ["overview", "signalk-ajrm-marine-display", "alerts", "signalk-ajrm-marine-capture"],
   );
   assert.deepEqual(
     profiles.find((profile) => profile.id === "reviewing").moduleIds,
@@ -269,6 +267,7 @@ test("Console orders selected webapp tabs from config", () => {
     [
       "overview",
       "bite",
+      "alerts",
       "signalk-admin",
       "signalk-freeboard-sk",
       "signalk-ajrm-marine-capture",
@@ -301,7 +300,7 @@ test("Console uses discovered order when tab order is absent", () => {
       },
       available,
     ).map((module) => module.id),
-    ["overview", "bite", "signalk-admin", "signalk-ajrm-marine-logger", "signalk-freeboard-sk"],
+    ["overview", "bite", "alerts", "signalk-admin", "signalk-ajrm-marine-logger", "signalk-freeboard-sk"],
   );
 });
 
@@ -319,7 +318,8 @@ test("Console always places BITE before Signal K admin", () => {
   );
   assert.deepEqual(
     modules.map((module) => module.id),
-    ["overview", "bite", "signalk-admin", "signalk-freeboard-sk"],
+    ["overview", "bite", "alerts", "signalk-admin", "signalk-freeboard-sk"],
   );
-  assert.equal(modules[2].url, "/admin/");
+  assert.equal(modules[2].url, "./alerts/");
+  assert.equal(modules[3].url, "/admin/");
 });

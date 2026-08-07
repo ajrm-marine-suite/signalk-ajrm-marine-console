@@ -1385,16 +1385,6 @@ test("Console exposes BITE status and run routes", async () => {
         errors: 0,
       },
     },
-    "plugins.ajrmMarineAlerts": {
-      ok: true,
-      plugin: "signalk-ajrm-marine-alerts",
-      version: "0.5.3",
-      enabled: true,
-      readOnly: true,
-      refreshIntervalMs: 2000,
-      recentActivityHours: 12,
-      notificationsStatusUrl: "../plugins/signalk-ajrm-marine-notifications/status",
-    },
     "plugins.ajrmMarineDrPlotter": {
       ok: true,
       plugin: "signalk-ajrm-marine-dr-plotter",
@@ -1714,13 +1704,6 @@ test("Console exposes BITE status and run routes", async () => {
       kind: "webapp",
       url: "/signalk-ajrm-marine-dr-plotter/",
       version: "0.5.26",
-    }, {
-      id: "signalk-ajrm-marine-alerts",
-      packageName: "signalk-ajrm-marine-alerts",
-      title: "AJRM Marine Alert Panel",
-      kind: "webapp",
-      url: "/signalk-ajrm-marine-alerts/",
-      version: "0.5.3",
     }, {
       id: "signalk-ajrm-marine-instruments",
       packageName: "signalk-ajrm-marine-instruments",
@@ -2213,7 +2196,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-bundle-round-trip").postFinalisation, true);
   assert.equal(statusBody.tests.find((item) => item.id === "simulator-availability").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "alert-panel-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "alert-panel-availability").enabled, undefined);
   assert.equal(statusBody.tests.find((item) => item.id === "instruments-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "instruments-derived-path-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-availability").enabled, true);
@@ -2254,7 +2237,7 @@ test("Console exposes BITE status and run routes", async () => {
     ["signalk-ajrm-marine-snapshot", ["snapshot-availability", "snapshot-api-contract"]],
     ["signalk-ajrm-marine-voyage-viewer", ["voyage-viewer-availability", "voyage-viewer-review-contract", "voyage-viewer-bundle-round-trip"]],
     ["signalk-ajrm-marine-simulator", ["simulator-availability"]],
-    ["signalk-ajrm-marine-alerts", ["alert-panel-availability"]],
+    ["console-alerts", ["alert-panel-availability"]],
     ["signalk-ajrm-marine-instruments", ["instruments-availability", "instruments-derived-path-contract"]],
     ["signalk-ajrm-marine-instrument-alerts", ["instrument-alerts-availability", "instrument-alerts-depth-callout-capability", "instrument-alerts-xte-contract"]],
   ]) {

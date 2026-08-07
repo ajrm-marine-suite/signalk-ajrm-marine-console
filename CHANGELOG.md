@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0
+
+- Absorb the former AJRM Marine Alert Panel as Console's built-in read-only
+  Alerts view and remove the separate package from suite recommendations.
+- Keep Notifications as the independent alert authority and Audio as the only
+  speech/delivery component.
+- Add Console settings for Alerts refresh and recent-activity retention.
+- Hide an installed legacy Alert Panel package to prevent duplicate tabs.
+
 ## 0.6.23
 
 - Remove three unreachable standalone Logger BITE implementations and their

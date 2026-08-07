@@ -29,7 +29,6 @@ you want those features:
 - Navigation integrity: AJRM Marine GPS Integrity and DR Plotter
 - Instruments: AJRM Marine Instruments and Instrument Alerts
 - AJRM Marine Vessel Database
-- AJRM Marine Alert Panel
 - AJRM Marine Simulator
 - AJRM Marine Harbour Editor
 - AJRM Marine Pi Controller
@@ -48,6 +47,10 @@ Instrument Alerts is also optional and standalone because it reads standard
 Signal K instrument paths, so it can be used with other instrument displays. DR
 Plotter depends on GPS Integrity because GPS Integrity publishes the operational
 and independent dead-reckoning state that DR Plotter renders.
+
+The read-only Alert Panel is built into Console from version 0.7.0. It reads
+the standard suite projection from Notifications; Console does not classify,
+retain, silence, or speak alerts.
 
 AJRM Marine Logger is retired. Capture now owns canonical voyage recording,
 server-side replay, recovery, evidence collection, and ZIP finalisation.
@@ -221,7 +224,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.6.23 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.7.0 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

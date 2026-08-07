@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "AJRM Marine Console API",
-    "version": "0.6.22",
-    "description": "Configurable Console webapp manifest and selected webapp overview."
+    "version": "0.7.0",
+    "description": "Configurable Console webapp manifest, native Alerts view, selected webapp overview, and BITE control."
   },
   "servers": [
     {
@@ -62,6 +62,54 @@
           "500": {
             "description": "BITE failed"
           }
+        }
+      }
+    },
+    "/bite/run-all": {
+      "post": {
+        "summary": "Run all enabled BITE checks",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "background": { "type": "boolean", "default": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "BITE run started or completed" },
+          "409": { "description": "A BITE run is already in progress" },
+          "500": { "description": "BITE failed" }
+        }
+      }
+    },
+    "/bite/run-group": {
+      "post": {
+        "summary": "Run one BITE group",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["groupId"],
+                "properties": {
+                  "groupId": { "type": "string", "minLength": 1 },
+                  "background": { "type": "boolean", "default": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "BITE group run started or completed" },
+          "409": { "description": "A BITE run is already in progress" },
+          "500": { "description": "BITE group failed" }
         }
       }
     }

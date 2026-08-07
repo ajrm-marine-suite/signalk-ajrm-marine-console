@@ -21,6 +21,18 @@ const BITE_MODULE = {
   defaultEnabled: true,
 };
 
+const ALERTS_MODULE = {
+  id: "alerts",
+  title: "Alerts",
+  icon: "!",
+  kind: "internal",
+  url: "./alerts/",
+  description: "Focused read-only view of active and recent suite alerts.",
+  packageName: "signalk-ajrm-marine-console",
+  version: "",
+  defaultEnabled: true,
+};
+
 const SIGNALK_ADMIN_MODULE = {
   id: "signalk-admin",
   title: "Signal K",
@@ -47,7 +59,6 @@ const OPTIONAL_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-simulator",
   "signalk-ajrm-marine-gps-integrity",
   "signalk-ajrm-marine-dr-plotter",
-  "signalk-ajrm-marine-alerts",
   "signalk-ajrm-marine-instruments",
   "signalk-ajrm-marine-instrument-alerts",
   "signalk-ajrm-marine-harbour-editor",
@@ -55,7 +66,10 @@ const OPTIONAL_SUITE_WEBAPPS = [
 ];
 
 const DEFAULT_WEBAPPS = [...CORE_SUITE_WEBAPPS, ...OPTIONAL_SUITE_WEBAPPS];
-const RETIRED_WEBAPPS = new Set(["signalk-ajrm-marine-logger"]);
+const RETIRED_WEBAPPS = new Set([
+  "signalk-ajrm-marine-alerts",
+  "signalk-ajrm-marine-logger",
+]);
 
 const SUITE_APP_INFO = {
   "signalk-ajrm-marine-display": {
@@ -113,11 +127,6 @@ const SUITE_APP_INFO = {
     description: "Dead-reckoning chart plotter for GPS loss testing.",
     groupLabel: "GPS / DR",
   },
-  "signalk-ajrm-marine-alerts": {
-    title: "Alert Panel",
-    description: "Focused alert panel for active and recent suite messages.",
-    groupLabel: "Optional",
-  },
   "signalk-ajrm-marine-instruments": {
     title: "Instruments",
     description: "Large-format Signal K instrument display.",
@@ -168,7 +177,7 @@ const WORKSPACE_PROFILES = [
       "overview",
       "signalk-ajrm-marine-display",
       "signalk-ajrm-marine-instruments",
-      "signalk-ajrm-marine-alerts",
+      "alerts",
       "signalk-ajrm-marine-instrument-alerts",
       "signalk-ajrm-marine-capture",
       "signalk-ajrm-marine-dr-plotter",
@@ -254,7 +263,7 @@ function configuredModules(options = {}, availableWebapps = discoverWebapps()) {
       }
       return 0;
     });
-  return [OVERVIEW_MODULE, BITE_MODULE, SIGNALK_ADMIN_MODULE, ...modules];
+  return [OVERVIEW_MODULE, BITE_MODULE, ALERTS_MODULE, SIGNALK_ADMIN_MODULE, ...modules];
 }
 
 function suiteAppCatalog(
