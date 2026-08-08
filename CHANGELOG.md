@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.9
+
+- Replace boat-specific gateway source and Signal K hostname examples with
+  vendor-neutral examples in the suite guide and onboard help.
+
 ## 0.7.8
 
 - Fix the individual Notifications availability BITE check by reading the

@@ -97,12 +97,12 @@ recorded source IDs. On installations with multiple GNSS or compass devices,
 copy the desired IDs into the preferred-source lists rather than relying on
 arrival order.
 
-On the current boat, the live TP32 source observed in the 16 July voyage is
-`YDEN.4`. The 14 July capture used the older CAN-name form
-`YDEN.cf5096ffe83083e8`. Add both exact IDs under **Preferred magnetic-heading
-sources** before replaying both historical voyages. Keep the separate
-GNSS-associated magnetic-heading independence list empty for this TP32: its
-source publishes compass/autopilot data rather than GNSS motion.
+For example, an autopilot compass may appear as `n2k-gateway.4` or as a
+CAN-name-based source such as `n2k-gateway.cf5096ffe83083e8`. Copy the exact
+IDs shown by Navigation Reference into **Preferred magnetic-heading sources**
+when explicit priority is needed. Keep the separate GNSS-associated
+magnetic-heading independence list empty when that source publishes only
+compass/autopilot data rather than GNSS motion.
 
 ### SK Derived Data compatibility
 
