@@ -1682,7 +1682,10 @@ test("Console exposes BITE status and run routes", async () => {
   }
   const app = {
     ajrmMarineConsoleAvailableWebapps: packageInfo.signalk.requires
-      .filter((id) => id !== "signalk-ajrm-marine-navigation-reference")
+      .filter((id) =>
+        id !== "signalk-ajrm-marine-navigation-reference" &&
+        id !== "signalk-ajrm-marine-notifications"
+      )
       .map((id) => ({
       id,
       packageName: id,

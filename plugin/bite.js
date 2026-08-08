@@ -97,6 +97,9 @@ const WATCH_PATHS = {
   navigationReference: "plugins.ajrmMarineNavigationReference.state",
 };
 const REQUIRED_SUITE_PLUGINS = Object.freeze(packageInfo.signalk?.requires || []);
+const BACKEND_ONLY_SUITE_PLUGINS = new Set([
+  "signalk-ajrm-marine-notifications",
+]);
 const PREFLIGHT_TEST_ID = "preflight-safety";
 const SKIPPER_SETTINGS_SANITY_TEST_ID = "skipper-settings-sanity";
 const AUDIO_SUMMARY_TEST_ID = "audio-output-summary";
@@ -2295,7 +2298,6 @@ function requiredSuitePluginEvidence(app) {
     : discoverWebapps();
   const installed = new Set(availableWebapps.map((module) => module.packageName || module.id));
   const snapshot = collectSnapshot(app);
-  const installedMissing = REQUIRED_SUITE_PLUGINS.filter((id) => !installed.has(id));
   const runtimeChecks = [
     {
       id: "signalk-ajrm-marine-display",
@@ -2334,6 +2336,11 @@ function requiredSuitePluginEvidence(app) {
           : "Navigation Integrity is too old for source-aware BITE; install v0.8.0 or later.",
     },
   ].filter((item) => REQUIRED_SUITE_PLUGINS.includes(item.id));
+  const installedMissing = REQUIRED_SUITE_PLUGINS.filter((id) => {
+    if (installed.has(id)) return false;
+    if (!BACKEND_ONLY_SUITE_PLUGINS.has(id)) return true;
+    return runtimeChecks.find((item) => item.id === id)?.ok !== true;
+  });
   const runtimeFailures = runtimeChecks.filter((item) => !item.ok);
   const ok = installedMissing.length === 0 && runtimeFailures.length === 0;
   const parts = [];
@@ -2346,7 +2353,12 @@ function requiredSuitePluginEvidence(app) {
   return {
     ok,
     required: REQUIRED_SUITE_PLUGINS,
-    installed: REQUIRED_SUITE_PLUGINS.filter((id) => installed.has(id)),
+    installed: REQUIRED_SUITE_PLUGINS.filter((id) =>
+      installed.has(id) || (
+        BACKEND_ONLY_SUITE_PLUGINS.has(id) &&
+        runtimeChecks.find((item) => item.id === id)?.ok === true
+      )
+    ),
     installedMissing,
     runtimeChecks,
     runtimeFailures,
@@ -2362,13 +2374,14 @@ function optionalPluginEvidence(app, pluginId) {
     candidate?.id === pluginId || candidate?.packageName === pluginId
   );
   const status = optionalPluginStatus(app, pluginId);
+  const backendVisible = BACKEND_ONLY_SUITE_PLUGINS.has(pluginId) && Boolean(status);
   return {
     pluginId,
-    installed: Boolean(module),
+    installed: Boolean(module) || backendVisible,
     title: module?.title || suitePluginTitle(pluginId),
-    version: module?.version || "",
+    version: module?.version || status?.version || "",
     url: module?.url || "",
-    kind: module?.kind || "",
+    kind: module?.kind || (backendVisible ? "backend" : ""),
     status,
   };
 }
@@ -2475,14 +2488,24 @@ async function runPluginAvailabilityBite(app, { consoleVersion, test }) {
         ? `${suitePluginTitle(test.pluginId)} is installed and visible to Console.`
         : `${suitePluginTitle(test.pluginId)} is not installed, not enabled, or not visible to Console.`,
     ),
-    assertion(
+  ];
+  if (BACKEND_ONLY_SUITE_PLUGINS.has(test.pluginId)) {
+    assertions.push(assertion(
+      "backend-status",
+      Boolean(evidence.status),
+      evidence.status
+        ? `${suitePluginTitle(test.pluginId)} backend status projection is visible.`
+        : `${suitePluginTitle(test.pluginId)} backend status projection is missing.`,
+    ));
+  } else {
+    assertions.push(assertion(
       "webapp-route",
       evidence.installed && evidence.url.length > 0,
       evidence.url
         ? `${suitePluginTitle(test.pluginId)} webapp route is ${evidence.url}.`
         : `${suitePluginTitle(test.pluginId)} webapp route is missing.`,
-    ),
-  ];
+    ));
+  }
   if (test.required && test.pluginId !== packageInfo.name) {
     assertions.push(assertion(
       "required-runtime",

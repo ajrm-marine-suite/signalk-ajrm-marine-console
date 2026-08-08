@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.7
+
+- Fix BITE group 0 discovery of the backend-only Notifications plugin. BITE now
+  verifies Notifications through its live Signal K status projection instead
+  of incorrectly requiring a webapp menu entry and route.
+
 ## 0.7.6
 
 - Include Navigation Integrity in the Voyaging top-menu workspace so GNSS
