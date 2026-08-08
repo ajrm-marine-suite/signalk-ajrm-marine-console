@@ -1680,7 +1680,8 @@ function snapshotApi(app) {
 }
 
 function voyageViewerApi(app) {
-  return app.ajrmMarineVoyageViewerApi || globalThis[AJRM_MARINE_VOYAGE_VIEWER_API_REGISTRY] || null;
+  return app.ajrmMarineVoyageViewerApi || globalThis[AJRM_MARINE_VOYAGE_VIEWER_API_REGISTRY] ||
+    app.ajrmMarineCaptureApi || globalThis[AJRM_MARINE_CAPTURE_API_REGISTRY] || null;
 }
 
 function biteCaptureStartSettleMs() {
@@ -2405,10 +2406,22 @@ function optionalPluginEvidence(app, pluginId) {
   const availableWebapps = Array.isArray(app.ajrmMarineConsoleAvailableWebapps)
     ? app.ajrmMarineConsoleAvailableWebapps
     : discoverWebapps();
-  const module = availableWebapps.find((candidate) =>
+  let module = availableWebapps.find((candidate) =>
     candidate?.id === pluginId || candidate?.packageName === pluginId
   );
   const status = optionalPluginStatus(app, pluginId);
+  if (pluginId === VOYAGE_VIEWER_PLUGIN_ID && !module && status) {
+    const capture = availableWebapps.find((candidate) =>
+      candidate?.id === CAPTURE_PLUGIN_ID || candidate?.packageName === CAPTURE_PLUGIN_ID
+    );
+    module = capture && {
+      ...capture,
+      id: VOYAGE_VIEWER_PLUGIN_ID,
+      packageName: CAPTURE_PLUGIN_ID,
+      title: "Voyage Review",
+      url: "/signalk-ajrm-marine-capture/review/",
+    };
+  }
   return {
     pluginId,
     installed: Boolean(module) ||

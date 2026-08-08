@@ -54,7 +54,6 @@ const CORE_SUITE_WEBAPPS = [
 const OPTIONAL_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-vessel-database",
   "signalk-ajrm-marine-snapshot",
-  "signalk-ajrm-marine-voyage-viewer",
   "signalk-ajrm-marine-simulator",
   "signalk-ajrm-marine-gps-integrity",
   "signalk-ajrm-marine-dr-plotter",
@@ -92,18 +91,13 @@ const SUITE_APP_INFO = {
     groupLabel: "Optional",
   },
   "signalk-ajrm-marine-capture": {
-    title: "Capture",
-    description: "Voyage/debug bundles and BITE evidence capture.",
+    title: "Voyages",
+    description: "Voyage capture, replay, review, and BITE evidence.",
     groupLabel: "Core",
   },
   "signalk-ajrm-marine-snapshot": {
     title: "Snapshot",
     description: "System snapshots for support and debugging.",
-    groupLabel: "Voyage diagnostics",
-  },
-  "signalk-ajrm-marine-voyage-viewer": {
-    title: "Voyage Viewer",
-    description: "Analyse voyage captures and plot recorded tracks.",
     groupLabel: "Voyage diagnostics",
   },
   "signalk-ajrm-marine-simulator": {
@@ -182,7 +176,6 @@ const WORKSPACE_PROFILES = [
     description: "Voyage replay, recorded evidence, tracks, navigation integrity, vessel details, and snapshots.",
     moduleIds: [
       "overview",
-      "signalk-ajrm-marine-voyage-viewer",
       "signalk-ajrm-marine-capture",
       "signalk-ajrm-marine-display",
       "signalk-ajrm-marine-dr-plotter",

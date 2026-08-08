@@ -25,7 +25,7 @@ you want those features:
 
 - Optional standard-path navigation conversion for third-party displays:
   SK Derived Data (`signalk-derived-data`)
-- Voyage diagnostics: AJRM Marine Snapshot and Voyage Viewer
+- Voyage diagnostics: AJRM Marine Snapshot and Capture voyage review
 - Navigation integrity: AJRM Marine GPS Integrity and DR Plotter
 - Instruments: AJRM Marine Instruments and Instrument Alerts
 - AJRM Marine Vessel Database

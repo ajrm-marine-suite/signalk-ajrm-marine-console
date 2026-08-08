@@ -230,7 +230,6 @@ test("Console publishes task-focused workspace menus from available modules", ()
     profiles.find((profile) => profile.id === "reviewing").moduleIds,
     [
       "overview",
-      "signalk-ajrm-marine-voyage-viewer",
       "signalk-ajrm-marine-capture",
       "signalk-ajrm-marine-display",
     ],
