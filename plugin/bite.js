@@ -48,16 +48,12 @@ const AUDIO_SUMMARY_EXPIRES_SECONDS = 600;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
 const ALERT_PANEL_PLUGIN_ID = packageInfo.name;
 const CAPTURE_PLUGIN_ID = "signalk-ajrm-marine-capture";
-const DR_PLOTTER_PLUGIN_ID = "signalk-ajrm-marine-dr-plotter";
 const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
-const INSTRUMENT_ALERTS_PLUGIN_ID = "signalk-ajrm-marine-instrument-alerts";
 const INSTRUMENTS_PLUGIN_ID = "signalk-ajrm-marine-instruments";
-const NAVIGATION_REFERENCE_PLUGIN_ID = "signalk-ajrm-marine-navigation-reference";
 const PI_CONTROLLER_PLUGIN_ID = "signalk-ajrm-marine-pi-controller";
 const SIMULATOR_PLUGIN_ID = "signalk-ajrm-marine-simulator";
 const SNAPSHOT_PLUGIN_ID = "signalk-ajrm-marine-snapshot";
 const VESSEL_DATABASE_PLUGIN_ID = "signalk-ajrm-marine-vessel-database";
-const VOYAGE_VIEWER_PLUGIN_ID = "signalk-ajrm-marine-voyage-viewer";
 const OWN_POSITION = { latitude: 56.21122, longitude: -5.55756 };
 const TARGET_POSITION = { latitude: 56.21122, longitude: -5.54756 };
 const QUIET_TARGET_POSITION = { latitude: 56.24122, longitude: -5.49756 };
@@ -101,9 +97,6 @@ const WATCH_PATHS = {
   navigationReference: "plugins.ajrmMarineNavigationReference.state",
 };
 const REQUIRED_SUITE_PLUGINS = Object.freeze(packageInfo.signalk?.requires || []);
-const RUNTIME_ONLY_REQUIRED_PLUGINS = new Set([
-  NAVIGATION_REFERENCE_PLUGIN_ID,
-]);
 const PREFLIGHT_TEST_ID = "preflight-safety";
 const SKIPPER_SETTINGS_SANITY_TEST_ID = "skipper-settings-sanity";
 const AUDIO_SUMMARY_TEST_ID = "audio-output-summary";
@@ -233,13 +226,6 @@ const OPTIONAL_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
     optional: true,
   }),
   pluginAvailabilityTest({
-    pluginId: VOYAGE_VIEWER_PLUGIN_ID,
-    id: "voyage-viewer-availability",
-    number: "9.4",
-    title: "Voyage Viewer availability",
-    optional: true,
-  }),
-  pluginAvailabilityTest({
     pluginId: SIMULATOR_PLUGIN_ID,
     id: "simulator-availability",
     number: "9.5",
@@ -251,14 +237,6 @@ const OPTIONAL_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
     id: "gps-integrity-availability",
     number: "3.0",
     title: "GPS Integrity availability",
-    optional: true,
-    groupId: "gps-dr",
-  }),
-  pluginAvailabilityTest({
-    pluginId: DR_PLOTTER_PLUGIN_ID,
-    id: "dr-plotter-availability",
-    number: "3.0.1",
-    title: "DR Plotter availability",
     optional: true,
     groupId: "gps-dr",
   }),
@@ -275,13 +253,6 @@ const OPTIONAL_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
     id: "instruments-availability",
     number: "9.7",
     title: "Instruments availability",
-    optional: true,
-  }),
-  pluginAvailabilityTest({
-    pluginId: INSTRUMENT_ALERTS_PLUGIN_ID,
-    id: "instrument-alerts-availability",
-    number: "9.8",
-    title: "Instrument Alerts availability",
     optional: true,
   }),
   pluginAvailabilityTest({
@@ -308,18 +279,18 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     description: "Checks the optional Vessel Database publishes the suite-facing summary used by other apps and captures.",
   }),
   pluginContractTest({
-    pluginId: VOYAGE_VIEWER_PLUGIN_ID,
+    pluginId: CAPTURE_PLUGIN_ID,
     id: "voyage-viewer-review-contract",
     number: "9.4.1",
-    title: "Voyage Viewer review contract",
-    description: "Checks Voyage Viewer advertises voyage-review capability and its current voyage-bundle source model.",
+    title: "Capture review contract",
+    description: "Checks Capture advertises voyage-review capability and its current voyage-bundle source model.",
   }),
   pluginContractTest({
-    pluginId: VOYAGE_VIEWER_PLUGIN_ID,
+    pluginId: CAPTURE_PLUGIN_ID,
     id: "voyage-viewer-bundle-round-trip",
     number: "9.4.2",
     title: "Completed BITE bundle round trip",
-    description: "After Capture stops, checks the completed BITE ZIP can be analysed by Voyage Viewer and contains BITE evidence.",
+    description: "After Capture stops, checks Capture review can analyse the completed BITE ZIP and find its BITE evidence.",
     postFinalisation: true,
   }),
   pluginContractTest({
@@ -330,17 +301,17 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     description: "Checks pilot helm and XTE publish explicit nullable, unit, engagement, and port/starboard semantics.",
   }),
   pluginContractTest({
-    pluginId: INSTRUMENT_ALERTS_PLUGIN_ID,
+    pluginId: INSTRUMENTS_PLUGIN_ID,
     id: "instrument-alerts-depth-callout-capability",
     number: "9.8.1",
-    title: "Instrument Alerts depth callout capability",
-    description: "Checks Instrument Alerts advertises the anchoring depth callout capability before BITE relies on it.",
+    title: "Instruments depth callout capability",
+    description: "Checks Instruments advertises the anchoring depth callout capability before BITE relies on it.",
   }),
   pluginContractTest({
-    pluginId: INSTRUMENT_ALERTS_PLUGIN_ID,
+    pluginId: INSTRUMENTS_PLUGIN_ID,
     id: "instrument-alerts-xte-contract",
     number: "9.8.2",
-    title: "Instrument Alerts XTE contract",
+    title: "Instruments XTE alert contract",
     description: "Checks the built-in XTE monitor uses metres, absolute magnitude, port/starboard direction, and safe null handling.",
   }),
   pluginContractTest({
@@ -371,17 +342,13 @@ const PLUGIN_AVAILABILITY_TESTS = Object.freeze([
 ]);
 const OPTIONAL_PLUGIN_STATUS_PATHS = Object.freeze({
   [ALERT_PANEL_PLUGIN_ID]: "plugins.ajrmMarineConsole",
-  [DR_PLOTTER_PLUGIN_ID]: "plugins.ajrmMarineDrPlotter",
   "signalk-ajrm-marine-gps-integrity": WATCH_PATHS.gpsIntegrity,
   "signalk-ajrm-marine-harbour-editor": WATCH_PATHS.harbourEditor,
-  [INSTRUMENT_ALERTS_PLUGIN_ID]: "plugins.ajrmMarineInstrumentAlerts",
   [INSTRUMENTS_PLUGIN_ID]: "plugins.ajrmMarineInstruments",
-  [NAVIGATION_REFERENCE_PLUGIN_ID]: WATCH_PATHS.navigationReference,
   [PI_CONTROLLER_PLUGIN_ID]: "plugins.ajrmMarinePiController",
   [SIMULATOR_PLUGIN_ID]: "plugins.ajrmMarineSimulator",
   [SNAPSHOT_PLUGIN_ID]: "plugins.ajrmMarineSnapshot",
   [VESSEL_DATABASE_PLUGIN_ID]: "plugins.ajrmMarineVesselDatabase.summary",
-  [VOYAGE_VIEWER_PLUGIN_ID]: "plugins.ajrmMarineVoyageViewer",
 });
 let reportFileSequence = 0;
 const TESTS = [
@@ -480,7 +447,7 @@ const TESTS = [
     id: "gps-integrity-diagnostics-contract",
     number: "3.3",
     title: "GPS Integrity diagnostics contract",
-    description: "Optional check that GPS Integrity publishes the diagnostic block Voyage Viewer uses for end-of-day review.",
+    description: "Optional check that GPS Integrity publishes the diagnostic block Capture review uses for end-of-day review.",
     timeoutSeconds: 5,
     optional: true,
     pluginId: GPS_INTEGRITY_PLUGIN_ID,
@@ -610,7 +577,7 @@ const TESTS = [
     id: "bite-bundled-report-contract",
     number: "1.13",
     title: "BITE bundled report contract",
-    description: "Checks completed BITE child reports have the fields Voyage Viewer needs for offline review before Capture closes the bundle.",
+    description: "Checks completed BITE child reports have the fields Capture review needs before Capture closes the bundle.",
     timeoutSeconds: 5,
   },
   {
@@ -812,13 +779,13 @@ const TESTS = [
     description: "Optional check that DR Plotter publishes server-side breadcrumb/fix persistence state so plots survive page changes and Capture can bundle them.",
     timeoutSeconds: 5,
     optional: true,
-    pluginId: DR_PLOTTER_PLUGIN_ID,
+    pluginId: GPS_INTEGRITY_PLUGIN_ID,
   },
   {
     id: "gps-voyage-review-readiness",
     number: "3.18",
     title: "GPS voyage review readiness",
-    description: "Optional check that GPS Integrity data is rich enough for Voyage Viewer to produce a useful end-of-day GPS/DR summary.",
+    description: "Optional check that GPS Integrity data is rich enough for Capture to produce a useful end-of-day GPS/DR summary.",
     timeoutSeconds: 5,
     optional: true,
     pluginId: GPS_INTEGRITY_PLUGIN_ID,
@@ -923,7 +890,6 @@ const BITE_GROUP_DEFINITIONS = [
     description: "GPS loss, stale fixes, weak signals, DR drift, retained current, and GPS recovery behaviour.",
     testIds: [
       "gps-integrity-availability",
-      "dr-plotter-availability",
       "gps-integrity-health",
       "gps-lost-age-consistency",
       "gps-integrity-diagnostics-contract",
@@ -981,7 +947,6 @@ const AJRM_MARINE_INSTRUMENTS_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineI
 const AJRM_MARINE_TRAFFIC_API_REGISTRY = Symbol.for("ajrmMarineTrafficApi");
 const AJRM_MARINE_NAVIGATION_REFERENCE_API_REGISTRY = Symbol.for("ajrmMarineNavigationReferenceApi");
 const AJRM_MARINE_SNAPSHOT_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineSnapshotApi");
-const AJRM_MARINE_VOYAGE_VIEWER_API_REGISTRY = Symbol.for("mcdonaldajr.ajrmMarineVoyageViewerApi");
 
 function createBiteController(app, { pluginId, version }) {
   let running = false;
@@ -1680,11 +1645,6 @@ function snapshotApi(app) {
   return app.ajrmMarineSnapshotApi || globalThis[AJRM_MARINE_SNAPSHOT_API_REGISTRY] || null;
 }
 
-function voyageViewerApi(app) {
-  return app.ajrmMarineVoyageViewerApi || globalThis[AJRM_MARINE_VOYAGE_VIEWER_API_REGISTRY] ||
-    app.ajrmMarineCaptureApi || globalThis[AJRM_MARINE_CAPTURE_API_REGISTRY] || null;
-}
-
 function biteCaptureStartSettleMs() {
   const value = Number(process.env.AJRM_MARINE_BITE_CAPTURE_START_SETTLE_MS);
   if (!Number.isFinite(value)) return 5000;
@@ -2335,15 +2295,7 @@ function requiredSuitePluginEvidence(app) {
     : discoverWebapps();
   const installed = new Set(availableWebapps.map((module) => module.packageName || module.id));
   const snapshot = collectSnapshot(app);
-  const runtimeOnlyPresent = new Set(
-    snapshot.navigationReference?.contract === "ajrm-marine-navigation-reference"
-      ? [NAVIGATION_REFERENCE_PLUGIN_ID]
-      : [],
-  );
-  const installedMissing = REQUIRED_SUITE_PLUGINS.filter((id) =>
-    !installed.has(id) &&
-    !RUNTIME_ONLY_REQUIRED_PLUGINS.has(id),
-  );
+  const installedMissing = REQUIRED_SUITE_PLUGINS.filter((id) => !installed.has(id));
   const runtimeChecks = [
     {
       id: "signalk-ajrm-marine-display",
@@ -2394,8 +2346,7 @@ function requiredSuitePluginEvidence(app) {
   return {
     ok,
     required: REQUIRED_SUITE_PLUGINS,
-    installed: REQUIRED_SUITE_PLUGINS.filter((id) =>
-      installed.has(id) || runtimeOnlyPresent.has(id)),
+    installed: REQUIRED_SUITE_PLUGINS.filter((id) => installed.has(id)),
     installedMissing,
     runtimeChecks,
     runtimeFailures,
@@ -2407,39 +2358,13 @@ function optionalPluginEvidence(app, pluginId) {
   const availableWebapps = Array.isArray(app.ajrmMarineConsoleAvailableWebapps)
     ? app.ajrmMarineConsoleAvailableWebapps
     : discoverWebapps();
-  let module = availableWebapps.find((candidate) =>
+  const module = availableWebapps.find((candidate) =>
     candidate?.id === pluginId || candidate?.packageName === pluginId
   );
   const status = optionalPluginStatus(app, pluginId);
-  if (pluginId === VOYAGE_VIEWER_PLUGIN_ID && !module && status) {
-    const capture = availableWebapps.find((candidate) =>
-      candidate?.id === CAPTURE_PLUGIN_ID || candidate?.packageName === CAPTURE_PLUGIN_ID
-    );
-    module = capture && {
-      ...capture,
-      id: VOYAGE_VIEWER_PLUGIN_ID,
-      packageName: CAPTURE_PLUGIN_ID,
-      title: "Voyage Review",
-      url: "/signalk-ajrm-marine-capture/review/",
-    };
-  }
-  if (pluginId === DR_PLOTTER_PLUGIN_ID && !module && status) {
-    const integrity = availableWebapps.find((candidate) =>
-      candidate?.id === GPS_INTEGRITY_PLUGIN_ID ||
-      candidate?.packageName === GPS_INTEGRITY_PLUGIN_ID
-    );
-    module = integrity && {
-      ...integrity,
-      id: DR_PLOTTER_PLUGIN_ID,
-      packageName: GPS_INTEGRITY_PLUGIN_ID,
-      title: "DR Plotter",
-      url: "/signalk-ajrm-marine-gps-integrity/plotter/",
-    };
-  }
   return {
     pluginId,
-    installed: Boolean(module) ||
-      (RUNTIME_ONLY_REQUIRED_PLUGINS.has(pluginId) && Boolean(status)),
+    installed: Boolean(module),
     title: module?.title || suitePluginTitle(pluginId),
     version: module?.version || "",
     url: module?.url || "",
@@ -2501,19 +2426,15 @@ function suitePluginTitle(pluginId) {
     "signalk-ajrm-marine-capture": "Capture",
     "signalk-ajrm-marine-console": "Console",
     "signalk-ajrm-marine-display": "Display",
-    "signalk-ajrm-marine-dr-plotter": "DR Plotter",
     "signalk-ajrm-marine-gps-integrity": "GPS Integrity",
     "signalk-ajrm-marine-harbour-editor": "Harbour Editor",
-    "signalk-ajrm-marine-instrument-alerts": "Instrument Alerts",
     "signalk-ajrm-marine-instruments": "Instruments",
-    "signalk-ajrm-marine-navigation-reference": "Navigation Reference",
     "signalk-ajrm-marine-notifications": "Notifications",
     "signalk-ajrm-marine-pi-controller": "Pi Controller",
     "signalk-ajrm-marine-simulator": "Simulator",
     "signalk-ajrm-marine-snapshot": "Snapshot",
     "signalk-ajrm-marine-traffic": "Traffic",
     "signalk-ajrm-marine-vessel-database": "Vessel Database",
-    "signalk-ajrm-marine-voyage-viewer": "Voyage Viewer",
   };
   if (titles[pluginId]) return titles[pluginId];
   return String(pluginId || "Plugin")
@@ -2546,7 +2467,6 @@ async function runPluginAvailabilityBite(app, { consoleVersion, test }) {
   const evidence = pluginAvailabilityEvidence(app, test.pluginId);
   const requiredEvidence = test.required ? requiredSuitePluginEvidence(app) : null;
   const runtimeCheck = requiredEvidence?.runtimeChecks?.find((item) => item.id === test.pluginId) || null;
-  const runtimeOnly = RUNTIME_ONLY_REQUIRED_PLUGINS.has(test.pluginId);
   const assertions = [
     assertion(
       "plugin-visible",
@@ -2555,21 +2475,13 @@ async function runPluginAvailabilityBite(app, { consoleVersion, test }) {
         ? `${suitePluginTitle(test.pluginId)} is installed and visible to Console.`
         : `${suitePluginTitle(test.pluginId)} is not installed, not enabled, or not visible to Console.`,
     ),
-    runtimeOnly
-      ? assertion(
-        "runtime-status-route",
-        Boolean(evidence.status),
-        evidence.status
-          ? `${suitePluginTitle(test.pluginId)} backend runtime projection is visible.`
-          : `${suitePluginTitle(test.pluginId)} backend runtime projection is missing.`,
-      )
-      : assertion(
-        "webapp-route",
-        evidence.installed && evidence.url.length > 0,
-        evidence.url
-          ? `${suitePluginTitle(test.pluginId)} webapp route is ${evidence.url}.`
-          : `${suitePluginTitle(test.pluginId)} webapp route is missing.`,
-      ),
+    assertion(
+      "webapp-route",
+      evidence.installed && evidence.url.length > 0,
+      evidence.url
+        ? `${suitePluginTitle(test.pluginId)} webapp route is ${evidence.url}.`
+        : `${suitePluginTitle(test.pluginId)} webapp route is missing.`,
+    ),
   ];
   if (test.required && test.pluginId !== packageInfo.name) {
     assertions.push(assertion(
@@ -2881,7 +2793,7 @@ async function runCaptureActiveVoyageContractBite(app, { consoleVersion }) {
       "active-voyage-comment-visible",
       !active || voyage?.comment != null || status?.comment != null,
       active
-        ? "Active voyage should expose the comment that will appear in Capture/Voyage Viewer."
+        ? "Active voyage should expose the comment that will appear in Capture review."
         : "Capture is idle; no active voyage comment required.",
     ),
   ];
@@ -3084,7 +2996,7 @@ async function runBiteBundledReportContractBite(_app, { consoleVersion, priorRep
     assertion(
       "bite-report-timing-visible",
       reports.length === 0 || reports.every((report) => Number.isFinite(Number(report.durationSeconds))),
-      "BITE reports should include durationSeconds so Voyage Viewer can flag slow paths.",
+      "BITE reports should include durationSeconds so Capture review can flag slow paths.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
@@ -3102,7 +3014,7 @@ async function runBiteBundledReportContractBite(_app, { consoleVersion, priorRep
       malformed: malformed.map((report) => ({ testId: report.testId, scenario: report.scenario })),
     }],
     summary: result === "pass"
-      ? "BITE report records are shaped for Capture bundles and Voyage Viewer review."
+      ? "BITE report records are shaped for Capture bundles and review."
       : `BITE bundled report contract failed: ${assertions.filter((item) => !item.pass).map((item) => !item.pass && item.id).filter(Boolean).join(", ")}.`,
     snapshot: {
       priorReportCount: reports.length,
@@ -3918,8 +3830,8 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, VOYAGE_VIEWER_PLUGIN_ID);
-  const status = evidence.status || {};
+  const evidence = optionalPluginEvidence(app, CAPTURE_PLUGIN_ID);
+  const status = readSelfPath(app, "plugins.ajrmMarineCapture.review") || {};
   const capabilities = status.capabilities || {};
   const review = status.review || status.voyageReview || capabilities.review || {};
   const reviewSupported = review === true ||
@@ -3932,26 +3844,26 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
   const rawDirectory = logDirectory || status.captureDirectory || status.rawDirectory;
   const clipDirectory = status.clipDirectory || status.directories?.clips || status.paths?.clips;
   const voyageOnly = capabilities.voyageOnly === true;
-  const api = voyageViewerApi(app);
+  const api = captureApi(app);
   const assertions = [
     assertion(
-      "voyage-viewer-visible",
+      "capture-review-visible",
       evidence.installed,
       evidence.installed
-        ? "Voyage Viewer is installed and visible to Console."
-        : "Voyage Viewer is not installed, not enabled, or not visible to Console.",
+        ? "Capture review is installed and visible to Console."
+        : "Capture is not installed, not enabled, or not visible to Console.",
     ),
     assertion(
       "voyage-directory-visible",
       Boolean(voyageDirectory),
-      "Voyage Viewer should expose the voyage directory it reads from.",
+      "Capture review should expose the voyage directory it reads from.",
     ),
     assertion(
       "review-source-model-visible",
       voyageOnly || Boolean(rawDirectory),
       voyageOnly
-        ? "Voyage Viewer explicitly uses completed voyage bundles as its only review source."
-        : "Legacy Voyage Viewer should expose raw log/capture directory information.",
+        ? "Capture review explicitly uses completed voyage bundles as its only review source."
+        : "A legacy review source should expose raw log/capture directory information.",
     ),
     assertion(
       "review-source-model-coherent",
@@ -3960,12 +3872,12 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
         : Boolean(clipDirectory || status.clipDirectory === null),
       voyageOnly
         ? "Voyage-only mode should not advertise retired raw-log or clip sources."
-        : "Legacy Voyage Viewer should expose clip directory information, even if clips are disabled.",
+        : "A legacy review source should expose clip directory information, even if clips are disabled.",
     ),
     assertion(
       "review-capability-visible",
       reviewSupported,
-      "Voyage Viewer should advertise the voyage Review capability used for post-voyage summaries.",
+      "Capture should advertise the Review capability used for post-voyage summaries.",
     ),
     assertion(
       "review-schema-visible",
@@ -3977,7 +3889,7 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
     assertion(
       "runtime-analysis-api-visible",
       capabilities.runtimeAnalysisApi === true && typeof api?.analyseVoyage === "function",
-      "Voyage Viewer should expose its in-process analysis API for post-finalisation suite verification.",
+      "Capture should expose its in-process analysis API for post-finalisation suite verification.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
@@ -3992,8 +3904,8 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
     assertions,
     observations: [{ evidence, review, voyageOnly }],
     summary: result === "pass"
-      ? `Voyage Viewer exposes a coherent ${voyageOnly ? "voyage-only" : "legacy multi-source"} review contract.`
-      : `Voyage Viewer review contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+      ? `Capture exposes a coherent ${voyageOnly ? "voyage-only" : "legacy multi-source"} review contract.`
+      : `Capture review contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: {
       status,
       directories: { voyageDirectory, logDirectory, rawDirectory, clipDirectory },
@@ -4009,7 +3921,7 @@ async function runVoyageViewerBundleRoundTripBite(app, { consoleVersion }) {
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
   const capture = captureApi(app);
-  const viewer = voyageViewerApi(app);
+  const reviewer = capture;
   let captureStatus = null;
   let analysis = null;
   let error = "";
@@ -4017,8 +3929,8 @@ async function runVoyageViewerBundleRoundTripBite(app, { consoleVersion }) {
     captureStatus = typeof capture?.status === "function" ? await capture.status() : null;
     const fileName = captureStatus?.lastBundle?.fileName || captureStatus?.finalisation?.bundle?.fileName || "";
     if (!fileName) throw new Error("Capture did not report a completed voyage ZIP");
-    if (typeof viewer?.analyseVoyage !== "function") throw new Error("Voyage Viewer runtime analysis API is unavailable");
-    analysis = await viewer.analyseVoyage(fileName);
+    if (typeof reviewer?.analyseVoyage !== "function") throw new Error("Capture review runtime analysis API is unavailable");
+    analysis = await reviewer.analyseVoyage(fileName);
   } catch (caught) {
     error = caught?.message || String(caught);
   }
@@ -4036,36 +3948,36 @@ async function runVoyageViewerBundleRoundTripBite(app, { consoleVersion }) {
         : "Capture did not expose a completed durable BITE ZIP.",
     ),
     assertion(
-      "viewer-runtime-analysis-api",
-      typeof viewer?.analyseVoyage === "function",
-      "Voyage Viewer runtime analysis API should be available after Capture finalises.",
+      "capture-review-runtime-analysis-api",
+      typeof reviewer?.analyseVoyage === "function",
+      "Capture review runtime analysis API should be available after Capture finalises.",
     ),
     assertion(
       "completed-bundle-readable",
       Boolean(analysis) && !error,
-      error ? `Voyage Viewer could not analyse the completed BITE ZIP: ${error}` : "Voyage Viewer analysed the completed BITE ZIP.",
+      error ? `Capture review could not analyse the completed BITE ZIP: ${error}` : "Capture review analysed the completed BITE ZIP.",
     ),
     assertion(
       "completed-bundle-review-contract",
       Number.isFinite(Number(analysis?.review?.schemaVersion)) && Number.isFinite(Number(analysis?.review?.engineVersion)),
-      "The completed BITE ZIP should produce a versioned Voyage Viewer review.",
+      "The completed BITE ZIP should produce a versioned Capture review.",
     ),
     assertion(
       "completed-bundle-bite-evidence",
       bite?.available === true && Number(bite?.total) > 0,
       bite?.available
-        ? `Voyage Viewer found ${bite.total} bundled BITE report(s).`
-        : "Voyage Viewer did not find BITE evidence in the completed ZIP.",
+        ? `Capture review found ${bite.total} bundled BITE report(s).`
+        : "Capture review did not find BITE evidence in the completed ZIP.",
     ),
     assertion(
       "completed-bundle-start-comment-visible",
       voyageComments.includes(BITE_VOYAGE_START_COMMENT),
-      "Voyage Viewer should expose the BITE start comment from the completed ZIP.",
+      "Capture review should expose the BITE start comment from the completed ZIP.",
     ),
     assertion(
       "completed-bundle-completion-comment-visible",
       voyageComments.includes(BITE_VOYAGE_COMPLETE_COMMENT),
-      "Voyage Viewer should expose the BITE completion comment from the completed ZIP.",
+      "Capture review should expose the BITE completion comment from the completed ZIP.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
@@ -4080,7 +3992,7 @@ async function runVoyageViewerBundleRoundTripBite(app, { consoleVersion }) {
     assertions,
     observations: [{ fileName: lastBundle?.fileName || null, bite, voyageComments }],
     summary: result === "pass"
-      ? "The completed BITE ZIP round-trips through Voyage Viewer with bundled BITE evidence and both voyage comments."
+      ? "The completed BITE ZIP round-trips through Capture review with bundled BITE evidence and both voyage comments."
       : `Completed BITE bundle round trip failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: {
       lastBundle,
@@ -4101,8 +4013,8 @@ async function runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersi
   const runId = randomUUID();
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, INSTRUMENT_ALERTS_PLUGIN_ID);
-  const status = evidence.status || {};
+  const evidence = optionalPluginEvidence(app, INSTRUMENTS_PLUGIN_ID);
+  const status = readSelfPath(app, "plugins.ajrmMarineInstrumentAlerts") || {};
   const capabilities = status.capabilities || {};
   const depthCallout = status.depthCallout || capabilities.depthCallout || {};
   const supported = depthCallout === true ||
@@ -4117,8 +4029,8 @@ async function runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersi
       "instrument-alerts-visible",
       evidence.installed,
       evidence.installed
-        ? "Instrument Alerts is installed and visible to Console."
-        : "Instrument Alerts is not installed, not enabled, or not visible to Console.",
+        ? "Instruments is installed and its alert engine is visible to Console."
+        : "Instruments is not installed, not enabled, or not visible to Console.",
     ),
     assertion(
       "depth-callout-capability-visible",
@@ -4183,8 +4095,8 @@ async function runInstrumentAlertsXteContractBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, INSTRUMENT_ALERTS_PLUGIN_ID);
-  const status = evidence.status || {};
+  const evidence = optionalPluginEvidence(app, INSTRUMENTS_PLUGIN_ID);
+  const status = readSelfPath(app, "plugins.ajrmMarineInstrumentAlerts") || {};
   const monitors = Array.isArray(status.monitors) ? status.monitors : [];
   const monitor = monitors.find((item) =>
     item?.id === "cross-track-error" || item?.path === "plugins.ajrmMarineInstruments.crossTrackError"
@@ -4195,8 +4107,8 @@ async function runInstrumentAlertsXteContractBite(app, { consoleVersion }) {
       "instrument-alerts-visible",
       evidence.installed,
       evidence.installed
-        ? "Instrument Alerts is installed and visible to Console."
-        : "Instrument Alerts is not installed, enabled, or visible to Console.",
+        ? "Instruments is installed and its alert engine is visible to Console."
+        : "Instruments is not installed, enabled, or visible to Console.",
     ),
     assertion(
       "xte-monitor-present",
@@ -6111,8 +6023,8 @@ async function runDrPlotPersistenceContractBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, DR_PLOTTER_PLUGIN_ID);
-  const status = evidence.status || {};
+  const evidence = optionalPluginEvidence(app, GPS_INTEGRITY_PLUGIN_ID);
+  const status = readSelfPath(app, "plugins.ajrmMarineDrPlotter") || {};
   const plotPersistence = status.plotFixPersistence || status.plotFixes || status.fixes || {};
   const trackPersistence = status.trackPersistence || status.track || status.breadcrumbs || {};
   const assertions = [
@@ -6120,8 +6032,8 @@ async function runDrPlotPersistenceContractBite(app, { consoleVersion }) {
       "dr-plotter-visible",
       evidence.installed,
       evidence.installed
-        ? "DR Plotter is installed and visible to Console."
-        : "DR Plotter is not installed, not enabled, or not visible to Console.",
+        ? "Navigation Integrity is installed and its DR Plotter is visible to Console."
+        : "Navigation Integrity is not installed, not enabled, or not visible to Console.",
     ),
     assertion(
       "plot-fixes-server-side",
@@ -6204,12 +6116,12 @@ async function runGpsVoyageReviewReadinessBite(app, { consoleVersion }) {
     assertion(
       "diagnostics-observed-visible",
       Boolean(observed && typeof observed === "object" && Object.keys(observed).length),
-      "GPS Integrity diagnostics should include observed inputs for Voyage Viewer analysis.",
+      "GPS Integrity diagnostics should include observed inputs for Capture review.",
     ),
     assertion(
       "diagnostics-decision-visible",
       Boolean(decision && typeof decision === "object" && Object.keys(decision).length),
-      "GPS Integrity diagnostics should include decision flags/reasons for Voyage Viewer analysis.",
+      "GPS Integrity diagnostics should include decision flags/reasons for Capture review.",
     ),
     assertion(
       "thresholds-visible",
@@ -6244,7 +6156,7 @@ async function runGpsVoyageReviewReadinessBite(app, { consoleVersion }) {
     assertions,
     observations: [{ evidence, gpsIntegrity: gpsIntegritySummary(gpsIntegrity) }],
     summary: result === "pass"
-      ? "GPS Integrity exposes enough diagnostics for Voyage Viewer to review navigation integrity."
+      ? "GPS Integrity exposes enough diagnostics for Capture review to assess navigation integrity."
       : `GPS voyage review readiness failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: {
       gpsIntegrity: gpsIntegritySummary(gpsIntegrity),

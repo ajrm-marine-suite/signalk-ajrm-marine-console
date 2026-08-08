@@ -166,10 +166,9 @@ Current numbered BITE tests:
 | 2.18 | Traffic stationary-vessel wording | A stationary target is described as stationary and never as being overtaken by own vessel. |
 | 2.19 | Traffic collision all-clear lifecycle | A real warning/alarm must produce one qualified all-clear after Traffic's one-minute advisory/clear stability hold, and the target must leave Display Active Alerts. |
 | 3.0 | GPS Integrity availability | Optional GPS Integrity plugin is installed, enabled, and visible to Console when present. |
-| 3.0.1 | DR Plotter availability | Optional DR Plotter plugin is installed, enabled, and visible to Console when present. |
 | 3.1 | GPS Integrity health | GPS Integrity publishes trust, fix, counters, and timestamp state coherently. |
 | 3.2 | GPS lost age consistency | GPS-lost wording is checked against the freshest known GPS source timestamp; a receiver that has never supplied a position has no invented lost-fix age. |
-| 3.3 | GPS Integrity diagnostics contract | GPS Integrity publishes the diagnostic block Voyage Viewer uses for end-of-day review. |
+| 3.3 | GPS Integrity diagnostics contract | GPS Integrity publishes the diagnostic block Capture review uses for end-of-day review. |
 | 3.4 | Dead reckoning projection | Operational and independent DR projections expose positions, uncertainty, ages, and vector roles once a trusted position exists from which DR can start. |
 | 3.5 | DR GPS-loss exercise | GPS and current are removed, and operational DR must continue using retained current. |
 | 3.6 | GPS recovery realigns DR | GPS restoration must lock operational DR back to the fresh GPS fix. |
@@ -183,19 +182,19 @@ Current numbered BITE tests:
 | 3.14 | GPS/DR vector arrow contract | GPS Integrity publishes recognisable single/double/triple vector-role metadata for DR Plotter. |
 | 3.15 | GPS Integrity counter contract | GPS Integrity counters are present, non-negative, and internally plausible. |
 | 3.16 | GPS/DR current contract | Live and retained current/set data are explicit enough for lost-GPS dead reckoning. |
+| 3.17 | DR plot persistence contract | GPS Integrity's built-in DR Plotter exposes its persisted fixes, track, and retention state. |
+| 3.18 | GPS voyage review readiness | GPS Integrity exposes the diagnostics Capture review needs for the voyage summary. |
 | 9.1 | Vessel Database availability | Optional Vessel Database plugin is installed, enabled, and visible to Console when present. |
 | 9.1.1 | Vessel Database summary contract | Vessel Database publishes vessel/test-record counts, fill policy, lookup state, and stats without running an online lookup during BITE. |
 | 9.2 | Snapshot availability | Optional Snapshot plugin is installed, enabled, and visible to Console when present. |
-| 9.4 | Voyage Viewer availability | Optional Voyage Viewer plugin is installed, enabled, and visible to Console when present. |
-| 9.4.1 | Voyage Viewer review contract | Voyage Viewer exposes its voyage-only review model and in-process analysis API. |
-| 9.4.2 | Completed BITE bundle round trip | After Capture stops, Voyage Viewer opens the completed ZIP and finds versioned review, BITE evidence, and both timestamped BITE voyage comments. |
+| 9.4.1 | Capture review contract | Capture exposes its voyage-only review model and in-process analysis API. |
+| 9.4.2 | Completed BITE bundle round trip | After Capture stops, Capture review opens the completed ZIP and finds versioned review, BITE evidence, and both timestamped BITE voyage comments. |
 | 9.5 | Simulator availability | Optional Simulator plugin is installed, enabled, and visible to Console when present. |
 | 9.6 | Console Alerts view availability | Console publishes its built-in read-only Alerts view and can read the Notifications projection. |
 | 9.7 | Instruments availability | Optional Instruments plugin is installed, enabled, and visible to Console when present. |
 | 9.7.1 | Instruments derived-path contract | Pilot helm and XTE expose explicit nullable values, units, autopilot engagement gating, and port/starboard sign semantics. |
-| 9.8 | Instrument Alerts availability | Optional Instrument Alerts plugin is installed, enabled, and visible to Console when present. |
-| 9.8.1 | Instrument Alerts depth-callout contract | Depth callouts expose active, scheduled-expiry, and last-clear-reason state so a stuck callout is detectable. |
-| 9.8.2 | Instrument Alerts XTE contract | XTE monitoring uses the derived metre path, absolute thresholds, port/starboard wording, and clears safely when XTE is null. |
+| 9.8.1 | Instruments depth-callout contract | The built-in alert engine exposes active, scheduled-expiry, and last-clear-reason state so a stuck callout is detectable. |
+| 9.8.2 | Instruments XTE alert contract | The built-in alert engine uses the derived metre path, absolute thresholds, port/starboard wording, and clears safely when XTE is null. |
 | 9.9 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
 | 9.9.1 | Harbour Editor default data contract | Harbour Editor reports enabled local/default harbour data and seed state without relying on Git storage. |
 | 9.10 | Pi Controller availability | Optional Pi Controller plugin is installed, enabled, and visible to Console when present. |

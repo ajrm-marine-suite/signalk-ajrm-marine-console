@@ -1516,7 +1516,7 @@ test("Console exposes BITE status and run routes", async () => {
       },
       targets: [],
     },
-    "plugins.ajrmMarineVoyageViewer": {
+    "plugins.ajrmMarineCapture.review": {
       ok: true,
       version: "0.6.9",
       voyageDirectory: "/tmp/ajrm-capture/voyages",
@@ -1796,6 +1796,20 @@ test("Console exposes BITE status and run routes", async () => {
       async startRecomputedReplay() { return { ok: true }; },
       async recordRouteSelection() { return { ok: true }; },
       async prepareVoyageDownload() { return { ok: true }; },
+      async analyseVoyage(fileName) {
+        return {
+          fileName,
+          observations: [
+            { text: "BITE test comment: Capture started before the automated checks." },
+            { text: "BITE test comment: Automated checks completed before Capture finalisation." },
+          ],
+          review: {
+            schemaVersion: 2,
+            engineVersion: 17,
+            bite: { available: true, total: 4, passed: 4, failed: 0 },
+          },
+        };
+      },
     },
     ajrmMarineDisplayApi: {
       status() {
@@ -1835,23 +1849,6 @@ test("Console exposes BITE status and run routes", async () => {
               negativeDirection: "port",
               positiveDirection: "starboard",
             },
-          },
-        };
-      },
-    },
-    ajrmMarineVoyageViewerApi: {
-      status() { return values["plugins.ajrmMarineVoyageViewer"]; },
-      async analyseVoyage(fileName) {
-        return {
-          fileName,
-          observations: [
-            { text: "BITE test comment: Capture started before the automated checks." },
-            { text: "BITE test comment: Automated checks completed before Capture finalisation." },
-          ],
-          review: {
-            schemaVersion: 2,
-            engineVersion: 17,
-            bite: { available: true, total: 4, passed: 4, failed: 0 },
           },
         };
       },
@@ -2179,20 +2176,20 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "traffic-target-projection-contract").number, "2.11");
   assert.equal(statusBody.tests.find((item) => item.id === "traffic-head-on-prompt").groupId, "traffic");
   assert.equal(statusBody.tests.find((item) => item.id === "gps-integrity-availability").groupId, "required-plugins");
-  assert.equal(statusBody.tests.find((item) => item.id === "dr-plotter-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "dr-plotter-availability"), undefined);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-jump-rejection").groupId, "gps-dr");
   assert.equal(statusBody.tests.find((item) => item.id === "gps-current-contract").number, "3.16");
   assert.equal(statusBody.tests.find((item) => item.id === "vessel-database-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "vessel-database-summary-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-api-contract").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-availability"), undefined);
   assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-bundle-round-trip").postFinalisation, true);
   assert.equal(statusBody.tests.find((item) => item.id === "simulator-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "alert-panel-availability").enabled, undefined);
   assert.equal(statusBody.tests.find((item) => item.id === "instruments-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "instruments-derived-path-contract").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-availability"), undefined);
   assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-depth-callout-capability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "instrument-alerts-xte-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "pi-controller-availability").enabled, true);
@@ -2201,7 +2198,6 @@ test("Console exposes BITE status and run routes", async () => {
     statusBody.groups.find((item) => item.id === "gps-dr").testIds,
     [
       "gps-integrity-availability",
-      "dr-plotter-availability",
       "gps-integrity-health",
       "gps-lost-age-consistency",
       "gps-integrity-diagnostics-contract",
@@ -2228,11 +2224,9 @@ test("Console exposes BITE status and run routes", async () => {
   );
   for (const [groupId, expectedIds] of [
     ["signalk-ajrm-marine-snapshot", ["snapshot-availability", "snapshot-api-contract"]],
-    ["signalk-ajrm-marine-voyage-viewer", ["voyage-viewer-availability", "voyage-viewer-review-contract", "voyage-viewer-bundle-round-trip"]],
     ["signalk-ajrm-marine-simulator", ["simulator-availability"]],
     ["console-alerts", ["alert-panel-availability"]],
-    ["signalk-ajrm-marine-instruments", ["instruments-availability", "instruments-derived-path-contract"]],
-    ["signalk-ajrm-marine-instrument-alerts", ["instrument-alerts-availability", "instrument-alerts-depth-callout-capability", "instrument-alerts-xte-contract"]],
+    ["signalk-ajrm-marine-instruments", ["instruments-availability", "instruments-derived-path-contract", "instrument-alerts-depth-callout-capability", "instrument-alerts-xte-contract"]],
   ]) {
     assert.deepEqual(statusBody.groups.find((item) => item.id === groupId).testIds, expectedIds);
   }
@@ -2274,14 +2268,14 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-visible").pass, true);
   assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-coherent").pass, true);
 
-  const voyageOnlyViewerStatus = values["plugins.ajrmMarineVoyageViewer"];
-  values["plugins.ajrmMarineVoyageViewer"] = {
-    ...voyageOnlyViewerStatus,
+  const voyageOnlyReviewStatus = values["plugins.ajrmMarineCapture.review"];
+  values["plugins.ajrmMarineCapture.review"] = {
+    ...voyageOnlyReviewStatus,
     version: "0.6.8",
     logDirectory: "/tmp/ajrm-capture/buffer",
     clipDirectory: "/tmp/ajrm-capture/clips",
     capabilities: {
-      ...voyageOnlyViewerStatus.capabilities,
+      ...voyageOnlyReviewStatus.capabilities,
       voyageOnly: false,
     },
   };
@@ -2304,7 +2298,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.snapshot.voyageOnly, false);
   assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-visible").pass, true);
   assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-coherent").pass, true);
-  values["plugins.ajrmMarineVoyageViewer"] = voyageOnlyViewerStatus;
+  values["plugins.ajrmMarineCapture.review"] = voyageOnlyReviewStatus;
 
   for (const testId of [
     "instruments-derived-path-contract",
@@ -2340,8 +2334,8 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.assertions.find((item) => item.id === "completed-bundle-bite-evidence").pass, true);
   assert.equal(runBody.assertions.find((item) => item.id === "completed-bundle-start-comment-visible").pass, true);
   assert.equal(runBody.assertions.find((item) => item.id === "completed-bundle-completion-comment-visible").pass, true);
-  const analyseVoyageWithComments = app.ajrmMarineVoyageViewerApi.analyseVoyage;
-  app.ajrmMarineVoyageViewerApi.analyseVoyage = async (fileName) => ({
+  const analyseVoyageWithComments = app.ajrmMarineCaptureApi.analyseVoyage;
+  app.ajrmMarineCaptureApi.analyseVoyage = async (fileName) => ({
     fileName,
     observations: [
       { text: "BITE test comment: Capture started before the automated checks." },
@@ -2368,7 +2362,7 @@ test("Console exposes BITE status and run routes", async () => {
     runBody.assertions.find((item) => item.id === "completed-bundle-completion-comment-visible").pass,
     false,
   );
-  app.ajrmMarineVoyageViewerApi.analyseVoyage = analyseVoyageWithComments;
+  app.ajrmMarineCaptureApi.analyseVoyage = analyseVoyageWithComments;
   captureStopped = false;
 
   app.ajrmMarineConsoleAvailableWebapps.push({

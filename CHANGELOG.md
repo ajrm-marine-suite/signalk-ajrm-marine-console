@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.5
+
+- Treat Capture review, GPS Integrity's DR Plotter, and Instruments alerts as
+  capabilities of their combined packages throughout Console and BITE.
+- Remove the retired standalone Voyage Viewer, DR Plotter, Instrument Alerts,
+  Navigation Reference, Logger, and Alerts packages from Console discovery,
+  recommendations, workspace profiles, and availability checks.
+
 ## 0.7.1
 
 - Stop presenting Notifications as a separate Console webapp. Notifications

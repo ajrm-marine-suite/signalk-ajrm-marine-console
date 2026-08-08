@@ -57,7 +57,6 @@ const OPTIONAL_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-simulator",
   "signalk-ajrm-marine-gps-integrity",
   "signalk-ajrm-marine-instruments",
-  "signalk-ajrm-marine-instrument-alerts",
   "signalk-ajrm-marine-harbour-editor",
   "signalk-ajrm-marine-pi-controller",
 ];
@@ -65,7 +64,11 @@ const OPTIONAL_SUITE_WEBAPPS = [
 const DEFAULT_WEBAPPS = [...CORE_SUITE_WEBAPPS, ...OPTIONAL_SUITE_WEBAPPS];
 const RETIRED_WEBAPPS = new Set([
   "signalk-ajrm-marine-alerts",
+  "signalk-ajrm-marine-dr-plotter",
+  "signalk-ajrm-marine-instrument-alerts",
   "signalk-ajrm-marine-logger",
+  "signalk-ajrm-marine-navigation-reference",
+  "signalk-ajrm-marine-voyage-viewer",
 ]);
 
 const SUITE_APP_INFO = {
@@ -111,12 +114,7 @@ const SUITE_APP_INFO = {
   },
   "signalk-ajrm-marine-instruments": {
     title: "Instruments",
-    description: "Large-format Signal K instrument display.",
-    groupLabel: "Instruments",
-  },
-  "signalk-ajrm-marine-instrument-alerts": {
-    title: "Instrument Alerts",
-    description: "Audible thresholds for depth, wind, temperature, and other instruments.",
+    description: "Large-format instruments, thresholds, rate rules, and anchoring callouts.",
     groupLabel: "Instruments",
   },
   "signalk-ajrm-marine-harbour-editor": {
@@ -145,7 +143,6 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-gps-integrity",
       "signalk-ajrm-marine-vessel-database",
       "signalk-ajrm-marine-instruments",
-      "signalk-ajrm-marine-instrument-alerts",
       "signalk-ajrm-marine-harbour-editor",
       "signalk-ajrm-marine-pi-controller",
     ],
@@ -159,7 +156,6 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-display",
       "signalk-ajrm-marine-instruments",
       "alerts",
-      "signalk-ajrm-marine-instrument-alerts",
       "signalk-ajrm-marine-capture",
     ],
   },
