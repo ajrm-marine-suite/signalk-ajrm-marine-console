@@ -47,6 +47,7 @@ const AUDIO_SUMMARY_PRIORITY = 500;
 const AUDIO_SUMMARY_EXPIRES_SECONDS = 600;
 const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
 const ALERT_PANEL_PLUGIN_ID = packageInfo.name;
+const CAPTURE_PLUGIN_ID = "signalk-ajrm-marine-capture";
 const DR_PLOTTER_PLUGIN_ID = "signalk-ajrm-marine-dr-plotter";
 const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
 const INSTRUMENT_ALERTS_PLUGIN_ID = "signalk-ajrm-marine-instrument-alerts";

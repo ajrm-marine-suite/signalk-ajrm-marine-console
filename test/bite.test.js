@@ -1733,13 +1733,6 @@ test("Console exposes BITE status and run routes", async () => {
       url: "/signalk-ajrm-marine-simulator/",
       version: "0.5.27",
     }, {
-      id: "signalk-ajrm-marine-voyage-viewer",
-      packageName: "signalk-ajrm-marine-voyage-viewer",
-      title: "AJRM Marine Voyage Viewer",
-      kind: "webapp",
-      url: "/signalk-ajrm-marine-voyage-viewer/",
-      version: "0.5.14",
-    }, {
       id: "signalk-ajrm-marine-vessel-database",
       packageName: "signalk-ajrm-marine-vessel-database",
       title: "AJRM Marine Vessel Database",
