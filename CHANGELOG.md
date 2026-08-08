@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.10
+
+- Add a first-page Onboard Help setup guide covering the current core and
+  optional suite packages, generic Signal K input sources, Navigation
+  Integrity, recommended Derived Data settings, and Charts Provider Simple.
+- Document Audio Player installation and the iPhone/iPad browser-audio,
+  background, and lock-screen limitations.
+- Point the Suite Overview to the setup guide and remove obsolete standalone
+  package wording from current help and installation documentation.
+
 ## 0.7.9
 
 - Replace boat-specific gateway source and Signal K hostname examples with

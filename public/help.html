@@ -31,13 +31,27 @@
                 <li class="nav-item" role="presentation">
                   <button
                     class="nav-link active"
+                    id="help-setup-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#help-setup"
+                    type="button"
+                    role="tab"
+                    aria-controls="help-setup"
+                    aria-selected="true"
+                  >
+                    Setup
+                  </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                  <button
+                    class="nav-link"
                     id="help-overview-tab"
                     data-bs-toggle="tab"
                     data-bs-target="#help-overview"
                     type="button"
                     role="tab"
                     aria-controls="help-overview"
-                    aria-selected="true"
+                    aria-selected="false"
                   >
                     Overview
                   </button>
@@ -173,6 +187,179 @@
               <div class="tab-content border border-top-0 p-3" id="helpTabContent">
                 <div
                   class="tab-pane fade show active"
+                  id="help-setup"
+                  role="tabpanel"
+                  aria-labelledby="help-setup-tab"
+                  tabindex="0"
+                >
+                  <h6>Initial Setup</h6>
+                  <p>
+                    AJRM Marine runs inside a supported Signal K server. Install
+                    <strong>AJRM Marine Suite</strong> from the Signal K App
+                    Store, enable it, and restart Signal K after the first
+                    installation. The suite installation should also install
+                    these core packages: Display, Traffic, Notifications,
+                    Audio, Voyages (Capture), and Navigation Integrity.
+                    Notifications is a backend service, so it does not add its
+                    own top-menu page.
+                  </p>
+                  <p>
+                    Signal K must already be receiving the data appropriate to
+                    the boat, normally own-vessel position, COG/SOG and AIS,
+                    plus heading, depth, wind, water speed, rudder angle, or
+                    other sensors when fitted. Use the Signal K input plugin or
+                    NMEA gateway appropriate to the installation; AJRM Marine
+                    does not require a particular gateway brand or source name.
+                  </p>
+
+                  <h6 class="mt-3">Optional suite packages</h6>
+                  <ul>
+                    <li>
+                      <strong>Instruments</strong> for graphical instruments and
+                      configurable instrument alerts. Enable only the
+                      instruments for which the boat has useful data.
+                    </li>
+                    <li>
+                      <strong>Vessel Database</strong> for persistent vessel
+                      names, dimensions, notes, import/export, and online
+                      enrichment. Traffic works without it, but identification
+                      and announcements are better with it.
+                    </li>
+                    <li>
+                      <strong>Snapshot</strong>, <strong>Simulator</strong>, and
+                      <strong>Harbour Editor</strong> for support, testing, and
+                      local profile-region editing.
+                    </li>
+                    <li>
+                      <strong>Pi Controller</strong> for Raspberry Pi health,
+                      shutdown controls, and optional Piper installation.
+                    </li>
+                  </ul>
+
+                  <h6 class="mt-3">Navigation sources</h6>
+                  <p>
+                    Open <strong>Navigation Integrity</strong> and check its
+                    Navigation Reference status. With one coherent GNSS source,
+                    the automatic defaults normally select position, COG, and
+                    SOG. If several receivers or compasses are present, copy
+                    their exact Signal K source IDs into the preferred-source
+                    settings. A magnetic compass or autopilot heading source
+                    must be deliberately selected before it is treated as bow
+                    heading; do not use COG as if it were a compass heading.
+                  </p>
+
+                  <h6 class="mt-3">Derived Data</h6>
+                  <p>
+                    Install <strong>SK Derived Data</strong>
+                    (<code>signalk-derived-data</code>) from the Signal K App
+                    Store when standard derived navigation paths are required
+                    by AJRM Instruments or another Signal K client. Then open
+                    <strong>Server &gt; Plugin Config &gt; Derived Data</strong> and
+                    use this baseline:
+                  </p>
+                  <ul>
+                    <li><strong>Magnetic Variation: enabled.</strong></li>
+                    <li>
+                      <strong>True Heading: enabled</strong> when the boat has
+                      magnetic heading but no direct true-heading source. Turn
+                      it off when a calibrated direct true-heading source is
+                      preferred.
+                    </li>
+                    <li>
+                      <strong>Magnetic Course Over Ground: disabled.</strong>
+                    </li>
+                    <li>
+                      <strong>True Course Over Ground: disabled</strong> when a
+                      receiver already publishes
+                      <code>navigation.courseOverGroundTrue</code>. Enable it
+                      only if the installation supplies magnetic COG alone.
+                    </li>
+                    <li>
+                      <strong>Set and Drift: disabled.</strong> Navigation
+                      Integrity calculates and qualifies the current evidence
+                      used for dead reckoning.
+                    </li>
+                    <li>
+                      <strong>Estimated steer error and direction: disabled</strong>
+                      unless another client specifically needs that Direct-To
+                      display aid.
+                    </li>
+                  </ul>
+                  <p>
+                    If several sources publish the same path, use
+                    <strong>Data &gt; Source Priority</strong> to choose per path.
+                    Prefer the maintained Derived Data WMM source for
+                    <code>navigation.magneticVariation</code>, while keeping
+                    physical sensors preferred for direct COG and heading.
+                  </p>
+
+                  <h6 class="mt-3">Charts Provider Simple</h6>
+                  <p>
+                    For local charts, install
+                    <strong>Charts Provider Simple</strong>
+                    (<code>signalk-charts-provider-simple</code>) from the Signal
+                    K App Store. Open
+                    <strong>Server &gt; Plugin Config &gt; Charts Provider Simple</strong>,
+                    set the chart directory (the default is
+                    <code>~/.signalk/charts-simple</code>), enable the plugin,
+                    and restart Signal K after the first installation. Put
+                    existing MBTiles in that directory or use its Manage Charts
+                    page. Subdirectories become chart groups and can be enabled
+                    or disabled individually; nested folders follow a disabled
+                    parent.
+                  </p>
+                  <p>
+                    Serving existing MBTiles needs no container runtime. Chart
+                    conversion needs the optional <code>signalk-container</code>
+                    plugin and a working Docker or Podman runtime. In Display,
+                    Navigation Integrity, Voyage Review, and Harbour Editor,
+                    select <strong>Auto Charts</strong> and enable the required
+                    chart folders.
+                  </p>
+
+                  <h6 class="mt-3">Audio and Player</h6>
+                  <p>
+                    Open <strong>Audio</strong> to choose the output, run Sound
+                    Check, inspect Piper/FFmpeg readiness, and install the
+                    <strong>Player</strong> on a supported Mac, Windows, or Linux
+                    browser device. A Pi-connected speaker also needs Piper and
+                    a voice for speech, FFmpeg, and a working ALSA output;
+                    Audio reports missing dependencies and Pi Controller can
+                    install Piper where supported.
+                  </p>
+                  <p>
+                    On an iPhone or iPad, Safari requires a user gesture before
+                    browser sound can start and iOS may suspend it when the
+                    screen locks, the browser is backgrounded, or another app
+                    takes audio focus. Silent mode, volume, and site permissions
+                    can also prevent speech. Do not rely on foreground browser
+                    speech for unattended safety announcements. The installable
+                    Player is for desktop operating systems, not iOS. For iOS
+                    background or lock-screen listening, use the MP3 stream URL
+                    shown by Audio in a radio/player app that supports background
+                    playback, and verify it with Sound Check before departure.
+                  </p>
+
+                  <h6 class="mt-3">Finish and verify</h6>
+                  <ol>
+                    <li>Set the vessel identity and dimensions in Signal K.</li>
+                    <li>
+                      Review Traffic profiles, own-vessel size, sound policy,
+                      and harbour regions.
+                    </li>
+                    <li>
+                      Confirm Display, Navigation Integrity, charts, and Audio
+                      show the expected live sources.
+                    </li>
+                    <li>
+                      Run <strong>BITE</strong>. Resolve any required-plugin,
+                      data, renderer, or output failure before relying on the
+                      suite underway.
+                    </li>
+                  </ol>
+                </div>
+                <div
+                  class="tab-pane fade"
                   id="help-overview"
                   role="tabpanel"
                   aria-labelledby="help-overview-tab"
@@ -681,8 +868,9 @@
                     directory trees. Nested folders inherit a disabled parent.
                     When charts overlap, use the Cycle chart icon or the
                     configured keyboard key (C by default). Hover or focus any
-                    map icon to see its function; Display, DR Plotter, Voyage
-                    Viewer, and Harbour Editor share this convention.
+                    map icon to see its function; Display, Navigation
+                    Integrity, Voyage Review, and Harbour Editor share this
+                    convention.
                   </p>
                   <p>
                     Manual panning pauses own-vessel following. Press the centre
@@ -827,8 +1015,7 @@
                     <li>
                       <strong>Voyages (Capture) and Snapshot</strong>
                       provide recording, replay, diagnostic evidence, and voyage
-                      review. The former standalone Logger is retired; Capture
-                      owns canonical recording and replay.
+                      review.
                     </li>
                     <li>
                       <strong>Navigation Integrity and its DR Plotter</strong> publish and

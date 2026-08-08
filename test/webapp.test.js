@@ -31,6 +31,7 @@ test("Console uses one compact toolbar and hidden loading overlay cannot display
   assert.match(css, /\.bite-group-tests\[hidden\]\s*\{\s*display:\s*none;/);
   assert.match(css, /grid-template-rows:\s*auto minmax\(0,\s*1fr\)/);
   assert.match(html, /id="overviewHelp"/);
+  assert.match(html, /Click on <strong>Onboard Help<\/strong> for setup instructions\./);
   assert.match(html, /id="biteDashboard"/);
   assert.match(html, /id="biteOverall"/);
   assert.match(html, /id="biteTests"/);
@@ -45,11 +46,20 @@ test("Console uses one compact toolbar and hidden loading overlay cannot display
   assert.ok(fs.existsSync(path.join(root, "public", "help.js")));
   const help = fs.readFileSync(path.join(root, "public", "help.html"), "utf8");
   assert.match(help, /AJRM Marine Help/);
+  assert.match(help, /id="help-setup"/);
+  assert.match(help, /signalk-derived-data/);
+  assert.match(help, /Charts Provider Simple/);
+  assert.match(help, /~\/.signalk\/charts-simple/);
+  assert.match(help, /install the\s+<strong>Player<\/strong>/);
+  assert.match(help, /On an iPhone or iPad/);
+  assert.match(help, /iOS may suspend it when the\s+screen locks/);
   assert.match(help, /id="help-current-settings"/);
   assert.match(help, /id="help-charts"/);
   assert.match(help, /not advice or a determination under the/);
   assert.match(help, /whether your\s+vessel is sailing or motoring/);
   assert.match(help, /skipper remains responsible/);
+  assert.doesNotMatch(help, /AJRM Marine Logger/);
+  assert.doesNotMatch(help, /Voyage Viewer/);
   assert.doesNotMatch(help, /id="modalHelp"/);
   const helpScript = fs.readFileSync(path.join(root, "public", "help.js"), "utf8");
   assert.match(helpScript, /CPA and TCPA Limits/);

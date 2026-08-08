@@ -18,7 +18,7 @@ dependencies installs the mandatory suite apps declared in `signalk.requires`:
 - AJRM Marine Notifications
 - AJRM Marine Audio
 - AJRM Marine Capture
-- AJRM Marine Navigation Reference
+- AJRM Marine Navigation Integrity
 
 Optional suite apps are declared in `signalk.recommends`. Install them only when
 you want those features:
@@ -47,10 +47,10 @@ while underway.
 Capture is required because BITE and support diagnostics use it to create
 evidence bundles. Vessel Database is optional: the suite works without it, but
 known names and dimensions improve display popups and spoken traffic wording.
-Instrument Alerts is integrated into the optional Instruments package and can
-monitor standard Signal K instrument paths. Navigation Integrity contains the
-Navigation Reference, GPS Integrity, and DR
-Plotter providers while preserving their separate runtime paths and duties.
+The optional Instruments package includes configurable alerts for standard
+Signal K instrument paths. Navigation Integrity provides navigation-source
+selection, GNSS integrity, dead reckoning, and the DR Plotter while preserving
+their separate runtime paths and duties.
 
 The read-only Alert Panel is built into Console from version 0.7.0. It reads
 the standard suite projection from Notifications; Console does not classify,
@@ -60,12 +60,13 @@ Notifications is a backend authority from version 0.7.0 and no longer adds a
 separate diagnostics webapp to the Signal K application menu. Its runtime
 details remain available through OpenAPI and Console's Alerts/BITE views.
 
-AJRM Marine Logger is retired. Capture now owns canonical voyage recording,
-server-side replay, recovery, evidence collection, and ZIP finalisation.
+Capture owns canonical voyage recording, server-side replay, recovery, evidence
+collection, ZIP finalisation, and voyage review.
 
 ## Navigation data setup
 
-AJRM Marine Navigation Reference is the suite's navigation authority. It keeps
+Navigation Integrity's Navigation Reference is the suite's navigation
+authority. It keeps
 COG separate from bow heading, calculates magnetic variation locally with WMM,
 converts a sensor's magnetic heading to true, expires stale values, and records
 source/freshness/provenance. Traffic and GPS Integrity consume its versioned
@@ -123,7 +124,7 @@ sudo systemctl restart signalk
 ```
 
 After installation, open **Server → Plugin Config → Derived Data** and use these
-settings for the current boat:
+baseline settings, adjusting them when the boat's direct sensors require it:
 
 | Derived Data calculation | Setting | Reason |
 | --- | --- | --- |
@@ -206,6 +207,10 @@ Select AJRM Marine Capture in the Console plugin configuration to make voyage
 recording and replay available as a normal tab. Console has no separate
 incident-record buttons.
 
+The Console Overview links to **Onboard Help**, whose Setup tab contains the
+current installation checklist, Derived Data and Charts Provider Simple
+settings, navigation-source guidance, and Audio Player/iPhone/iPad limitations.
+
 Version `0.2.1` provided the first compact single-line sailing toolbar for the
 initial AJRM Marine suite apps.
 
@@ -232,7 +237,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.7.0 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.7.10 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
