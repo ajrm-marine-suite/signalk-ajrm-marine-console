@@ -197,7 +197,7 @@ test("Console suite catalogue includes missing apps grey-list data", () => {
   assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-harbour-editor").role, "optional");
   assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-capture").role, "core");
   assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-capture").groupLabel, "Core");
-  assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-dr-plotter").groupLabel, "GPS / DR");
+  assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-gps-integrity").groupLabel, "GPS / DR");
   assert.equal(catalog.find((entry) => entry.id === "signalk-ajrm-marine-harbour-editor").selected, true);
 });
 

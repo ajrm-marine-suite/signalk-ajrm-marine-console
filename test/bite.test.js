@@ -2178,7 +2178,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "capture-api-contract").groupId, "core");
   assert.equal(statusBody.tests.find((item) => item.id === "traffic-target-projection-contract").number, "2.11");
   assert.equal(statusBody.tests.find((item) => item.id === "traffic-head-on-prompt").groupId, "traffic");
-  assert.equal(statusBody.tests.find((item) => item.id === "gps-integrity-availability").groupId, "gps-dr");
+  assert.equal(statusBody.tests.find((item) => item.id === "gps-integrity-availability").groupId, "required-plugins");
   assert.equal(statusBody.tests.find((item) => item.id === "dr-plotter-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-jump-rejection").groupId, "gps-dr");
   assert.equal(statusBody.tests.find((item) => item.id === "gps-current-contract").number, "3.16");

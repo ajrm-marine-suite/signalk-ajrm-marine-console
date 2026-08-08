@@ -56,7 +56,6 @@ const OPTIONAL_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-snapshot",
   "signalk-ajrm-marine-simulator",
   "signalk-ajrm-marine-gps-integrity",
-  "signalk-ajrm-marine-dr-plotter",
   "signalk-ajrm-marine-instruments",
   "signalk-ajrm-marine-instrument-alerts",
   "signalk-ajrm-marine-harbour-editor",
@@ -106,13 +105,8 @@ const SUITE_APP_INFO = {
     groupLabel: "Testing",
   },
   "signalk-ajrm-marine-gps-integrity": {
-    title: "GPS Integrity",
-    description: "GNSS quality checks, outage counts, and dead-reckoning comparison.",
-    groupLabel: "GPS / DR",
-  },
-  "signalk-ajrm-marine-dr-plotter": {
-    title: "DR Plotter",
-    description: "Dead-reckoning chart plotter for GPS loss testing.",
+    title: "Navigation Integrity",
+    description: "Navigation reference, GNSS integrity, dead reckoning, and DR Plotter.",
     groupLabel: "GPS / DR",
   },
   "signalk-ajrm-marine-instruments": {
@@ -167,7 +161,6 @@ const WORKSPACE_PROFILES = [
       "alerts",
       "signalk-ajrm-marine-instrument-alerts",
       "signalk-ajrm-marine-capture",
-      "signalk-ajrm-marine-dr-plotter",
     ],
   },
   {
@@ -178,7 +171,6 @@ const WORKSPACE_PROFILES = [
       "overview",
       "signalk-ajrm-marine-capture",
       "signalk-ajrm-marine-display",
-      "signalk-ajrm-marine-dr-plotter",
       "signalk-ajrm-marine-gps-integrity",
       "signalk-ajrm-marine-vessel-database",
       "signalk-ajrm-marine-snapshot",
@@ -198,7 +190,6 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-traffic",
       "signalk-ajrm-marine-audio",
       "signalk-ajrm-marine-gps-integrity",
-      "signalk-ajrm-marine-dr-plotter",
       "signalk-ajrm-marine-pi-controller",
     ],
   },

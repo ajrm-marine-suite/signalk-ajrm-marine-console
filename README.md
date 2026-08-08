@@ -26,7 +26,7 @@ you want those features:
 - Optional standard-path navigation conversion for third-party displays:
   SK Derived Data (`signalk-derived-data`)
 - Voyage diagnostics: AJRM Marine Snapshot and Capture voyage review
-- Navigation integrity: AJRM Marine GPS Integrity and DR Plotter
+- Navigation integrity: AJRM Marine Navigation Integrity, including DR Plotter
 - Instruments: AJRM Marine Instruments and Instrument Alerts
 - AJRM Marine Vessel Database
 - AJRM Marine Simulator
@@ -45,8 +45,8 @@ evidence bundles. Vessel Database is optional: the suite works without it, but
 known names and dimensions improve display popups and spoken traffic wording.
 Instrument Alerts is also optional and standalone because it reads standard
 Signal K instrument paths, so it can be used with other instrument displays. DR
-Plotter depends on GPS Integrity because GPS Integrity publishes the operational
-and independent dead-reckoning state that DR Plotter renders.
+Navigation Integrity contains the Navigation Reference, GPS Integrity, and DR
+Plotter providers while preserving their separate runtime paths and duties.
 
 The read-only Alert Panel is built into Console from version 0.7.0. It reads
 the standard suite projection from Notifications; Console does not classify,
@@ -88,7 +88,7 @@ sources are deliberately opt-in:
   physical sensor evidence.
 
 Use the Navigation Reference
-`/plugins/signalk-ajrm-marine-navigation-reference/status` route to see the
+`/plugins/signalk-ajrm-marine-gps-integrity/reference/status` route to see the
 recorded source IDs. On installations with multiple GNSS or compass devices,
 copy the desired IDs into the preferred-source lists rather than relying on
 arrival order.

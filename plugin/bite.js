@@ -2371,15 +2371,15 @@ function requiredSuitePluginEvidence(app) {
       message: "Capture API is unavailable.",
     },
     {
-      id: NAVIGATION_REFERENCE_PLUGIN_ID,
+      id: GPS_INTEGRITY_PLUGIN_ID,
       ok:
         snapshot.navigationReference?.contract === "ajrm-marine-navigation-reference" &&
         typeof navigationReferenceApi(app)?.setBiteOverride === "function" &&
         typeof navigationReferenceApi(app)?.clearBiteOverride === "function",
       message:
         snapshot.navigationReference?.contract !== "ajrm-marine-navigation-reference"
-          ? "Navigation Reference runtime projection is missing or not recognised."
-          : "Navigation Reference is too old for source-aware BITE; install v0.1.1 or later.",
+          ? "Navigation Integrity's reference projection is missing or not recognised."
+          : "Navigation Integrity is too old for source-aware BITE; install v0.8.0 or later.",
     },
   ].filter((item) => REQUIRED_SUITE_PLUGINS.includes(item.id));
   const runtimeFailures = runtimeChecks.filter((item) => !item.ok);
@@ -2421,6 +2421,19 @@ function optionalPluginEvidence(app, pluginId) {
       packageName: CAPTURE_PLUGIN_ID,
       title: "Voyage Review",
       url: "/signalk-ajrm-marine-capture/review/",
+    };
+  }
+  if (pluginId === DR_PLOTTER_PLUGIN_ID && !module && status) {
+    const integrity = availableWebapps.find((candidate) =>
+      candidate?.id === GPS_INTEGRITY_PLUGIN_ID ||
+      candidate?.packageName === GPS_INTEGRITY_PLUGIN_ID
+    );
+    module = integrity && {
+      ...integrity,
+      id: DR_PLOTTER_PLUGIN_ID,
+      packageName: GPS_INTEGRITY_PLUGIN_ID,
+      title: "DR Plotter",
+      url: "/signalk-ajrm-marine-gps-integrity/plotter/",
     };
   }
   return {
