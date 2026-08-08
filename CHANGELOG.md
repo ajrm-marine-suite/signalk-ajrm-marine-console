@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.12
+
+- Put BITE in the Setup top-menu workspace so commissioning checks are directly
+  available while configuring the suite.
+- Remove Vessel Database from Setup while retaining it in Reviewing and Show
+  All Plugins.
+- Remove Snapshot from Reviewing while retaining it in Debugging and Show All
+  Plugins.
+
 ## 0.7.11
 
 - Rewrite Onboard Help setup as a novice-friendly, ordered commissioning guide

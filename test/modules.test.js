@@ -208,6 +208,8 @@ test("Console publishes task-focused workspace menus from available modules", ()
     { id: "signalk-ajrm-marine-gps-integrity", title: "Navigation Integrity", kind: "webapp" },
     { id: "signalk-ajrm-marine-voyage-viewer", title: "Voyage Viewer", kind: "webapp" },
     { id: "signalk-ajrm-marine-simulator", title: "Simulator", kind: "webapp" },
+    { id: "signalk-ajrm-marine-vessel-database", title: "Vessel Database", kind: "webapp" },
+    { id: "signalk-ajrm-marine-snapshot", title: "Snapshot", kind: "webapp" },
     { id: "third-party-webapp", title: "Third Party", kind: "webapp" },
   ];
   const modules = configuredModules(
@@ -240,10 +242,17 @@ test("Console publishes task-focused workspace menus from available modules", ()
       "signalk-ajrm-marine-capture",
       "signalk-ajrm-marine-display",
       "signalk-ajrm-marine-gps-integrity",
+      "signalk-ajrm-marine-vessel-database",
     ],
   );
   assert.ok(profiles.find((profile) => profile.id === "debugging").moduleIds.includes("bite"));
-  assert.ok(profiles.find((profile) => profile.id === "setup").moduleIds.includes("signalk-admin"));
+  const setup = profiles.find((profile) => profile.id === "setup");
+  assert.ok(setup.moduleIds.includes("bite"));
+  assert.ok(setup.moduleIds.includes("signalk-admin"));
+  assert.equal(setup.moduleIds.includes("signalk-ajrm-marine-vessel-database"), false);
+  const reviewing = profiles.find((profile) => profile.id === "reviewing");
+  assert.equal(reviewing.moduleIds.includes("signalk-ajrm-marine-snapshot"), false);
+  assert.ok(profiles.find((profile) => profile.id === "debugging").moduleIds.includes("signalk-ajrm-marine-snapshot"));
   assert.deepEqual(
     profiles.find((profile) => profile.id === "show-all").moduleIds,
     modules.map((module) => module.id),

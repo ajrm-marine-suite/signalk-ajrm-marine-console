@@ -44,6 +44,11 @@ Voyaging includes Display, Instruments, Navigation Integrity, Alerts, and
 Voyages so GNSS health and dead-reckoning information remain readily available
 while underway.
 
+Setup includes BITE so a new or changed installation can be validated alongside
+its configuration tools. Vessel Database is available under Reviewing and Show
+All Plugins rather than Setup. Snapshot is a diagnostic tool, so it is available
+under Debugging and Show All Plugins rather than Reviewing.
+
 Capture is required because BITE and support diagnostics use it to create
 evidence bundles. Vessel Database is optional: the suite works without it, but
 known names and dimensions improve display popups and spoken traffic wording.
@@ -237,7 +242,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.7.11 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.7.12 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

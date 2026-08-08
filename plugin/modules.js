@@ -133,15 +133,15 @@ const WORKSPACE_PROFILES = [
   {
     id: "setup",
     label: "Setup",
-    description: "Configuration, data sources, sound, instruments, harbour regions, vessel details, and Pi administration.",
+    description: "Configuration, BITE validation, data sources, sound, instruments, harbour regions, and Pi administration.",
     moduleIds: [
       "overview",
+      "bite",
       "signalk-admin",
       "signalk-ajrm-marine-display",
       "signalk-ajrm-marine-traffic",
       "signalk-ajrm-marine-audio",
       "signalk-ajrm-marine-gps-integrity",
-      "signalk-ajrm-marine-vessel-database",
       "signalk-ajrm-marine-instruments",
       "signalk-ajrm-marine-harbour-editor",
       "signalk-ajrm-marine-pi-controller",
@@ -163,14 +163,13 @@ const WORKSPACE_PROFILES = [
   {
     id: "reviewing",
     label: "Reviewing",
-    description: "Voyage replay, recorded evidence, tracks, navigation integrity, vessel details, and snapshots.",
+    description: "Voyage replay, recorded evidence, tracks, navigation integrity, and vessel details.",
     moduleIds: [
       "overview",
       "signalk-ajrm-marine-capture",
       "signalk-ajrm-marine-display",
       "signalk-ajrm-marine-gps-integrity",
       "signalk-ajrm-marine-vessel-database",
-      "signalk-ajrm-marine-snapshot",
     ],
   },
   {
