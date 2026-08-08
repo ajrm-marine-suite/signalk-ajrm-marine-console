@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.11
+
+- Rewrite Onboard Help setup as a novice-friendly, ordered commissioning guide
+  explaining what each step enables and how misconfiguration appears.
+- Add corrective guidance for missing/stale input data, vessel identity,
+  navigation-source selection, Derived Data loops and source priority, charts,
+  Audio dependencies and outputs, and common BITE failures.
+- Explain BITE's live/simulator isolation requirement, long-running safety
+  checks, evidence voyage, physical audio confirmation, and essential manual
+  checks that software cannot perform.
+
 ## 0.7.10
 
 - Add a first-page Onboard Help setup guide covering the current core and

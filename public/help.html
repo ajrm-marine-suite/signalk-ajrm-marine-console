@@ -192,171 +192,362 @@
                   aria-labelledby="help-setup-tab"
                   tabindex="0"
                 >
-                  <h6>Initial Setup</h6>
+                  <h6>Setting up AJRM Marine for the first time</h6>
                   <p>
-                    AJRM Marine runs inside a supported Signal K server. Install
-                    <strong>AJRM Marine Suite</strong> from the Signal K App
-                    Store, enable it, and restart Signal K after the first
-                    installation. The suite installation should also install
-                    these core packages: Display, Traffic, Notifications,
-                    Audio, Voyages (Capture), and Navigation Integrity.
-                    Notifications is a backend service, so it does not add its
-                    own top-menu page.
-                  </p>
-                  <p>
-                    Signal K must already be receiving the data appropriate to
-                    the boat, normally own-vessel position, COG/SOG and AIS,
-                    plus heading, depth, wind, water speed, rudder angle, or
-                    other sensors when fitted. Use the Signal K input plugin or
-                    NMEA gateway appropriate to the installation; AJRM Marine
-                    does not require a particular gateway brand or source name.
+                    Work through these steps in order. You do not need to fill
+                    every configuration box: the suite starts with sensible
+                    defaults and optional instruments remain blank when the boat
+                    does not supply that data. The aim is first to prove that
+                    Signal K has trustworthy boat data, then select any
+                    ambiguous sources, and finally test the complete suite.
                   </p>
 
-                  <h6 class="mt-3">Optional suite packages</h6>
+                  <h6 class="mt-3">1. Install the suite</h6>
+                  <p>
+                    In Signal K Admin, open <strong>App Store</strong>, install
+                    <strong>AJRM Marine Suite</strong>, enable it under
+                    <strong>Server &gt; Plugin Config</strong>, and restart Signal
+                    K after the first installation. The installation should
+                    include Display, Traffic, Notifications, Audio, Voyages
+                    (Capture), and Navigation Integrity. Notifications works in
+                    the background and therefore has no separate top-menu page.
+                  </p>
+                  <p>
+                    <strong>Why:</strong> these packages form one chain. Traffic
+                    makes the safety decision, Notifications manages the event,
+                    Audio delivers speech, Display shows it, and Capture records
+                    the evidence. A missing link can leave apparently unrelated
+                    features unavailable.
+                  </p>
+                  <p>
+                    <strong>If it is wrong:</strong> Overview shows a core app as
+                    missing, or BITE reports a required plugin as not installed,
+                    disabled, not visible, or without backend status. Install or
+                    update that named package, enable it, restart Signal K, hard
+                    refresh the browser, and rerun that BITE group.
+                  </p>
+
+                  <h6 class="mt-3">2. Get the boat data into Signal K</h6>
+                  <p>
+                    Configure the Signal K input plugin or NMEA gateway suitable
+                    for the boat. AJRM Marine is not tied to a particular gateway
+                    brand or source name. With the equipment switched on, open
+                    <strong>Data &gt; Data Browser</strong> and confirm that the
+                    live values make sense. A basic installation normally needs:
+                  </p>
                   <ul>
+                    <li><code>navigation.position</code> — latitude and longitude.</li>
+                    <li><code>navigation.courseOverGroundTrue</code> — direction of travel.</li>
+                    <li><code>navigation.speedOverGround</code> — speed over the ground.</li>
+                    <li>AIS targets under <code>vessels.*</code> for Traffic.</li>
                     <li>
-                      <strong>Instruments</strong> for graphical instruments and
-                      configurable instrument alerts. Enable only the
-                      instruments for which the boat has useful data.
-                    </li>
-                    <li>
-                      <strong>Vessel Database</strong> for persistent vessel
-                      names, dimensions, notes, import/export, and online
-                      enrichment. Traffic works without it, but identification
-                      and announcements are better with it.
-                    </li>
-                    <li>
-                      <strong>Snapshot</strong>, <strong>Simulator</strong>, and
-                      <strong>Harbour Editor</strong> for support, testing, and
-                      local profile-region editing.
-                    </li>
-                    <li>
-                      <strong>Pi Controller</strong> for Raspberry Pi health,
-                      shutdown controls, and optional Piper installation.
+                      Heading, depth, wind, speed through water, rudder angle,
+                      temperature, and other paths only when those sensors are fitted.
                     </li>
                   </ul>
-
-                  <h6 class="mt-3">Navigation sources</h6>
                   <p>
-                    Open <strong>Navigation Integrity</strong> and check its
-                    Navigation Reference status. With one coherent GNSS source,
-                    the automatic defaults normally select position, COG, and
-                    SOG. If several receivers or compasses are present, copy
-                    their exact Signal K source IDs into the preferred-source
-                    settings. A magnetic compass or autopilot heading source
-                    must be deliberately selected before it is treated as bow
-                    heading; do not use COG as if it were a compass heading.
+                    <strong>Why:</strong> the suite cannot repair absent or
+                    nonsensical sensor data. Position, COG, and SOG establish own
+                    vessel motion; AIS establishes the surrounding traffic.
+                  </p>
+                  <p>
+                    <strong>If it is wrong:</strong> own vessel is absent or
+                    stationary on the map, Navigation Integrity reports missing
+                    or stale GPS, Traffic cannot calculate CPA/TCPA, or an
+                    instrument remains null. Check that the sensor and gateway
+                    are powered, that their Signal K input connection is enabled,
+                    and that Data Browser shows a fresh timestamp. Correct the
+                    input at source rather than substituting COG for heading or
+                    inventing a value in AJRM Marine.
                   </p>
 
-                  <h6 class="mt-3">Derived Data</h6>
+                  <h6 class="mt-3">3. Identify the boat</h6>
+                  <p>
+                    In Signal K, set the self-vessel name, MMSI when applicable,
+                    length, beam, draft, and AIS antenna position when known.
+                    Then review Traffic's own-vessel size category and the
+                    Harbour, Coastal, Offshore, and Anchored profiles.
+                  </p>
+                  <p>
+                    <strong>Why:</strong> Traffic uses vessel dimensions for
+                    hull-aware closest approach, while the profiles decide the
+                    CPA/TCPA limits and announcement cadence appropriate to the
+                    situation.
+                  </p>
+                  <p>
+                    <strong>If it is wrong:</strong> the self-vessel popup shows
+                    unknown dimensions, CPA is calculated using conservative
+                    assumptions, or alerts feel too early or too late. Correct
+                    the vessel data and profile settings; do not tune thresholds
+                    merely to hide bad source data.
+                  </p>
+
+                  <h6 class="mt-3">4. Check Navigation Integrity</h6>
+                  <p>
+                    Open <strong>Navigation Integrity</strong> and inspect its
+                    Navigation Reference status. With one coherent GNSS source,
+                    automatic selection should normally choose position, COG,
+                    and SOG. If several receivers or compasses are present, use
+                    the exact source IDs shown there in the preferred-source
+                    settings. Deliberately select a magnetic compass or
+                    autopilot heading source before it is treated as bow
+                    heading. COG is direction of travel, not compass heading.
+                  </p>
+                  <p>
+                    <strong>If it is wrong:</strong> the boat outline points in
+                    the direction of travel instead of the bow, Heading is null,
+                    the selected source changes unexpectedly, or DR lacks a
+                    heading/STW vector. Select the intended physical source,
+                    check its freshness, and remove obsolete preferred-source
+                    IDs. If the sensor supplies magnetic heading only, complete
+                    the Derived Data step below.
+                  </p>
+
+                  <h6 class="mt-3">5. Configure Derived Data without creating loops</h6>
                   <p>
                     Install <strong>SK Derived Data</strong>
-                    (<code>signalk-derived-data</code>) from the Signal K App
-                    Store when standard derived navigation paths are required
-                    by AJRM Instruments or another Signal K client. Then open
-                    <strong>Server &gt; Plugin Config &gt; Derived Data</strong> and
-                    use this baseline:
+                    (<code>signalk-derived-data</code>) from the App Store when
+                    standard calculated navigation paths are needed by AJRM
+                    Instruments or other Signal K clients. Navigation Integrity
+                    calculates its own qualified navigation reference, but other
+                    clients may expect the standard
+                    <code>navigation.headingTrue</code> and
+                    <code>navigation.magneticVariation</code> paths.
+                  </p>
+                  <p>
+                    Open <strong>Server &gt; Plugin Config &gt; Derived Data</strong>
+                    and start with:
                   </p>
                   <ul>
                     <li><strong>Magnetic Variation: enabled.</strong></li>
                     <li>
-                      <strong>True Heading: enabled</strong> when the boat has
-                      magnetic heading but no direct true-heading source. Turn
-                      it off when a calibrated direct true-heading source is
-                      preferred.
+                      <strong>True Heading: enabled</strong> only when the boat
+                      supplies magnetic heading but not direct true heading.
                     </li>
+                    <li><strong>Magnetic Course Over Ground: disabled.</strong></li>
                     <li>
-                      <strong>Magnetic Course Over Ground: disabled.</strong>
-                    </li>
-                    <li>
-                      <strong>True Course Over Ground: disabled</strong> when a
+                      <strong>True Course Over Ground: disabled</strong> when the
                       receiver already publishes
                       <code>navigation.courseOverGroundTrue</code>. Enable it
-                      only if the installation supplies magnetic COG alone.
+                      only when magnetic COG is the sole COG input.
                     </li>
-                    <li>
-                      <strong>Set and Drift: disabled.</strong> Navigation
-                      Integrity calculates and qualifies the current evidence
-                      used for dead reckoning.
-                    </li>
+                    <li><strong>Set and Drift: disabled.</strong></li>
                     <li>
                       <strong>Estimated steer error and direction: disabled</strong>
-                      unless another client specifically needs that Direct-To
-                      display aid.
+                      unless another client specifically requires that
+                      Direct-To display aid.
                     </li>
                   </ul>
                   <p>
-                    If several sources publish the same path, use
-                    <strong>Data &gt; Source Priority</strong> to choose per path.
-                    Prefer the maintained Derived Data WMM source for
-                    <code>navigation.magneticVariation</code>, while keeping
-                    physical sensors preferred for direct COG and heading.
+                    Use <strong>Data &gt; Source Priority</strong> for a
+                    <em>path-level</em> choice when more than one source publishes
+                    the same value. Prefer the maintained Derived Data WMM source
+                    for <code>navigation.magneticVariation</code>, but keep direct
+                    physical sensors preferred for COG and true heading.
+                  </p>
+                  <p><strong>Typical Derived Data mistakes and corrections:</strong></p>
+                  <ul>
+                    <li>
+                      <strong>Heading is null although magnetic heading exists:</strong>
+                      enable True Heading, confirm magnetic variation is
+                      available, and check that the physical magnetic-heading
+                      source is selected in Navigation Integrity.
+                    </li>
+                    <li>
+                      <strong>Heading jumps or uses the wrong source:</strong>
+                      direct and calculated true heading may be competing.
+                      Prefer the calibrated physical true-heading source and
+                      disable the redundant True Heading calculation.
+                    </li>
+                    <li>
+                      <strong>COG sources compete or appear circular:</strong>
+                      do not enable both magnetic-to-true and true-to-magnetic
+                      COG calculations. Prefer direct true COG when the receiver
+                      supplies it.
+                    </li>
+                    <li>
+                      <strong>DR current disagrees or seems self-referential:</strong>
+                      disable Derived Data Set and Drift. Navigation Integrity
+                      must use its explicit, qualified current evidence instead.
+                    </li>
+                    <li>
+                      <strong>True and magnetic values differ by an implausible
+                      angle:</strong> inspect all sources for
+                      <code>navigation.magneticVariation</code> and give the WMM
+                      source path-level priority over an old receiver value.
+                    </li>
+                  </ul>
+                  <p>
+                    BITE checks the resulting AJRM navigation and instrument
+                    contracts, but it cannot prove that every Derived Data
+                    choice is correct for the hardware. Always compare the
+                    selected sources and headings with the real instruments.
                   </p>
 
-                  <h6 class="mt-3">Charts Provider Simple</h6>
+                  <h6 class="mt-3">6. Add charts</h6>
                   <p>
                     For local charts, install
                     <strong>Charts Provider Simple</strong>
-                    (<code>signalk-charts-provider-simple</code>) from the Signal
-                    K App Store. Open
+                    (<code>signalk-charts-provider-simple</code>). In
                     <strong>Server &gt; Plugin Config &gt; Charts Provider Simple</strong>,
-                    set the chart directory (the default is
+                    set the chart directory (default
                     <code>~/.signalk/charts-simple</code>), enable the plugin,
                     and restart Signal K after the first installation. Put
-                    existing MBTiles in that directory or use its Manage Charts
-                    page. Subdirectories become chart groups and can be enabled
-                    or disabled individually; nested folders follow a disabled
-                    parent.
+                    existing MBTiles there or use Manage Charts. Subdirectories
+                    become groups that can be enabled or disabled, including
+                    nested groups.
                   </p>
                   <p>
-                    Serving existing MBTiles needs no container runtime. Chart
-                    conversion needs the optional <code>signalk-container</code>
-                    plugin and a working Docker or Podman runtime. In Display,
-                    Navigation Integrity, Voyage Review, and Harbour Editor,
-                    select <strong>Auto Charts</strong> and enable the required
-                    chart folders.
+                    Serving existing MBTiles requires no container runtime.
+                    Conversion requires <code>signalk-container</code> and a
+                    working Docker or Podman runtime. In Display, Navigation
+                    Integrity, Voyage Review, and Harbour Editor, select
+                    <strong>Auto Charts</strong> and enable the required folders.
+                  </p>
+                  <p>
+                    <strong>If it is wrong:</strong> only the basemap appears,
+                    Auto Charts lists no charts, or folders are missing. Confirm
+                    the provider is enabled, its directory is correct, the files
+                    are valid MBTiles, the relevant folders are enabled, and
+                    Manage Charts lists them as available. BITE cannot judge
+                    whether the correct chart is visibly aligned;
+                    pan and zoom over a known area as a manual check.
                   </p>
 
-                  <h6 class="mt-3">Audio and Player</h6>
+                  <h6 class="mt-3">7. Choose and test an audio output</h6>
                   <p>
-                    Open <strong>Audio</strong> to choose the output, run Sound
-                    Check, inspect Piper/FFmpeg readiness, and install the
+                    Open <strong>Audio</strong>, choose at least one output, and
+                    run <strong>Sound Check</strong>. Audio shows whether Piper,
+                    its voice, FFmpeg, the Pi speaker, browser output, stream,
+                    and Desktop Player are ready. Use Audio to install the
                     <strong>Player</strong> on a supported Mac, Windows, or Linux
-                    browser device. A Pi-connected speaker also needs Piper and
-                    a voice for speech, FFmpeg, and a working ALSA output;
-                    Audio reports missing dependencies and Pi Controller can
-                    install Piper where supported.
+                    browser device. Pi Controller can install Piper on supported
+                    Raspberry Pi systems; a Pi speaker also needs a working ALSA
+                    output.
+                  </p>
+                  <p>
+                    <strong>If it is wrong:</strong> BITE reports renderer or
+                    output-route failure, Audio shows a selected route as
+                    unavailable, or Sound Check is silent. Install the dependency
+                    named by Audio, select an available route, check mute and
+                    volume, then repeat Sound Check before rerunning BITE.
                   </p>
                   <p>
                     On an iPhone or iPad, Safari requires a user gesture before
-                    browser sound can start and iOS may suspend it when the
-                    screen locks, the browser is backgrounded, or another app
-                    takes audio focus. Silent mode, volume, and site permissions
-                    can also prevent speech. Do not rely on foreground browser
-                    speech for unattended safety announcements. The installable
-                    Player is for desktop operating systems, not iOS. For iOS
-                    background or lock-screen listening, use the MP3 stream URL
-                    shown by Audio in a radio/player app that supports background
-                    playback, and verify it with Sound Check before departure.
+                    sound can start and iOS may suspend it when the screen locks,
+                    the browser is backgrounded, or another app takes audio
+                    focus. Silent mode, volume, and site permissions can also
+                    prevent speech. The installable Player is for desktop
+                    operating systems, not iOS. For iOS background or lock-screen
+                    listening, open the MP3 stream URL shown by Audio in a
+                    radio/player app that supports background playback. Test it
+                    before departure and do not assume foreground Safari audio
+                    will provide unattended safety announcements.
                   </p>
 
-                  <h6 class="mt-3">Finish and verify</h6>
-                  <ol>
-                    <li>Set the vessel identity and dimensions in Signal K.</li>
+                  <h6 class="mt-3">8. Add only the optional features needed</h6>
+                  <ul>
                     <li>
-                      Review Traffic profiles, own-vessel size, sound policy,
-                      and harbour regions.
+                      <strong>Instruments</strong> provides graphical instruments
+                      and configurable alerts. Enable only instruments backed by
+                      useful paths on the boat.
                     </li>
                     <li>
-                      Confirm Display, Navigation Integrity, charts, and Audio
-                      show the expected live sources.
+                      <strong>Vessel Database</strong> retains names, dimensions,
+                      notes, import/export, and online enrichment. Traffic works
+                      without it, but identification and speech improve with it.
                     </li>
                     <li>
-                      Run <strong>BITE</strong>. Resolve any required-plugin,
-                      data, renderer, or output failure before relying on the
-                      suite underway.
+                      <strong>Snapshot</strong>, <strong>Simulator</strong>, and
+                      <strong>Harbour Editor</strong> support diagnosis, testing,
+                      and local profile-region editing.
                     </li>
-                  </ol>
+                    <li>
+                      <strong>Pi Controller</strong> provides Raspberry Pi
+                      health, controlled shutdown, and optional Piper installation.
+                    </li>
+                  </ul>
+                  <p>
+                    A BITE test for an intentionally uninstalled optional package
+                    is not the same as a core failure. Install it only if that
+                    feature is wanted; if installed, it should be enabled and its
+                    own tests should pass.
+                  </p>
+
+                  <h6 class="mt-3">9. Run BITE before relying on the suite</h6>
+                  <p>
+                    Open <strong>BITE</strong> in Console and choose
+                    <strong>Run all tests</strong>. BITE checks the installed
+                    package chain, contracts, alert lifecycle, Traffic decisions,
+                    Audio delivery, Capture/review, Navigation Integrity, and
+                    installed optional packages. It creates synthetic situations
+                    and records a BITE voyage so a failure can be reviewed later.
+                    Some safety tests deliberately take time to reach a stable
+                    result; wait for the group to finish rather than treating a
+                    running test as failed.
+                  </p>
+                  <div class="alert alert-warning" role="alert">
+                    <strong>Run BITE only in a safe test state.</strong> Stop the
+                    Simulator and do not mix BITE with a fresh live navigation or
+                    instrument feed. The opening isolation check deliberately
+                    refuses to inject synthetic vessel data into an active feed.
+                    On a boat, run it dockside with the relevant inputs safely
+                    isolated; never run synthetic collision tests while voyaging.
+                  </div>
+                  <p>
+                    A complete pass means the software chain behaved correctly
+                    under the test conditions. You must also hear the final
+                    spoken summary on the output you intend to use. BITE can
+                    prove that Audio requested and processed speech, but only a
+                    person can confirm that the speaker, tablet, or Player was
+                    actually audible.
+                  </p>
+                  <p><strong>How to respond to common BITE failures:</strong></p>
+                  <ul>
+                    <li>
+                      <strong>Required plugin or backend status:</strong> install
+                      or update the named core package, enable it, restart Signal
+                      K, hard refresh, and rerun the failed group.
+                    </li>
+                    <li>
+                      <strong>Safety isolation:</strong> stop Simulator and remove
+                      or disable the fresh live input before trying again. This
+                      failure is protective, not evidence that collision logic is broken.
+                    </li>
+                    <li>
+                      <strong>Navigation/GPS/DR:</strong> check the live paths and
+                      timestamps in Data Browser, then inspect Navigation
+                      Integrity's selected sources and preferred-source settings.
+                    </li>
+                    <li>
+                      <strong>Audio renderer or output:</strong> use Audio's
+                      readiness details and Sound Check; install Piper/FFmpeg or
+                      Player as appropriate and select a usable route.
+                    </li>
+                    <li>
+                      <strong>Traffic, Notifications, or collision chain:</strong>
+                      make sure all core packages are current compatible
+                      versions, sound policy is explicit, then restart and
+                      rerun. Do not weaken alert thresholds to make the test pass.
+                    </li>
+                    <li>
+                      <strong>Capture or completed voyage:</strong> enable Capture,
+                      check that its voyage directory is writable and has free
+                      disk space, and allow finalisation to complete.
+                    </li>
+                    <li>
+                      <strong>Optional package:</strong> enable/update it if the
+                      feature is wanted, or leave it uninstalled if it is not.
+                    </li>
+                  </ul>
+                  <p>
+                    After correcting a failure, rerun the failed test first and
+                    then <strong>Run all tests</strong>. Before departure, also
+                    perform the manual checks BITE cannot make: compare heading
+                    with the real compass, confirm own vessel is correctly placed
+                    and orientated, zoom over a known chart, and physically hear
+                    Sound Check and the BITE summary.
+                  </p>
                 </div>
                 <div
                   class="tab-pane fade"

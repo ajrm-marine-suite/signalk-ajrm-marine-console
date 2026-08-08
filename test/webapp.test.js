@@ -53,6 +53,11 @@ test("Console uses one compact toolbar and hidden loading overlay cannot display
   assert.match(help, /install the\s+<strong>Player<\/strong>/);
   assert.match(help, /On an iPhone or iPad/);
   assert.match(help, /iOS may suspend it when the\s+screen locks/);
+  assert.match(help, /Run BITE only in a safe test state/);
+  assert.match(help, /Safety isolation/);
+  assert.match(help, /Typical Derived Data mistakes and corrections/);
+  assert.match(help, /cannot prove that every Derived Data\s+choice is correct/);
+  assert.match(help, /physically hear\s+Sound Check and the BITE summary/);
   assert.match(help, /id="help-current-settings"/);
   assert.match(help, /id="help-charts"/);
   assert.match(help, /not advice or a determination under the/);
