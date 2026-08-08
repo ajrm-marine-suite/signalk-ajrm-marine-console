@@ -1,3 +1,7 @@
+/**
+ * Browser entry point for AJRM Marine Console; binds operator controls and renders server state.
+ */
+
 "use strict";
 
 const CONSOLE_STATUS_URL = "/signalk/v1/api/ajrmMarineConsole/status";

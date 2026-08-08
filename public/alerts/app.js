@@ -1,3 +1,7 @@
+/**
+ * Implements the app responsibilities of the AJRM Marine Console browser application.
+ */
+
 (function ajrmMarineConsoleAlertsApp() {
   "use strict";
 

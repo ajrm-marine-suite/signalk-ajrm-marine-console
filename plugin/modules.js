@@ -1,3 +1,7 @@
+/**
+ * Implements the modules responsibilities of the AJRM Marine Console Signal K server.
+ */
+
 "use strict";
 
 const fs = require("node:fs");

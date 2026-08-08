@@ -1,3 +1,7 @@
+/**
+ * Implements the bite responsibilities of the AJRM Marine Console Signal K server.
+ */
+
 "use strict";
 
 const { randomUUID } = require("node:crypto");

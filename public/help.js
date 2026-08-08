@@ -1,3 +1,7 @@
+/**
+ * Implements the help responsibilities of the AJRM Marine Console browser application.
+ */
+
 "use strict";
 
 const tabs = Array.from(document.querySelectorAll("#helpTabs .nav-link"));

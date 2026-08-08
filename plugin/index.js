@@ -1,3 +1,7 @@
+/**
+ * Signal K server entry point for AJRM Marine Console; registers lifecycle, subscriptions, routes, and status.
+ */
+
 "use strict";
 
 const { randomUUID } = require("node:crypto");

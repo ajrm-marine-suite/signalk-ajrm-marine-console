@@ -1,3 +1,7 @@
+/**
+ * Implements the extract help responsibilities of the AJRM Marine Console support tooling.
+ */
+
 "use strict";
 
 const fs = require("node:fs");
