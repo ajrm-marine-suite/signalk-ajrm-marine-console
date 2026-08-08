@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.6
+
+- Include Navigation Integrity in the Voyaging top-menu workspace so GNSS
+  health, dead reckoning, and DR Plotter remain one tap away underway.
+
 ## 0.7.5
 
 - Treat Capture review, GPS Integrity's DR Plotter, and Instruments alerts as

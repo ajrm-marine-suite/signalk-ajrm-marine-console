@@ -205,6 +205,7 @@ test("Console publishes task-focused workspace menus from available modules", ()
   const available = [
     { id: "signalk-ajrm-marine-display", title: "Display", kind: "webapp" },
     { id: "signalk-ajrm-marine-capture", title: "Capture", kind: "webapp" },
+    { id: "signalk-ajrm-marine-gps-integrity", title: "Navigation Integrity", kind: "webapp" },
     { id: "signalk-ajrm-marine-voyage-viewer", title: "Voyage Viewer", kind: "webapp" },
     { id: "signalk-ajrm-marine-simulator", title: "Simulator", kind: "webapp" },
     { id: "third-party-webapp", title: "Third Party", kind: "webapp" },
@@ -224,7 +225,13 @@ test("Console publishes task-focused workspace menus from available modules", ()
   ]);
   assert.deepEqual(
     profiles.find((profile) => profile.id === "voyaging").moduleIds,
-    ["overview", "signalk-ajrm-marine-display", "alerts", "signalk-ajrm-marine-capture"],
+    [
+      "overview",
+      "signalk-ajrm-marine-display",
+      "signalk-ajrm-marine-gps-integrity",
+      "alerts",
+      "signalk-ajrm-marine-capture",
+    ],
   );
   assert.deepEqual(
     profiles.find((profile) => profile.id === "reviewing").moduleIds,
@@ -232,6 +239,7 @@ test("Console publishes task-focused workspace menus from available modules", ()
       "overview",
       "signalk-ajrm-marine-capture",
       "signalk-ajrm-marine-display",
+      "signalk-ajrm-marine-gps-integrity",
     ],
   );
   assert.ok(profiles.find((profile) => profile.id === "debugging").moduleIds.includes("bite"));

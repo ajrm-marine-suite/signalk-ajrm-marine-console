@@ -155,6 +155,7 @@ const WORKSPACE_PROFILES = [
       "overview",
       "signalk-ajrm-marine-display",
       "signalk-ajrm-marine-instruments",
+      "signalk-ajrm-marine-gps-integrity",
       "alerts",
       "signalk-ajrm-marine-capture",
     ],

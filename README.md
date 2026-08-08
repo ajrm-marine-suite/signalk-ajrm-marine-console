@@ -27,7 +27,7 @@ you want those features:
   SK Derived Data (`signalk-derived-data`)
 - Voyage diagnostics: AJRM Marine Snapshot and Capture voyage review
 - Navigation integrity: AJRM Marine Navigation Integrity, including DR Plotter
-- Instruments: AJRM Marine Instruments and Instrument Alerts
+- Instruments: AJRM Marine Instruments, including Instrument Alerts
 - AJRM Marine Vessel Database
 - AJRM Marine Simulator
 - AJRM Marine Harbour Editor
@@ -40,12 +40,16 @@ Plugins without enabling, disabling, starting, or stopping any plugin. Its
 selection is remembered by that browser. Plugin configuration still determines
 which installed webapps are eligible to appear at all.
 
+Voyaging includes Display, Instruments, Navigation Integrity, Alerts, and
+Voyages so GNSS health and dead-reckoning information remain readily available
+while underway.
+
 Capture is required because BITE and support diagnostics use it to create
 evidence bundles. Vessel Database is optional: the suite works without it, but
 known names and dimensions improve display popups and spoken traffic wording.
-Instrument Alerts is also optional and standalone because it reads standard
-Signal K instrument paths, so it can be used with other instrument displays. DR
-Navigation Integrity contains the Navigation Reference, GPS Integrity, and DR
+Instrument Alerts is integrated into the optional Instruments package and can
+monitor standard Signal K instrument paths. Navigation Integrity contains the
+Navigation Reference, GPS Integrity, and DR
 Plotter providers while preserving their separate runtime paths and duties.
 
 The read-only Alert Panel is built into Console from version 0.7.0. It reads
