@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.8
+
+- Fix the individual Notifications availability BITE check by reading the
+  backend-only plugin's explicit `plugins.ajrmMarineNotifications` status
+  projection instead of looking for a removed webapp route.
+- Add direct regression coverage for the backend-only Notifications
+  availability result.
+
 ## 0.7.7
 
 - Fix BITE group 0 discovery of the backend-only Notifications plugin. BITE now

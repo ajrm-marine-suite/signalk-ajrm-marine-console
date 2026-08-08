@@ -2254,6 +2254,27 @@ test("Console exposes BITE status and run routes", async () => {
   let statusCode = 0;
   let runBody;
   await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "notifications-availability", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.ok, true);
+  assert.equal(runBody.snapshot.kind, "backend");
+  assert.equal(runBody.snapshot.url, "");
+  assert.equal(runBody.assertions.find((item) => item.id === "backend-status").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "required-runtime").pass, true);
+
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
     { body: { testId: "voyage-viewer-review-contract", timeoutSeconds: 5 } },
     {
       set() {},

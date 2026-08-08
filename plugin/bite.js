@@ -345,6 +345,7 @@ const PLUGIN_AVAILABILITY_TESTS = Object.freeze([
 ]);
 const OPTIONAL_PLUGIN_STATUS_PATHS = Object.freeze({
   [ALERT_PANEL_PLUGIN_ID]: "plugins.ajrmMarineConsole",
+  "signalk-ajrm-marine-notifications": WATCH_PATHS.notifications,
   "signalk-ajrm-marine-gps-integrity": WATCH_PATHS.gpsIntegrity,
   "signalk-ajrm-marine-harbour-editor": WATCH_PATHS.harbourEditor,
   [INSTRUMENTS_PLUGIN_ID]: "plugins.ajrmMarineInstruments",
