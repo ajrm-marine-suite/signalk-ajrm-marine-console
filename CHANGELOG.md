@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.14
+
+- Stop the Instruments depth-callout BITE check from requiring the retired
+  Instrument Alerts-to-Traffic anchor-profile bridge. Display now owns Drop
+  Anchor and Un-anchor profile control, while Instruments remains responsible
+  only for the anchoring depth-callout capability.
+- Add regression coverage using the current Instrument Alerts capability shape.
+
 ## 0.7.13
 
 - Add concise purpose headers to every maintained runtime module so its role is

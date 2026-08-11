@@ -4049,9 +4049,6 @@ async function runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersi
     depthCallout.supported === true ||
     depthCallout.available === true ||
     capabilities.anchoringDepthCallout === true;
-  const anchorDroppedSelectsTrafficProfile =
-    capabilities.anchorDroppedSelectsTrafficProfile === true ||
-    depthCallout.anchorDroppedSelectsTrafficProfile === true;
   const assertions = [
     assertion(
       "instrument-alerts-visible",
@@ -4092,13 +4089,6 @@ async function runInstrumentAlertsDepthCalloutCapabilityBite(app, { consoleVersi
       supported
         ? "Depth callout exposes active, expiry, and last-clear-reason state so a stuck alert is diagnosable."
         : "Depth callout capability is not available.",
-    ),
-    assertion(
-      "anchor-dropped-profile-bridge-visible",
-      !supported || anchorDroppedSelectsTrafficProfile,
-      anchorDroppedSelectsTrafficProfile
-        ? "Anchor dropped advertises Traffic Anchor profile selection."
-        : "Anchor dropped does not advertise Traffic Anchor profile selection.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
