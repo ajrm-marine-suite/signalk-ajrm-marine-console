@@ -62,6 +62,8 @@ const OPTIONAL_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-gps-integrity",
   "signalk-ajrm-marine-instruments",
   "signalk-ajrm-marine-harbour-editor",
+  "signalk-ajrm-marine-location-editor",
+  "signalk-ajrm-marine-planning",
   "signalk-ajrm-marine-pi-controller",
 ];
 
@@ -126,6 +128,16 @@ const SUITE_APP_INFO = {
     description: "Local harbour/profile region editor.",
     groupLabel: "Optional",
   },
+  "signalk-ajrm-marine-location-editor": {
+    title: "Locations",
+    description: "Versioned marine places, tidal ports, anchorages, hazards, and shared tide/weather services.",
+    groupLabel: "Planning data",
+  },
+  "signalk-ajrm-marine-planning": {
+    title: "Planning",
+    description: "Gate-passage and anchor-force planning with shared locations, tides, weather, and live Signal K inputs.",
+    groupLabel: "Planning",
+  },
   "signalk-ajrm-marine-pi-controller": {
     title: "Pi Controller",
     description: "Raspberry Pi status, shutdown, and optional Piper install.",
@@ -148,6 +160,8 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-gps-integrity",
       "signalk-ajrm-marine-instruments",
       "signalk-ajrm-marine-harbour-editor",
+      "signalk-ajrm-marine-location-editor",
+      "signalk-ajrm-marine-planning",
       "signalk-ajrm-marine-pi-controller",
     ],
   },
@@ -162,6 +176,7 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-gps-integrity",
       "alerts",
       "signalk-ajrm-marine-capture",
+      "signalk-ajrm-marine-planning",
     ],
   },
   {

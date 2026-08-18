@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.15
+
+- Add Locations and the consolidated Planning app to Console discovery and the
+  default optional webapp list.
+- Put both apps in Setup and put Planning in Voyaging, so gate and anchoring
+  plans are available without selecting Show All Plugins.
+- Document that Planning consumes Location Editor's shared location, tide and
+  weather services rather than maintaining separate provider settings.
+
 ## 0.7.14
 
 - Stop the Instruments depth-callout BITE check from requiring the retired

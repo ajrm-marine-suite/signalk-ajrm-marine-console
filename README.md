@@ -40,14 +40,16 @@ Plugins without enabling, disabling, starting, or stopping any plugin. Its
 selection is remembered by that browser. Plugin configuration still determines
 which installed webapps are eligible to appear at all.
 
-Voyaging includes Display, Instruments, Navigation Integrity, Alerts, and
-Voyages so GNSS health and dead-reckoning information remain readily available
-while underway.
+Voyaging includes Display, Instruments, Navigation Integrity, Alerts, Voyages,
+and Planning. Planning combines the Gate Passage and Anchor Force tools and
+uses Location Editor's shared locations, tides, and weather service.
 
 Setup includes BITE so a new or changed installation can be validated alongside
-its configuration tools. Vessel Database is available under Reviewing and Show
-All Plugins rather than Setup. Snapshot is a diagnostic tool, so it is available
-under Debugging and Show All Plugins rather than Reviewing.
+its configuration tools, including Locations and Planning. Configure the UKHO
+key and subscription tier once in Location Editor; Planning does not keep a
+second key or provider cache. Vessel Database is available under Reviewing and
+Show All Plugins rather than Setup. Snapshot is a diagnostic tool, so it is
+available under Debugging and Show All Plugins rather than Reviewing.
 
 Capture is required because BITE and support diagnostics use it to create
 evidence bundles. Vessel Database is optional: the suite works without it, but
@@ -242,7 +244,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.7.14 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.7.15 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
