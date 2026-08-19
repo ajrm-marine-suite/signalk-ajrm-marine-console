@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.19
+
+- Package the Suite icon at both the npm root for App Store metadata and the
+  public webapp root for the installed Webapps catalogue.
+
 ## 0.7.18
 
 - Serve the Suite Webapps icon from the public webapp URL and add a regression
