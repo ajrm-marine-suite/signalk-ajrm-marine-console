@@ -117,7 +117,7 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
 - GPS Integrity retaining vector-role, counter, and current/last-trusted-current
   fields needed by DR Plotter and voyage review.
 - Optional plugin contracts such as Vessel Database summary publication, Voyage
-  Viewer bundle analysis, Instruments derived paths, Harbour Editor default data, and Pi
+  review, Instruments derived paths, Locations shared services, Marine Planning, and Pi
   Controller host telemetry.
 - Any mute condition being explicit rather than silent.
 - A final spoken BITE summary being requested so the skipper can confirm the
@@ -195,8 +195,9 @@ Current numbered BITE tests:
 | 9.7.1 | Instruments derived-path contract | Pilot helm and XTE expose explicit nullable values, units, autopilot engagement gating, and port/starboard sign semantics. |
 | 9.8.1 | Instruments depth-callout contract | The built-in alert engine exposes active, scheduled-expiry, and last-clear-reason state so a stuck callout is detectable. |
 | 9.8.2 | Instruments XTE alert contract | The built-in alert engine uses the derived metre path, absolute thresholds, port/starboard wording, and clears safely when XTE is null. |
-| 9.9 | Harbour Editor availability | Optional Harbour Editor presence/status check when the plugin is installed. |
-| 9.9.1 | Harbour Editor default data contract | Harbour Editor reports enabled local/default harbour data and seed state without relying on Git storage. |
+| 0.8 | Locations shared services | Locations owns the versioned catalogue and directly supplies profile areas, tides, weather and anchoring to the suite. |
+| 9.9 | Marine Planning availability | Optional Marine Planning presence/status check when the app is installed. |
+| 9.9.1 | Marine Planning shared-services contract | Planning consumes the current Locations, tide and weather services without private duplicate data stores. |
 | 9.10 | Pi Controller availability | Optional Pi Controller plugin is installed, enabled, and visible to Console when present. |
 | 9.10.1 | Pi Controller telemetry contract | Pi Controller publishes host/process telemetry useful to Capture and Snapshot diagnostics. |
 | 99 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |

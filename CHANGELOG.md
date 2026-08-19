@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.16
+
+- Make Locations a required Console app, add Marine Planning to the current
+  app catalogue and hide retired Harbour Editor installations.
+- Replace Harbour Editor BITE checks with direct Locations shared-service,
+  Traffic/Display profile-area and Marine Planning consumer tests.
+- Update onboard help and setup documentation for the Locations-only design.
+- Package a root-level Webapps PNG icon.
+
 ## 0.7.15
 
 - Add Locations and the consolidated Planning app to Console discovery and the

@@ -1260,7 +1260,7 @@ test("Console exposes BITE status and run routes", async () => {
     profile: "coastal",
     status: "Sound enabled.",
     harbourBoundary: {
-      name: "Harbour: Craobh",
+      name: "Craobh",
       inside: false,
       distanceMeters: 140,
     },
@@ -1279,10 +1279,11 @@ test("Console exposes BITE status and run routes", async () => {
       exitDistanceMeters: 100,
       refreshRegionsSeconds: 60,
     },
-    status: "outside Harbour: Craobh",
+    status: "outside Craobh",
     insideRegionName: "",
-    nearestRegionName: "Harbour: Craobh",
+    nearestRegionName: "Craobh",
     distanceMeters: 140,
+    regionCount: 2,
   };
   const values = {
     "plugins.ajrmMarineTraffic.targets": trafficProjection("alarm"),
@@ -1294,6 +1295,13 @@ test("Console exposes BITE status and run routes", async () => {
       sessionId: "display-session",
       sequence: 1,
       enabled: true,
+    },
+    "plugins.ajrmMarineLocationEditor": {
+      contract: "ajrm-marine-location-editor-status-v1",
+      contractVersion: 1,
+      enabled: true,
+      locationCount: 668,
+      profileAreaCount: 2,
     },
     "plugins.ajrmMarineNavigationReference.state": {
       contract: "ajrm-marine-navigation-reference",
@@ -1826,7 +1834,15 @@ test("Console exposes BITE status and run routes", async () => {
       },
       async currentRoute() { return null; },
       async restoreRoute() { return null; },
+      async profileAreas() { return [{ id: "area-1" }, { id: "area-2" }]; },
     },
+    ajrmMarineLocations: {
+      contract: "ajrm-marine-locations-service-v1",
+      async profileAreas() { return [{ id: "area-1" }, { id: "area-2" }]; },
+    },
+    ajrmMarineTides: { contract: "ajrm-marine-tides-service-v1" },
+    ajrmMarineWeather: { contract: "ajrm-marine-weather-service-v1" },
+    ajrmMarineAnchoring: { contract: "ajrm-marine-anchoring-service-v1" },
     ajrmMarineInstrumentsApi: {
       status() {
         return {
@@ -2230,10 +2246,9 @@ test("Console exposes BITE status and run routes", async () => {
   ]) {
     assert.deepEqual(statusBody.groups.find((item) => item.id === groupId).testIds, expectedIds);
   }
-  const harbourStatusTest = statusBody.tests.find((item) => item.id === "harbour-editor-availability");
-  assert.equal(harbourStatusTest.enabled, false);
-  assert.equal(harbourStatusTest.groupId, "signalk-ajrm-marine-harbour-editor");
-  assert.match(harbourStatusTest.disabledReason, /signalk-ajrm-marine-harbour-editor/);
+  const locationContractTest = statusBody.tests.find((item) => item.id === "location-editor-services-contract");
+  assert.notEqual(locationContractTest.enabled, false);
+  assert.equal(locationContractTest.groupId, "required-plugins");
   assert.equal(statusBody.tests.find((item) => item.id === "gps-integrity-health").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-lost-age-consistency").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "dead-reckoning-projection").enabled, true);
@@ -2387,22 +2402,21 @@ test("Console exposes BITE status and run routes", async () => {
   captureStopped = false;
 
   app.ajrmMarineConsoleAvailableWebapps.push({
-    id: "signalk-ajrm-marine-harbour-editor",
-    packageName: "signalk-ajrm-marine-harbour-editor",
-    title: "AJRM Marine Harbour Editor",
+    id: "signalk-ajrm-marine-planning",
+    packageName: "signalk-ajrm-marine-planning",
+    title: "AJRM Marine Planning",
     kind: "webapp",
-    url: "/signalk-ajrm-marine-harbour-editor/",
-    version: "0.5.3",
+    url: "/signalk-ajrm-marine-planning/",
+    version: "0.5.12",
   });
-  values["plugins.ajrmMarineHarbourEditor"] = {
-    contract: "ajrm-marine-harbour-editor-status",
+  values["plugins.ajrmMarinePlanning"] = {
+    contract: "ajrm-marine-planning-status-v1",
     contractVersion: 1,
-    plugin: "signalk-ajrm-marine-harbour-editor",
-    version: "0.5.4",
     enabled: true,
-    harbourCount: 572,
-    defaultHarbourCount: 572,
-    seedState: "seeded-defaults",
+    ready: true,
+    locationsService: "ajrm-marine-locations-service-v1",
+    tideService: "ajrm-marine-tides-service-v1",
+    weatherService: "ajrm-marine-weather-service-v1",
   };
   routes.get("GET /ajrmMarineConsole/bite/status")({}, {
     set() {},
@@ -2411,19 +2425,14 @@ test("Console exposes BITE status and run routes", async () => {
     },
   });
   assert.equal(statusBody.tests.at(-1).id, "audio-output-summary");
-  assert.equal(statusBody.tests.find((item) => item.id === "harbour-editor-availability").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "harbour-editor-default-data-contract").enabled, true);
-  assert.equal(statusBody.groups.find((item) => item.id === "signalk-ajrm-marine-harbour-editor").enabled, true);
-  assert.equal(statusBody.groups.find((item) => item.id === "signalk-ajrm-marine-harbour-editor").number, "9.9");
-  assert.deepEqual(
-    statusBody.groups.find((item) => item.id === "signalk-ajrm-marine-harbour-editor").testIds,
-    ["harbour-editor-availability", "harbour-editor-default-data-contract"],
-  );
+  assert.equal(statusBody.tests.find((item) => item.id === "planning-availability").enabled, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "planning-shared-services-contract").enabled, true);
+  assert.equal(statusBody.groups.find((item) => item.id === "signalk-ajrm-marine-planning").enabled, true);
 
   statusCode = 0;
   runBody = null;
   await routes.get("POST /ajrmMarineConsole/bite/run")(
-    { body: { testId: "harbour-editor-availability", timeoutSeconds: 5 } },
+    { body: { testId: "location-editor-services-contract", timeoutSeconds: 5 } },
     {
       set() {},
       status(code) {
@@ -2436,15 +2445,15 @@ test("Console exposes BITE status and run routes", async () => {
   );
   assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
   assert.equal(runBody.ok, true);
-  assert.equal(runBody.scenario, "harbour-editor-availability");
-  assert.equal(runBody.snapshot.url, "/signalk-ajrm-marine-harbour-editor/");
-  assert.equal(runBody.snapshot.status.contract, "ajrm-marine-harbour-editor-status");
-  assert.equal(runBody.assertions.find((item) => item.id === "harbour-editor-status").pass, true);
+  assert.equal(runBody.scenario, "location-editor-services-contract");
+  assert.equal(runBody.assertions.find((item) => item.id === "profile-area-count").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "traffic-profile-area-consumer").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "display-profile-area-consumer").pass, true);
 
   statusCode = 0;
   runBody = null;
   await routes.get("POST /ajrmMarineConsole/bite/run")(
-    { body: { testId: "harbour-editor-default-data-contract", timeoutSeconds: 5 } },
+    { body: { testId: "planning-shared-services-contract", timeoutSeconds: 5 } },
     {
       set() {},
       status(code) {
@@ -2457,12 +2466,14 @@ test("Console exposes BITE status and run routes", async () => {
   );
   assert.equal(statusCode, 200);
   assert.equal(runBody.ok, true);
-  assert.equal(runBody.scenario, "harbour-editor-default-data-contract");
-  assert.equal(runBody.assertions.find((item) => item.id === "default-harbour-count").pass, true);
+  assert.equal(runBody.scenario, "planning-shared-services-contract");
+  assert.equal(runBody.assertions.find((item) => item.id === "planning-location-contract").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "planning-tide-contract").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "planning-weather-contract").pass, true);
   app.ajrmMarineConsoleAvailableWebapps = app.ajrmMarineConsoleAvailableWebapps.filter(
-    (module) => module.id !== "signalk-ajrm-marine-harbour-editor",
+    (module) => module.id !== "signalk-ajrm-marine-planning",
   );
-  delete values["plugins.ajrmMarineHarbourEditor"];
+  delete values["plugins.ajrmMarinePlanning"];
 
   statusCode = 0;
   runBody = null;

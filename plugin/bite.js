@@ -49,7 +49,8 @@ const SAR_AIRCRAFT_TEST_TARGET_MMSI = "111000599";
 const SAR_AIRCRAFT_TEST_TARGET_NAME = "BITE SAR AIRCRAFT";
 const AUDIO_SUMMARY_PRIORITY = 500;
 const AUDIO_SUMMARY_EXPIRES_SECONDS = 600;
-const HARBOUR_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-harbour-editor";
+const LOCATION_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-location-editor";
+const PLANNING_PLUGIN_ID = "signalk-ajrm-marine-planning";
 const ALERT_PANEL_PLUGIN_ID = packageInfo.name;
 const CAPTURE_PLUGIN_ID = "signalk-ajrm-marine-capture";
 const GPS_INTEGRITY_PLUGIN_ID = "signalk-ajrm-marine-gps-integrity";
@@ -95,7 +96,8 @@ const WATCH_PATHS = {
   notificationsAudio: "plugins.ajrmMarineNotifications.audio",
   audio: "plugins.ajrmMarineAudio",
   display: "plugins.ajrmMarineDisplay",
-  harbourEditor: "plugins.ajrmMarineHarbourEditor",
+  locationEditor: "plugins.ajrmMarineLocationEditor",
+  planning: "plugins.ajrmMarinePlanning",
   gpsIntegrity: "plugins.ajrmMarineGpsIntegrity.navigationIntegrity",
   gpsIntegrityNotification: "notifications.navigation.gnss.integrity",
   navigationReference: "plugins.ajrmMarineNavigationReference.state",
@@ -263,10 +265,10 @@ const OPTIONAL_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
     optional: true,
   }),
   pluginAvailabilityTest({
-    pluginId: HARBOUR_EDITOR_PLUGIN_ID,
-    id: "harbour-editor-availability",
+    pluginId: PLANNING_PLUGIN_ID,
+    id: "planning-availability",
     number: "9.9",
-    title: "Harbour Editor availability",
+    title: "Marine Planning availability",
     optional: true,
   }),
   pluginAvailabilityTest({
@@ -322,11 +324,20 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     description: "Checks the built-in XTE monitor uses metres, absolute magnitude, port/starboard direction, and safe null handling.",
   }),
   pluginContractTest({
-    pluginId: HARBOUR_EDITOR_PLUGIN_ID,
-    id: "harbour-editor-default-data-contract",
+    pluginId: LOCATION_EDITOR_PLUGIN_ID,
+    id: "location-editor-services-contract",
+    number: "0.8",
+    title: "Locations shared services",
+    description: "Checks Locations owns the catalogue and exposes profile areas, tides, weather and anchoring directly to Traffic and Display.",
+    optional: false,
+    groupId: "required-plugins",
+  }),
+  pluginContractTest({
+    pluginId: PLANNING_PLUGIN_ID,
+    id: "planning-shared-services-contract",
     number: "9.9.1",
-    title: "Harbour Editor default data contract",
-    description: "Checks Harbour Editor status reports local/default harbour data without requiring Git-backed storage.",
+    title: "Marine Planning shared services",
+    description: "Checks Planning consumes the current Locations, tides and weather contracts without private duplicate data services.",
   }),
   pluginContractTest({
     pluginId: PI_CONTROLLER_PLUGIN_ID,
@@ -351,7 +362,8 @@ const OPTIONAL_PLUGIN_STATUS_PATHS = Object.freeze({
   [ALERT_PANEL_PLUGIN_ID]: "plugins.ajrmMarineConsole",
   "signalk-ajrm-marine-notifications": WATCH_PATHS.notifications,
   "signalk-ajrm-marine-gps-integrity": WATCH_PATHS.gpsIntegrity,
-  "signalk-ajrm-marine-harbour-editor": WATCH_PATHS.harbourEditor,
+  [LOCATION_EDITOR_PLUGIN_ID]: WATCH_PATHS.locationEditor,
+  [PLANNING_PLUGIN_ID]: WATCH_PATHS.planning,
   [INSTRUMENTS_PLUGIN_ID]: "plugins.ajrmMarineInstruments",
   [PI_CONTROLLER_PLUGIN_ID]: "plugins.ajrmMarinePiController",
   [SIMULATOR_PLUGIN_ID]: "plugins.ajrmMarineSimulator",
@@ -836,7 +848,12 @@ const BITE_GROUP_DEFINITIONS = [
     number: "0.x",
     title: "Required plugins",
     description: "Each required AJRM Marine plugin is installed, enabled, visible to Console, and operational where a runtime check is available.",
-    testIds: REQUIRED_PLUGIN_AVAILABILITY_TESTS.map((test) => test.id),
+    testIds: [
+      ...REQUIRED_PLUGIN_AVAILABILITY_TESTS.map((test) => test.id),
+      ...OPTIONAL_PLUGIN_CONTRACT_TESTS
+        .filter((test) => test.groupId === "required-plugins")
+        .map((test) => test.id),
+    ],
   },
   {
     id: "core",
@@ -1683,7 +1700,7 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === PREFLIGHT_TEST_ID) return runPreflightBite(app, { consoleVersion });
   if (testId === SKIPPER_SETTINGS_SANITY_TEST_ID) return runSkipperSettingsSanityBite(app, { consoleVersion });
   const availabilityTest = pluginAvailabilityTestById(testId);
-  if (availabilityTest && testId !== "harbour-editor-availability") {
+  if (availabilityTest) {
     return runPluginAvailabilityBite(app, { consoleVersion, test: availabilityTest });
   }
   if (testId === "core-projections") return runCoreProjectionBite(app, { consoleVersion });
@@ -1735,11 +1752,11 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "instrument-alerts-xte-contract") {
     return runInstrumentAlertsXteContractBite(app, { consoleVersion });
   }
-  if (testId === "harbour-editor-availability") {
-    return runHarbourEditorAvailabilityBite(app, { consoleVersion });
+  if (testId === "location-editor-services-contract") {
+    return runLocationEditorServicesContractBite(app, { consoleVersion });
   }
-  if (testId === "harbour-editor-default-data-contract") {
-    return runHarbourEditorDefaultDataContractBite(app, { consoleVersion });
+  if (testId === "planning-shared-services-contract") {
+    return runPlanningSharedServicesContractBite(app, { consoleVersion });
   }
   if (testId === "pi-controller-telemetry-contract") {
     return runPiControllerTelemetryContractBite(app, { consoleVersion });
@@ -2423,7 +2440,7 @@ function pluginContractTest(options) {
     title: options.title || `${suitePluginTitle(pluginId)} contract`,
     description: options.description || `Checks the suite-facing ${suitePluginTitle(pluginId)} runtime contract.`,
     timeoutSeconds: options.timeoutSeconds || 5,
-    optional: true,
+    optional: options.optional !== false,
     pluginId,
     groupId: options.groupId || "",
     postFinalisation: options.postFinalisation === true,
@@ -2445,7 +2462,8 @@ function suitePluginTitle(pluginId) {
     "signalk-ajrm-marine-console": "Console",
     "signalk-ajrm-marine-display": "Display",
     "signalk-ajrm-marine-gps-integrity": "GPS Integrity",
-    "signalk-ajrm-marine-harbour-editor": "Harbour Editor",
+    "signalk-ajrm-marine-location-editor": "Locations",
+    "signalk-ajrm-marine-planning": "Planning",
     "signalk-ajrm-marine-instruments": "Instruments",
     "signalk-ajrm-marine-notifications": "Notifications",
     "signalk-ajrm-marine-pi-controller": "Pi Controller",
@@ -3638,52 +3656,6 @@ async function runAudioOutputRoutingOptionsBite(app, { consoleVersion }) {
   });
 }
 
-async function runHarbourEditorAvailabilityBite(app, { consoleVersion }) {
-  const runId = randomUUID();
-  const startedAtMs = Date.now();
-  const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, HARBOUR_EDITOR_PLUGIN_ID);
-  const assertions = [
-    assertion(
-      "harbour-editor-installed",
-      evidence.installed,
-      evidence.installed
-        ? "Harbour Editor is installed and visible to Console."
-        : "Harbour Editor is not installed, not enabled, or not visible to Console.",
-    ),
-    assertion(
-      "harbour-editor-webapp-route",
-      evidence.installed && evidence.url.length > 0,
-      evidence.url
-        ? `Harbour Editor webapp route is ${evidence.url}.`
-        : "Harbour Editor webapp route is missing.",
-    ),
-    assertion(
-      "harbour-editor-status",
-      evidence.status?.contract === "ajrm-marine-harbour-editor-status" && evidence.status?.enabled === true,
-      evidence.status?.contract === "ajrm-marine-harbour-editor-status"
-        ? `Harbour Editor status reports ${evidence.status.harbourCount ?? "unknown"} harbour region(s).`
-        : "Harbour Editor status projection is missing; Harbour Editor may be absent, disabled, still starting, or older than v0.5.5.",
-    ),
-  ];
-  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
-  return biteReport({
-    consoleVersion,
-    runId,
-    scenario: "harbour-editor-availability",
-    testId: "harbour-editor-availability",
-    result,
-    startedAt,
-    startedAtMs,
-    assertions,
-    observations: [evidence],
-    summary: result === "pass"
-      ? "Harbour Editor optional plugin is available."
-      : `Harbour Editor optional plugin check failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot: evidence,
-  });
-}
-
 async function runVesselDatabaseSummaryContractBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -4170,62 +4142,129 @@ async function runInstrumentAlertsXteContractBite(app, { consoleVersion }) {
   });
 }
 
-async function runHarbourEditorDefaultDataContractBite(app, { consoleVersion }) {
+async function runLocationEditorServicesContractBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
-  const evidence = optionalPluginEvidence(app, HARBOUR_EDITOR_PLUGIN_ID);
+  const evidence = optionalPluginEvidence(app, LOCATION_EDITOR_PLUGIN_ID);
   const status = evidence.status || {};
+  const locations = app.ajrmMarineLocations || globalThis[Symbol.for("mcdonaldajr.ajrmMarineLocations")];
+  const tides = app.ajrmMarineTides || globalThis[Symbol.for("mcdonaldajr.ajrmMarineTides")];
+  const weather = app.ajrmMarineWeather || globalThis[Symbol.for("mcdonaldajr.ajrmMarineWeather")];
+  const anchoring = app.ajrmMarineAnchoring || globalThis[Symbol.for("mcdonaldajr.ajrmMarineAnchoring")];
+  const display = app.ajrmMarineDisplayApi || globalThis[Symbol.for("mcdonaldajr.ajrmMarineDisplayApi")];
+  const trafficAutoProfile = readSelfPath(app, WATCH_PATHS.trafficAutoProfile) || {};
+  let locationAreas = null;
+  let displayAreas = null;
+  let serviceError = "";
+  try {
+    locationAreas = await locations?.profileAreas?.();
+    displayAreas = await display?.profileAreas?.();
+  } catch (error) {
+    serviceError = error?.message || String(error);
+  }
   const assertions = [
-    assertion(
-      "harbour-editor-visible",
-      evidence.installed,
-      evidence.installed
-        ? "Harbour Editor is installed and visible to Console."
-        : "Harbour Editor is not installed, not enabled, or not visible to Console.",
-    ),
+    assertion("locations-visible", evidence.installed, "Locations should be installed and visible to Console."),
     assertion(
       "status-contract",
-      status.contract === "ajrm-marine-harbour-editor-status" && status.enabled === true,
-      "Harbour Editor status should be enabled and use the recognised status contract.",
+      status.contract === "ajrm-marine-location-editor-status-v1" && status.enabled === true,
+      "Locations should publish its enabled v1 status contract.",
+    ),
+    assertion("catalogue-count", finiteNonNegative(status.locationCount), "Locations should publish a non-negative catalogue count."),
+    assertion(
+      "location-service-contract",
+      locations?.contract === "ajrm-marine-locations-service-v1" && Array.isArray(locationAreas),
+      serviceError || "Locations should expose the current profile-area service.",
     ),
     assertion(
-      "harbour-count",
-      finiteNonNegative(status.harbourCount),
-      "Harbour Editor status should include a non-negative local harbour count.",
+      "profile-area-count",
+      Array.isArray(locationAreas) && finiteNonNegative(status.profileAreaCount) &&
+        locationAreas.length === Number(status.profileAreaCount),
+      "The profile-area service and Locations status count should agree.",
     ),
     assertion(
-      "default-harbour-count",
-      finiteNonNegative(status.defaultHarbourCount) && Number(status.defaultHarbourCount) > 0,
-      "Harbour Editor should report a non-empty default harbour set.",
+      "shared-service-contracts",
+      tides?.contract === "ajrm-marine-tides-service-v1" &&
+        weather?.contract === "ajrm-marine-weather-service-v1" &&
+        anchoring?.contract === "ajrm-marine-anchoring-service-v1",
+      "Locations should expose current tide, weather and anchoring services.",
     ),
     assertion(
-      "seed-state-visible",
-      typeof status.seedState === "string" && status.seedState.length > 0,
-      "Harbour Editor should report local/default data seed state.",
+      "traffic-profile-area-consumer",
+      finiteNonNegative(trafficAutoProfile.regionCount) &&
+        trafficAutoProfile.regionCount === locationAreas?.length &&
+        !trafficAutoProfile.lastError,
+      "Traffic should load the same profile areas directly from Locations.",
     ),
     assertion(
-      "local-data-not-smaller-than-defaults",
-      !finiteNonNegative(status.harbourCount) ||
-        !finiteNonNegative(status.defaultHarbourCount) ||
-        Number(status.harbourCount) >= Number(status.defaultHarbourCount),
-      "Local harbour count should not be smaller than the installed default set.",
+      "display-profile-area-consumer",
+      Array.isArray(displayAreas) && displayAreas.length === locationAreas?.length,
+      serviceError || "Display should expose the same direct Locations profile-area projection.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
   return biteReport({
     consoleVersion,
     runId,
-    scenario: "harbour-editor-default-data-contract",
-    testId: "harbour-editor-default-data-contract",
+    scenario: "location-editor-services-contract",
+    testId: "location-editor-services-contract",
+    result,
+    startedAt,
+    startedAtMs,
+    assertions,
+    observations: [{ evidence, trafficAutoProfile, serviceError }],
+    summary: result === "pass"
+      ? `Locations directly supplies ${locationAreas.length} profile area(s) to Traffic and Display.`
+      : `Locations shared-services contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      evidence,
+      trafficAutoProfile,
+      locationAreaCount: locationAreas?.length ?? null,
+      displayAreaCount: displayAreas?.length ?? null,
+      serviceError,
+    },
+  });
+}
+
+async function runPlanningSharedServicesContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, PLANNING_PLUGIN_ID);
+  const status = evidence.status || {};
+  const assertions = [
+    assertion("planning-visible", evidence.installed, "Marine Planning should be installed and visible to Console."),
+    assertion("planning-ready", status.enabled === true && status.ready === true, "Marine Planning should be enabled and ready."),
+    assertion(
+      "planning-location-contract",
+      status.locationsService === "ajrm-marine-locations-service-v1",
+      "Marine Planning should consume Locations v1.",
+    ),
+    assertion(
+      "planning-tide-contract",
+      status.tideService === "ajrm-marine-tides-service-v1",
+      "Marine Planning should consume the shared tide service.",
+    ),
+    assertion(
+      "planning-weather-contract",
+      status.weatherService === "ajrm-marine-weather-service-v1",
+      "Marine Planning should consume the shared weather service.",
+    ),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion,
+    runId,
+    scenario: "planning-shared-services-contract",
+    testId: "planning-shared-services-contract",
     result,
     startedAt,
     startedAtMs,
     assertions,
     observations: [evidence],
     summary: result === "pass"
-      ? "Harbour Editor default-data contract is available."
-      : `Harbour Editor default-data contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+      ? "Marine Planning uses the current shared Locations, tide and weather services."
+      : `Marine Planning shared-services contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: evidence,
   });
 }

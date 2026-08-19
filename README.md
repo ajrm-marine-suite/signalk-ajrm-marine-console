@@ -30,7 +30,8 @@ you want those features:
 - Instruments: AJRM Marine Instruments, including Instrument Alerts
 - AJRM Marine Vessel Database
 - AJRM Marine Simulator
-- AJRM Marine Harbour Editor
+- AJRM Marine Location Editor
+- AJRM Marine Planning
 - AJRM Marine Pi Controller
 
 Console lists every suite webapp on the Overview screen. Missing webapps are greyed
@@ -244,7 +245,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.7.15 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.7.16 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 

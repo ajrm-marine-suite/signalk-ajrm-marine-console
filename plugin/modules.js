@@ -53,6 +53,8 @@ const CORE_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-traffic",
   "signalk-ajrm-marine-audio",
   "signalk-ajrm-marine-capture",
+  "signalk-ajrm-marine-location-editor",
+  "signalk-ajrm-marine-planning",
 ];
 
 const OPTIONAL_SUITE_WEBAPPS = [
@@ -61,9 +63,6 @@ const OPTIONAL_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-simulator",
   "signalk-ajrm-marine-gps-integrity",
   "signalk-ajrm-marine-instruments",
-  "signalk-ajrm-marine-harbour-editor",
-  "signalk-ajrm-marine-location-editor",
-  "signalk-ajrm-marine-planning",
   "signalk-ajrm-marine-pi-controller",
 ];
 
@@ -72,6 +71,7 @@ const RETIRED_WEBAPPS = new Set([
   "signalk-ajrm-marine-alerts",
   "signalk-ajrm-marine-dr-plotter",
   "signalk-ajrm-marine-instrument-alerts",
+  "signalk-ajrm-marine-harbour-editor",
   "signalk-ajrm-marine-logger",
   "signalk-ajrm-marine-navigation-reference",
   "signalk-ajrm-marine-voyage-viewer",
@@ -123,11 +123,6 @@ const SUITE_APP_INFO = {
     description: "Large-format instruments, thresholds, rate rules, and anchoring callouts.",
     groupLabel: "Instruments",
   },
-  "signalk-ajrm-marine-harbour-editor": {
-    title: "Harbour Editor",
-    description: "Local harbour/profile region editor.",
-    groupLabel: "Optional",
-  },
   "signalk-ajrm-marine-location-editor": {
     title: "Locations",
     description: "Versioned marine places, tidal ports, anchorages, hazards, and shared tide/weather services.",
@@ -149,7 +144,7 @@ const WORKSPACE_PROFILES = [
   {
     id: "setup",
     label: "Setup",
-    description: "Configuration, BITE validation, data sources, sound, instruments, harbour regions, and Pi administration.",
+    description: "Configuration, BITE validation, data sources, sound, instruments, locations, planning, and Pi administration.",
     moduleIds: [
       "overview",
       "bite",
@@ -159,7 +154,6 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-audio",
       "signalk-ajrm-marine-gps-integrity",
       "signalk-ajrm-marine-instruments",
-      "signalk-ajrm-marine-harbour-editor",
       "signalk-ajrm-marine-location-editor",
       "signalk-ajrm-marine-planning",
       "signalk-ajrm-marine-pi-controller",
@@ -189,6 +183,7 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-display",
       "signalk-ajrm-marine-gps-integrity",
       "signalk-ajrm-marine-vessel-database",
+      "signalk-ajrm-marine-planning",
     ],
   },
   {
@@ -205,6 +200,8 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-traffic",
       "signalk-ajrm-marine-audio",
       "signalk-ajrm-marine-gps-integrity",
+      "signalk-ajrm-marine-location-editor",
+      "signalk-ajrm-marine-planning",
       "signalk-ajrm-marine-pi-controller",
     ],
   },
