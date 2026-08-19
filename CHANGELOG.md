@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.17
+
+- Give Locations availability a current runtime check using the Locations
+  status contract and shared service, removing the false `required-runtime`
+  failure.
+- Give the separate Locations shared-services check number 0.8.1 so its pass
+  summary cannot be mistaken for the availability result.
+- Remove the duplicate GPS Integrity availability entry from the GPS/DR group.
+
 ## 0.7.16
 
 - Make Locations a required Console app, add Marine Planning to the current

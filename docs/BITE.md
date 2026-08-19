@@ -195,7 +195,8 @@ Current numbered BITE tests:
 | 9.7.1 | Instruments derived-path contract | Pilot helm and XTE expose explicit nullable values, units, autopilot engagement gating, and port/starboard sign semantics. |
 | 9.8.1 | Instruments depth-callout contract | The built-in alert engine exposes active, scheduled-expiry, and last-clear-reason state so a stuck callout is detectable. |
 | 9.8.2 | Instruments XTE alert contract | The built-in alert engine uses the derived metre path, absolute thresholds, port/starboard wording, and clears safely when XTE is null. |
-| 0.8 | Locations shared services | Locations owns the versioned catalogue and directly supplies profile areas, tides, weather and anchoring to the suite. |
+| 0.8 | Locations availability | Required Locations webapp, status and shared service are present. |
+| 0.8.1 | Locations shared services | Locations owns the versioned catalogue and directly supplies profile areas, tides, weather and anchoring to the suite. |
 | 9.9 | Marine Planning availability | Optional Marine Planning presence/status check when the app is installed. |
 | 9.9.1 | Marine Planning shared-services contract | Planning consumes the current Locations, tide and weather services without private duplicate data stores. |
 | 9.10 | Pi Controller availability | Optional Pi Controller plugin is installed, enabled, and visible to Console when present. |

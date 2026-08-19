@@ -242,14 +242,6 @@ const OPTIONAL_PLUGIN_AVAILABILITY_TESTS = Object.freeze([
     optional: true,
   }),
   pluginAvailabilityTest({
-    pluginId: GPS_INTEGRITY_PLUGIN_ID,
-    id: "gps-integrity-availability",
-    number: "3.0",
-    title: "GPS Integrity availability",
-    optional: true,
-    groupId: "gps-dr",
-  }),
-  pluginAvailabilityTest({
     pluginId: ALERT_PANEL_PLUGIN_ID,
     id: "alert-panel-availability",
     number: "9.6",
@@ -326,7 +318,7 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
   pluginContractTest({
     pluginId: LOCATION_EDITOR_PLUGIN_ID,
     id: "location-editor-services-contract",
-    number: "0.8",
+    number: "0.8.1",
     title: "Locations shared services",
     description: "Checks Locations owns the catalogue and exposes profile areas, tides, weather and anchoring directly to Traffic and Display.",
     optional: false,
@@ -914,7 +906,6 @@ const BITE_GROUP_DEFINITIONS = [
     title: "GPS Integrity and DR Plotter",
     description: "GPS loss, stale fixes, weak signals, DR drift, retained current, and GPS recovery behaviour.",
     testIds: [
-      "gps-integrity-availability",
       "gps-integrity-health",
       "gps-lost-age-consistency",
       "gps-integrity-diagnostics-contract",
@@ -2356,6 +2347,15 @@ function requiredSuitePluginEvidence(app) {
         snapshot.navigationReference?.contract !== "ajrm-marine-navigation-reference"
           ? "Navigation Integrity's reference projection is missing or not recognised."
           : "Navigation Integrity is too old for source-aware BITE; install v0.8.0 or later.",
+    },
+    {
+      id: LOCATION_EDITOR_PLUGIN_ID,
+      ok:
+        snapshot.locationEditor?.contract === "ajrm-marine-location-editor-status-v1" &&
+        snapshot.locationEditor?.enabled === true &&
+        (app.ajrmMarineLocations || globalThis[Symbol.for("mcdonaldajr.ajrmMarineLocations")])?.contract ===
+          "ajrm-marine-locations-service-v1",
+      message: "Locations status or shared service is missing, disabled, or not recognised.",
     },
   ].filter((item) => REQUIRED_SUITE_PLUGINS.includes(item.id));
   const installedMissing = REQUIRED_SUITE_PLUGINS.filter((id) => {
@@ -8614,6 +8614,7 @@ function collectSnapshot(app) {
     notificationsAudio: readSelfPath(app, WATCH_PATHS.notificationsAudio),
     audio: readSelfPath(app, WATCH_PATHS.audio),
     display: readSelfPath(app, WATCH_PATHS.display),
+    locationEditor: readSelfPath(app, WATCH_PATHS.locationEditor),
     gpsIntegrity: readSelfPath(app, WATCH_PATHS.gpsIntegrity),
     gpsIntegrityNotification: readSelfPath(app, WATCH_PATHS.gpsIntegrityNotification),
     navigationReference: readSelfPath(app, WATCH_PATHS.navigationReference),

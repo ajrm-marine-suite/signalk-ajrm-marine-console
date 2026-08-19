@@ -2213,7 +2213,6 @@ test("Console exposes BITE status and run routes", async () => {
   assert.deepEqual(
     statusBody.groups.find((item) => item.id === "gps-dr").testIds,
     [
-      "gps-integrity-availability",
       "gps-integrity-health",
       "gps-lost-age-consistency",
       "gps-integrity-diagnostics-contract",
@@ -2249,6 +2248,10 @@ test("Console exposes BITE status and run routes", async () => {
   const locationContractTest = statusBody.tests.find((item) => item.id === "location-editor-services-contract");
   assert.notEqual(locationContractTest.enabled, false);
   assert.equal(locationContractTest.groupId, "required-plugins");
+  assert.equal(locationContractTest.number, "0.8.1");
+  assert.equal(statusBody.tests.filter((item) => item.id === "gps-integrity-availability").length, 1);
+  assert.equal(statusBody.tests.filter((item) => item.number === "0.8").length, 1);
+  assert.equal(new Set(statusBody.tests.map((item) => item.id)).size, statusBody.tests.length);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-integrity-health").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "gps-lost-age-consistency").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "dead-reckoning-projection").enabled, true);
@@ -2282,6 +2285,25 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.snapshot.kind, "backend");
   assert.equal(runBody.snapshot.url, "");
   assert.equal(runBody.assertions.find((item) => item.id === "backend-status").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "required-runtime").pass, true);
+
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "location-editor-availability", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) {
+        statusCode = code;
+      },
+      json(value) {
+        runBody = value;
+      },
+    },
+  );
+  assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.ok, true);
+  assert.equal(runBody.scenario, "location-editor-availability");
   assert.equal(runBody.assertions.find((item) => item.id === "required-runtime").pass, true);
 
   statusCode = 0;
