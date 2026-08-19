@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.18
+
+- Serve the Suite Webapps icon from the public webapp URL and add a regression
+  test for the Signal K `appIcon` contract.
+
 ## 0.7.17
 
 - Give Locations availability a current runtime check using the Locations

@@ -1,6 +1,6 @@
 {
   "name": "signalk-ajrm-marine-console",
-  "version": "0.7.17",
+  "version": "0.7.18",
   "description": "Suite entry point, navigation shell, and shared help for AJRM Marine applications.",
   "main": "plugin/index.js",
   "scripts": {
@@ -37,7 +37,6 @@
   "files": [
     "plugin",
     "public",
-    "icon-120.png",
     "scripts",
     "docs",
     "README.md",
