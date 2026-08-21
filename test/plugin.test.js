@@ -17,6 +17,7 @@ test("Console package is the AJRM Marine Suite AppStore entry point", () => {
     "signalk-ajrm-marine-gps-integrity",
     "signalk-ajrm-marine-location-editor",
     "signalk-ajrm-marine-tidal-database",
+    "signalk-ajrm-marine-weather-database",
   ]);
   assert.ok(packageInfo.signalk.recommends.includes("signalk-ajrm-marine-vessel-database"));
   assert.ok(!packageInfo.signalk.recommends.includes("signalk-ajrm-marine-capture"));

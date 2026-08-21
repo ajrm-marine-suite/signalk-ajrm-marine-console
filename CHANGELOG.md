@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.21 — 2026-08-21
+
+- Add Weather Database as a required Setup/Planning module and BITE its service, provider registry and provider-separated cache status.
+- Update Marine Planning BITE to require the standalone Weather Database contract.
+
 ## 0.7.20
 
 - Add the standalone Tidal Database to Console workspaces and required-plugin checks.

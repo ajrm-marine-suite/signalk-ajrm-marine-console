@@ -51,6 +51,7 @@ const AUDIO_SUMMARY_PRIORITY = 500;
 const AUDIO_SUMMARY_EXPIRES_SECONDS = 600;
 const LOCATION_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-location-editor";
 const TIDAL_DATABASE_PLUGIN_ID = "signalk-ajrm-marine-tidal-database";
+const WEATHER_DATABASE_PLUGIN_ID = "signalk-ajrm-marine-weather-database";
 const PLANNING_PLUGIN_ID = "signalk-ajrm-marine-planning";
 const ALERT_PANEL_PLUGIN_ID = packageInfo.name;
 const CAPTURE_PLUGIN_ID = "signalk-ajrm-marine-capture";
@@ -99,6 +100,7 @@ const WATCH_PATHS = {
   display: "plugins.ajrmMarineDisplay",
   locationEditor: "plugins.ajrmMarineLocationEditor",
   tidalDatabase: "plugins.ajrmMarineTidalDatabase",
+  weatherDatabase: "plugins.ajrmMarineWeatherDatabase",
   planning: "plugins.ajrmMarinePlanning",
   gpsIntegrity: "plugins.ajrmMarineGpsIntegrity.navigationIntegrity",
   gpsIntegrityNotification: "notifications.navigation.gnss.integrity",
@@ -336,6 +338,15 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     groupId: "required-plugins",
   }),
   pluginContractTest({
+    pluginId: WEATHER_DATABASE_PLUGIN_ID,
+    id: "weather-database-services-contract",
+    number: "0.10.1",
+    title: "Weather Database services",
+    description: "Checks Weather Database owns provider caches and exposes explicit multi-provider source selection.",
+    optional: false,
+    groupId: "required-plugins",
+  }),
+  pluginContractTest({
     pluginId: PLANNING_PLUGIN_ID,
     id: "planning-shared-services-contract",
     number: "9.9.1",
@@ -367,6 +378,7 @@ const OPTIONAL_PLUGIN_STATUS_PATHS = Object.freeze({
   "signalk-ajrm-marine-gps-integrity": WATCH_PATHS.gpsIntegrity,
   [LOCATION_EDITOR_PLUGIN_ID]: WATCH_PATHS.locationEditor,
   [TIDAL_DATABASE_PLUGIN_ID]: WATCH_PATHS.tidalDatabase,
+  [WEATHER_DATABASE_PLUGIN_ID]: WATCH_PATHS.weatherDatabase,
   [PLANNING_PLUGIN_ID]: WATCH_PATHS.planning,
   [INSTRUMENTS_PLUGIN_ID]: "plugins.ajrmMarineInstruments",
   [PI_CONTROLLER_PLUGIN_ID]: "plugins.ajrmMarinePiController",
@@ -1761,6 +1773,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "tidal-database-services-contract") {
     return runTidalDatabaseServicesContractBite(app, { consoleVersion });
   }
+  if (testId === "weather-database-services-contract") {
+    return runWeatherDatabaseServicesContractBite(app, { consoleVersion });
+  }
   if (testId === "planning-shared-services-contract") {
     return runPlanningSharedServicesContractBite(app, { consoleVersion });
   }
@@ -2380,6 +2395,15 @@ function requiredSuitePluginEvidence(app) {
         (app.ajrmMarineTidalDatabase || globalThis[Symbol.for("mcdonaldajr.ajrmMarineTidalDatabase")])?.contract ===
           "ajrm-marine-tidal-database-service-v1",
       message: "Tidal Database status or shared service is missing, disabled, or not recognised.",
+    },
+    {
+      id: WEATHER_DATABASE_PLUGIN_ID,
+      ok:
+        snapshot.weatherDatabase?.contract === "ajrm-marine-weather-database-status-v1" &&
+        snapshot.weatherDatabase?.enabled === true &&
+        (app.ajrmMarineWeatherDatabase || globalThis[Symbol.for("mcdonaldajr.ajrmMarineWeatherDatabase")])?.contract ===
+          "ajrm-marine-weather-database-service-v1",
+      message: "Weather Database status or shared service is missing, disabled, or not recognised.",
     },
   ].filter((item) => REQUIRED_SUITE_PLUGINS.includes(item.id));
   const installedMissing = REQUIRED_SUITE_PLUGINS.filter((id) => {
@@ -4275,6 +4299,34 @@ async function runTidalDatabaseServicesContractBite(app, { consoleVersion }) {
   });
 }
 
+async function runWeatherDatabaseServicesContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, WEATHER_DATABASE_PLUGIN_ID);
+  const status = evidence.status || {};
+  const weather = app.ajrmMarineWeatherDatabase || globalThis[Symbol.for("mcdonaldajr.ajrmMarineWeatherDatabase")];
+  let database = null;
+  let serviceError = "";
+  try { database = await weather?.databaseStatus?.(); }
+  catch (error) { serviceError = error?.message || String(error); }
+  const providers = database?.providers || [];
+  const assertions = [
+    assertion("weather-database-visible", evidence.installed, "Weather Database should be installed and visible to Console."),
+    assertion("status-contract", status.contract === "ajrm-marine-weather-database-status-v1" && status.enabled === true, "Weather Database should publish its enabled v1 status contract."),
+    assertion("service-contract", weather?.contract === "ajrm-marine-weather-database-service-v1", "Weather Database should expose its v1 suite service."),
+    assertion("provider-registry", providers.length > 0, serviceError || "Weather Database should expose at least one provider."),
+    assertion("provider-cache-separation", providers.every((provider) => finiteNonNegative(provider.cacheEntries)), "Each provider should expose its own cache count."),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion, runId, scenario:"weather-database-services-contract", testId:"weather-database-services-contract",
+    result, startedAt, startedAtMs, assertions, observations:[{ evidence, database, serviceError }],
+    summary:result === "pass" ? "Weather Database owns provider-separated caches and exposes its resolver service." : `Weather Database contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot:{ evidence, database, serviceError },
+  });
+}
+
 async function runPlanningSharedServicesContractBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -4296,8 +4348,8 @@ async function runPlanningSharedServicesContractBite(app, { consoleVersion }) {
     ),
     assertion(
       "planning-weather-contract",
-      status.weatherService === "ajrm-marine-weather-service-v1",
-      "Marine Planning should consume the shared weather service.",
+      status.weatherService === "ajrm-marine-weather-database-service-v1",
+      "Marine Planning should consume Weather Database v1.",
     ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
@@ -4312,7 +4364,7 @@ async function runPlanningSharedServicesContractBite(app, { consoleVersion }) {
     assertions,
     observations: [evidence],
     summary: result === "pass"
-      ? "Marine Planning uses Locations, Tidal Database and the current weather service."
+      ? "Marine Planning uses Locations, Tidal Database and Weather Database."
       : `Marine Planning shared-services contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: evidence,
   });
@@ -8665,6 +8717,7 @@ function collectSnapshot(app) {
     display: readSelfPath(app, WATCH_PATHS.display),
     locationEditor: readSelfPath(app, WATCH_PATHS.locationEditor),
     tidalDatabase: readSelfPath(app, WATCH_PATHS.tidalDatabase),
+    weatherDatabase: readSelfPath(app, WATCH_PATHS.weatherDatabase),
     gpsIntegrity: readSelfPath(app, WATCH_PATHS.gpsIntegrity),
     gpsIntegrityNotification: readSelfPath(app, WATCH_PATHS.gpsIntegrityNotification),
     navigationReference: readSelfPath(app, WATCH_PATHS.navigationReference),

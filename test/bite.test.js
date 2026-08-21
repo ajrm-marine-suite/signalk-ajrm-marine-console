@@ -1308,6 +1308,12 @@ test("Console exposes BITE status and run routes", async () => {
       contractVersion: 1,
       enabled: true,
     },
+    "plugins.ajrmMarineWeatherDatabase": {
+      contract: "ajrm-marine-weather-database-status-v1",
+      contractVersion: 1,
+      enabled: true,
+      providers: [{ id: "open-meteo", cacheEntries: 1 }],
+    },
     "plugins.ajrmMarineNavigationReference.state": {
       contract: "ajrm-marine-navigation-reference",
       schemaVersion: 1,
@@ -1849,7 +1855,10 @@ test("Console exposes BITE status and run routes", async () => {
       contract: "ajrm-marine-tidal-database-service-v1",
       async databaseStatus() { return { summary:{ stationCount:50 }, ports:[{ locationId:"port-1" }], policy:{ refreshFloorHours:24 } }; },
     },
-    ajrmMarineWeather: { contract: "ajrm-marine-weather-service-v1" },
+    ajrmMarineWeatherDatabase: {
+      contract: "ajrm-marine-weather-database-service-v1",
+      async databaseStatus() { return { providers:[{ id:"open-meteo",cacheEntries:1 }] }; },
+    },
     ajrmMarineAnchoring: { contract: "ajrm-marine-anchoring-service-v1" },
     ajrmMarineInstrumentsApi: {
       status() {
@@ -2446,7 +2455,7 @@ test("Console exposes BITE status and run routes", async () => {
     ready: true,
     locationsService: "ajrm-marine-locations-service-v1",
     tideService: "ajrm-marine-tidal-database-service-v1",
-    weatherService: "ajrm-marine-weather-service-v1",
+    weatherService: "ajrm-marine-weather-database-service-v1",
   };
   routes.get("GET /ajrmMarineConsole/bite/status")({}, {
     set() {},

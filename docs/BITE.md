@@ -199,8 +199,9 @@ Current numbered BITE tests:
 | 0.8.1 | Locations spatial services | Locations owns the versioned spatial catalogue and directly supplies profile areas and anchoring. |
 | 0.9 | Tidal Database availability | Required Tidal Database webapp, status and shared service are present. |
 | 0.9.1 | Tidal Database services | Tidal Database owns station mappings, corrections and cache state, and enforces the 24-hour refresh floor. |
+| 0.10.1 | Weather Database services | Weather Database owns provider-separated caches and exposes the multi-provider resolver contract. |
 | 9.9 | Marine Planning availability | Optional Marine Planning presence/status check when the app is installed. |
-| 9.9.1 | Marine Planning shared-services contract | Planning consumes Locations, Tidal Database and weather services without private duplicate data stores. |
+| 9.9.1 | Marine Planning shared-services contract | Planning consumes Locations, Tidal Database and Weather Database without private duplicate data stores. |
 | 9.10 | Pi Controller availability | Optional Pi Controller plugin is installed, enabled, and visible to Console when present. |
 | 9.10.1 | Pi Controller telemetry contract | Pi Controller publishes host/process telemetry useful to Capture and Snapshot diagnostics. |
 | 99 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |

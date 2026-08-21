@@ -19,6 +19,9 @@ dependencies installs the mandatory suite apps declared in `signalk.requires`:
 - AJRM Marine Audio
 - AJRM Marine Capture
 - AJRM Marine Navigation Integrity
+- AJRM Marine Location Editor
+- AJRM Marine Tidal Database
+- AJRM Marine Weather Database
 
 Optional suite apps are declared in `signalk.recommends`. Install them only when
 you want those features:
@@ -30,8 +33,6 @@ you want those features:
 - Instruments: AJRM Marine Instruments, including Instrument Alerts
 - AJRM Marine Vessel Database
 - AJRM Marine Simulator
-- AJRM Marine Location Editor
-- AJRM Marine Tidal Database
 - AJRM Marine Planning
 - AJRM Marine Pi Controller
 
@@ -44,10 +45,10 @@ which installed webapps are eligible to appear at all.
 
 Voyaging includes Display, Instruments, Navigation Integrity, Alerts, Voyages,
 and Planning. Planning combines the Gate Passage and Anchor Force tools, uses
-Location Editor for spatial data, and uses Tidal Database for predictions.
+Location Editor for spatial data, Tidal Database for predictions, and Weather Database for provider forecasts and offline caching.
 
 Setup includes BITE so a new or changed installation can be validated alongside
-its configuration tools, including Locations, Tidal Database, and Planning.
+its configuration tools, including Locations, Tidal Database, Weather Database, and Planning.
 Configure the UKHO key and subscription tier once in Tidal Database; Planning
 does not keep a second key or provider cache. Vessel Database is available under Reviewing and
 Show All Plugins rather than Setup. Snapshot is a diagnostic tool, so it is

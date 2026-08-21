@@ -209,7 +209,8 @@
                     <strong>Server &gt; Plugin Config</strong>, and restart Signal
                     K after the first installation. The installation should
                     include Display, Traffic, Notifications, Audio, Voyages
-                    (Capture), Navigation Integrity, Locations, and Tidal Database. Notifications works in
+                    (Capture), Navigation Integrity, Locations, Tidal Database,
+                    and Weather Database. Notifications works in
                     the background and therefore has no separate top-menu page.
                   </p>
                   <p>
@@ -217,7 +218,8 @@
                     makes the safety decision, Notifications manages the event,
                     Audio delivers speech, Display shows it, Capture records
                     the evidence, Locations owns spatial records, and Tidal
-                    Database owns predictions. A missing link can leave apparently unrelated
+                    Database owns predictions, and Weather Database owns provider
+                    forecasts and offline caches. A missing link can leave apparently unrelated
                     features unavailable.
                   </p>
                   <p>
@@ -468,9 +470,12 @@
                       <strong>Tidal Database</strong> owns prediction providers,
                       secondary-port corrections and the offline tide cache;
                       configure the UKHO key and correct subscription tier there.
+                      <strong>Weather Database</strong> owns weather providers,
+                      provider-separated offline caches, freshness and source
+                      selection; Open-Meteo is enabled by default.
                       <strong>Planning</strong> then provides Gate Passage and
-                      Anchor Force views without storing another provider key or
-                      tide cache. Treat these
+                      Anchor Force views without storing another provider key,
+                      tide cache or weather cache. Treat these
                       as planning aids and verify their inputs against current
                       official sources and observed conditions.
                     </li>

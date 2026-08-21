@@ -55,6 +55,7 @@ const CORE_SUITE_WEBAPPS = [
   "signalk-ajrm-marine-capture",
   "signalk-ajrm-marine-location-editor",
   "signalk-ajrm-marine-tidal-database",
+  "signalk-ajrm-marine-weather-database",
   "signalk-ajrm-marine-planning",
 ];
 
@@ -134,6 +135,11 @@ const SUITE_APP_INFO = {
     description: "Provider-neutral tidal stations, offline cache, secondary-port calculations, and port selection.",
     groupLabel: "Planning data",
   },
+  "signalk-ajrm-marine-weather-database": {
+    title: "Weather Database",
+    description: "Provider-neutral forecasts, independent offline caches, provenance, and explicit source selection.",
+    groupLabel: "Planning data",
+  },
   "signalk-ajrm-marine-planning": {
     title: "Planning",
     description: "Gate-passage and anchor-force planning with shared locations, tides, weather, and live Signal K inputs.",
@@ -162,6 +168,7 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-instruments",
       "signalk-ajrm-marine-location-editor",
       "signalk-ajrm-marine-tidal-database",
+      "signalk-ajrm-marine-weather-database",
       "signalk-ajrm-marine-planning",
       "signalk-ajrm-marine-pi-controller",
     ],
@@ -179,6 +186,7 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-capture",
       "signalk-ajrm-marine-planning",
       "signalk-ajrm-marine-tidal-database",
+      "signalk-ajrm-marine-weather-database",
     ],
   },
   {
@@ -193,6 +201,7 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-vessel-database",
       "signalk-ajrm-marine-planning",
       "signalk-ajrm-marine-tidal-database",
+      "signalk-ajrm-marine-weather-database",
     ],
   },
   {
@@ -211,6 +220,7 @@ const WORKSPACE_PROFILES = [
       "signalk-ajrm-marine-gps-integrity",
       "signalk-ajrm-marine-location-editor",
       "signalk-ajrm-marine-tidal-database",
+      "signalk-ajrm-marine-weather-database",
       "signalk-ajrm-marine-planning",
       "signalk-ajrm-marine-pi-controller",
     ],
