@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.25 — 2026-08-21
+
+- Align Weather Database BITE and onboard help with forecasts selectable for
+  Location-owned ports, marinas, anchorages, moorings and tidal gates as well
+  as dedicated weather forecast points.
+
 ## 0.7.24 — 2026-08-21
 
 - Extend Weather Database BITE to verify Location-owned named forecast points,

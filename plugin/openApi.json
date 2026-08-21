@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "AJRM Marine Console API",
-    "version": "0.7.24",
+    "version": "0.7.25",
     "description": "Configurable Console webapp manifest, native Alerts view, selected webapp overview, and BITE control."
   },
   "servers": [

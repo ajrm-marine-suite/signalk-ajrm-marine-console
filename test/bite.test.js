@@ -1879,7 +1879,7 @@ test("Console exposes BITE status and run routes", async () => {
     ajrmMarineWeatherDatabase: {
       contract: "ajrm-marine-weather-database-service-v1",
 			async databaseStatus() { return { providers:[{ id:"open-meteo",cacheEntries:1 }], weatherLocationCount:1, locationsService:"ajrm-marine-locations-service-v1" }; },
-			async listLocations() { return [{ id:"weather-1",name:"Test Weather Forecast",position:{latitude:56.2,longitude:-5.6} }]; },
+			async listLocations() { return [{ id:"weather-1",name:"Test Weather Forecast",types:["weatherForecastLocation"],category:"Forecast point",position:{latitude:56.2,longitude:-5.6} }]; },
     },
     ajrmMarineAnchoring: { contract: "ajrm-marine-anchoring-service-v1" },
     ajrmMarineInstrumentsApi: {

@@ -342,7 +342,7 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
 	id: "weather-database-services-contract",
     number: "0.10.1",
     title: "Weather Database services",
-	description: "Checks Weather Database owns provider caches, joins named forecast points from Locations and exposes explicit multi-provider source selection.",
+	description: "Checks Weather Database owns provider caches, joins selectable forecast points, ports, anchorages and tidal gates from Locations, and exposes explicit multi-provider source selection.",
     optional: false,
     groupId: "required-plugins",
   }),
@@ -4332,8 +4332,8 @@ async function runWeatherDatabaseServicesContractBite(app, { consoleVersion }) {
     assertion("service-contract", weather?.contract === "ajrm-marine-weather-database-service-v1", "Weather Database should expose its v1 suite service."),
 		assertion("provider-registry", providers.length > 0, serviceError || "Weather Database should expose at least one provider."),
 		assertion("provider-cache-separation", providers.every((provider) => finiteNonNegative(provider.cacheEntries)), "Each provider should expose its own cache count."),
-		assertion("locations-service", database?.locationsService === "ajrm-marine-locations-service-v1", "Weather Database should resolve named forecast points through Locations."),
-		assertion("weather-location-catalogue", forecastLocations.length > 0 && forecastLocations.every((location) => location.id && location.name && Number.isFinite(location.position?.latitude) && Number.isFinite(location.position?.longitude)), "Weather Database should expose named forecast points with valid coordinates."),
+		assertion("locations-service", database?.locationsService === "ajrm-marine-locations-service-v1", "Weather Database should resolve selectable forecast locations through Locations."),
+		assertion("weather-location-catalogue", forecastLocations.length > 0 && forecastLocations.every((location) => location.id && location.name && Number.isFinite(location.position?.latitude) && Number.isFinite(location.position?.longitude)), "Weather Database should expose selectable forecast places with valid coordinates."),
 		assertion("weather-location-count", Number(database?.weatherLocationCount) === forecastLocations.length, "Weather Database status should agree with its selectable forecast-location list."),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
