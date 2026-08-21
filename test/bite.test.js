@@ -560,6 +560,8 @@ test("BITE evaluation passes when Traffic, Notifications, and Audio align", () =
       recentEvents: [{
         ts: new Date().toISOString(),
         event: "queued",
+        subjectKey: `ajrm-marine:traffic:vessel:${TEST_TARGET_MMSI}`,
+        mmsi: TEST_TARGET_MMSI,
         message: `[priority 900] Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
       }],
     },
@@ -696,12 +698,16 @@ test("BITE evaluation accepts muted audio when skipped evidence follows accepted
         event: {
           occurredAt: new Date().toISOString(),
           state: "accepted",
+          subjectKey: `ajrm-marine:traffic:vessel:${TEST_TARGET_MMSI}`,
+          mmsi: TEST_TARGET_MMSI,
           message: `Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
         },
       },
       recentEvents: [{
         ts: new Date().toISOString(),
         event: "skipped",
+        subjectKey: `ajrm-marine:traffic:vessel:${TEST_TARGET_MMSI}`,
+        mmsi: TEST_TARGET_MMSI,
         message: `Muted: Collision alarm. Large vessel ${TEST_TARGET_NAME}.`,
       }],
     },
@@ -892,6 +898,8 @@ test("BITE quiet target evaluation detects false visual or audio leakage", () =>
       recentEvents: [{
         ts: new Date().toISOString(),
         event: "queued",
+        subjectKey: "ajrm-marine:traffic:vessel:235912346",
+        mmsi: "235912346",
         message: "Collision alarm. BITE QUIET TARGET.",
       }],
     },
@@ -1295,6 +1303,8 @@ test("Console exposes BITE status and run routes", async () => {
       sessionId: "display-session",
       sequence: 1,
       enabled: true,
+      locationsService: "ajrm-marine-locations-service-v1",
+      tideService: "ajrm-marine-tidal-database-service-v1",
     },
     "plugins.ajrmMarineLocationEditor": {
       contract: "ajrm-marine-location-editor-status-v1",
@@ -1849,10 +1859,20 @@ test("Console exposes BITE status and run routes", async () => {
     },
     ajrmMarineLocations: {
       contract: "ajrm-marine-locations-service-v1",
+      async list() {
+        return [
+          { id: "port-1", name: "Test Standard Port", types: ["tidalStandardPort"] },
+          { id: "region-1", name: "Test Tidal Region", types: ["tidalRegion"] },
+          { id: "area-1", name: "Profile Area One", types: ["harbour"] },
+          { id: "area-2", name: "Profile Area Two", types: ["marina"] },
+        ];
+      },
       async profileAreas() { return [{ id: "area-1" }, { id: "area-2" }]; },
     },
     ajrmMarineTidalDatabase: {
       contract: "ajrm-marine-tidal-database-service-v1",
+      listPorts() { return [{ locationId:"port-1", name:"Test Standard Port", kind:"standard" }]; },
+      listAreas() { return [{ locationId:"region-1", name:"Test Tidal Region", portLocationId:"port-1", parentAreaLocationId:null }]; },
       async databaseStatus() { return { summary:{ stationCount:50 }, ports:[{ locationId:"port-1" }], policy:{ refreshFloorHours:24 } }; },
     },
     ajrmMarineWeatherDatabase: {
@@ -1943,6 +1963,11 @@ test("Console exposes BITE status and run routes", async () => {
           ajrmMarine: {
             traffic: values["plugins.ajrmMarineTraffic.targets"],
             gpsIntegrity: values["plugins.ajrmMarineGpsIntegrity.navigationIntegrity"],
+          },
+          sharedPlanning: {
+            locations: { contract: "ajrm-marine-location-diagnostics-v1" },
+            tides: { contract: "ajrm-marine-tidal-database-status-v1" },
+            weather: { contract: "ajrm-marine-weather-database-status-v1" },
           },
         };
       },
@@ -2216,8 +2241,7 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(statusBody.tests.find((item) => item.id === "vessel-database-summary-contract").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "snapshot-api-contract").enabled, true);
-  assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-availability"), undefined);
-  assert.equal(statusBody.tests.find((item) => item.id === "voyage-viewer-bundle-round-trip").postFinalisation, true);
+  assert.equal(statusBody.tests.find((item) => item.id === "capture-bundle-round-trip").postFinalisation, true);
   assert.equal(statusBody.tests.find((item) => item.id === "simulator-availability").enabled, true);
   assert.equal(statusBody.tests.find((item) => item.id === "alert-panel-availability").enabled, undefined);
   assert.equal(statusBody.tests.find((item) => item.id === "instruments-availability").enabled, true);
@@ -2326,7 +2350,7 @@ test("Console exposes BITE status and run routes", async () => {
   statusCode = 0;
   runBody = null;
   await routes.get("POST /ajrmMarineConsole/bite/run")(
-    { body: { testId: "voyage-viewer-review-contract", timeoutSeconds: 5 } },
+    { body: { testId: "capture-review-contract", timeoutSeconds: 5 } },
     {
       set() {},
       status(code) {
@@ -2342,38 +2366,6 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.snapshot.voyageOnly, true);
   assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-visible").pass, true);
   assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-coherent").pass, true);
-
-  const voyageOnlyReviewStatus = values["plugins.ajrmMarineCapture.review"];
-  values["plugins.ajrmMarineCapture.review"] = {
-    ...voyageOnlyReviewStatus,
-    version: "0.6.8",
-    logDirectory: "/tmp/ajrm-capture/buffer",
-    clipDirectory: "/tmp/ajrm-capture/clips",
-    capabilities: {
-      ...voyageOnlyReviewStatus.capabilities,
-      voyageOnly: false,
-    },
-  };
-  statusCode = 0;
-  runBody = null;
-  await routes.get("POST /ajrmMarineConsole/bite/run")(
-    { body: { testId: "voyage-viewer-review-contract", timeoutSeconds: 5 } },
-    {
-      set() {},
-      status(code) {
-        statusCode = code;
-      },
-      json(value) {
-        runBody = value;
-      },
-    },
-  );
-  assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
-  assert.equal(runBody.ok, true);
-  assert.equal(runBody.snapshot.voyageOnly, false);
-  assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-visible").pass, true);
-  assert.equal(runBody.assertions.find((item) => item.id === "review-source-model-coherent").pass, true);
-  values["plugins.ajrmMarineCapture.review"] = voyageOnlyReviewStatus;
 
   for (const testId of [
     "instruments-derived-path-contract",
@@ -2397,7 +2389,7 @@ test("Console exposes BITE status and run routes", async () => {
   statusCode = 0;
   runBody = null;
   await routes.get("POST /ajrmMarineConsole/bite/run")(
-    { body: { testId: "voyage-viewer-bundle-round-trip", timeoutSeconds: 5 } },
+    { body: { testId: "capture-bundle-round-trip", timeoutSeconds: 5 } },
     {
       set() {},
       status(code) { statusCode = code; },
@@ -2424,7 +2416,7 @@ test("Console exposes BITE status and run routes", async () => {
   statusCode = 0;
   runBody = null;
   await routes.get("POST /ajrmMarineConsole/bite/run")(
-    { body: { testId: "voyage-viewer-bundle-round-trip", timeoutSeconds: 5 } },
+    { body: { testId: "capture-bundle-round-trip", timeoutSeconds: 5 } },
     {
       set() {},
       status(code) { statusCode = code; },
@@ -2488,6 +2480,21 @@ test("Console exposes BITE status and run routes", async () => {
   assert.equal(runBody.assertions.find((item) => item.id === "profile-area-count").pass, true);
   assert.equal(runBody.assertions.find((item) => item.id === "traffic-profile-area-consumer").pass, true);
   assert.equal(runBody.assertions.find((item) => item.id === "display-profile-area-consumer").pass, true);
+
+  statusCode = 0;
+  runBody = null;
+  await routes.get("POST /ajrmMarineConsole/bite/run")(
+    { body: { testId: "shared-data-topology-contract", timeoutSeconds: 5 } },
+    {
+      set() {},
+      status(code) { statusCode = code; },
+      json(value) { runBody = value; },
+    },
+  );
+  assert.equal(statusCode, 200, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.ok, true, JSON.stringify(runBody, null, 2));
+  assert.equal(runBody.assertions.find((item) => item.id === "tidal-port-location-join").pass, true);
+  assert.equal(runBody.assertions.find((item) => item.id === "tidal-region-reference-join").pass, true);
 
   statusCode = 0;
   runBody = null;

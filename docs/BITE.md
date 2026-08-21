@@ -98,7 +98,7 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
   diagnostic recording, timestamped voyage observations, and shared
   audio-policy restore.
 - Every captured BITE run recording a start comment and a pre-finalisation
-  comment; the post-finalisation Viewer check must read both back as Voyage
+  comment; the post-finalisation Capture review check must read both back as voyage
   notes from the completed ZIP.
 - Display deriving Active Alerts only from the broker's current active set, so
   resolved traffic and instrument messages do not remain as historical alerts.
@@ -116,9 +116,12 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
 - Audio accepting, queueing, rendering, skipping, or muting matching BITE audio.
 - GPS Integrity retaining vector-role, counter, and current/last-trusted-current
   fields needed by DR Plotter and voyage review.
-- Optional plugin contracts such as Vessel Database summary publication, Voyage
-  review, Instruments derived paths, Locations shared services, Marine Planning, and Pi
+- Optional plugin contracts such as Vessel Database summary publication,
+  Instruments derived paths, Marine Planning, Snapshot and Pi
   Controller host telemetry.
+- Required Location, Tidal Database and Weather Database contracts, including a
+  cross-app join proving every tidal port and region refers to a correctly
+  typed Location and a valid serving-port/parent-region relationship.
 - Any mute condition being explicit rather than silent.
 - A final spoken BITE summary being requested so the skipper can confirm the
   selected physical/browser/player output was actually heard.
@@ -134,6 +137,14 @@ Current numbered BITE tests:
 | 0.4 | Notifications availability | Required Notifications plugin is installed, enabled, visible to Console, and publishing runtime status. |
 | 0.5 | Audio availability | Required Audio plugin is installed, enabled, visible to Console, and publishing runtime status. |
 | 0.6 | Capture availability | Required Capture plugin is installed, enabled, visible to Console, and its Capture API is available. |
+| 0.7 | Navigation Integrity availability | Required combined Navigation Reference, GNSS Integrity and DR Plotter package is operational. |
+| 0.8 | Location Editor availability | Required spatial catalogue is installed and publishing status. |
+| 0.8.1 | Locations spatial services | Location profile areas and anchoring services agree with Traffic and Display consumers. |
+| 0.9 | Tidal Database availability | Required tide provider/cache service is installed and publishing status. |
+| 0.9.1 | Tidal Database services | Provider stations, ports and 24-hour refresh floor are visible. |
+| 0.10 | Weather Database availability | Required provider-neutral forecast cache is installed and publishing status. |
+| 0.10.1 | Weather Database services | Provider registry and provider-separated cache counts are visible. |
+| 0.11.1 | Shared data topology | Tidal ports and regions join to correctly typed Location records with valid serving-port and parent-region references. |
 | 1.1 | Core status projections | Traffic, Display, Notifications, and Audio publish the observable state BITE needs. |
 | 1.2 | Projection contracts | Core projections retain expected contracts, versioning, sessions, sequence counters, and authority markers. |
 | 1.3 | Audio policy consistency | Traffic owns mute/automute policy and Audio consumes that policy without disagreement. |

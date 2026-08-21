@@ -69,16 +69,6 @@ const OPTIONAL_SUITE_WEBAPPS = [
 ];
 
 const DEFAULT_WEBAPPS = [...CORE_SUITE_WEBAPPS, ...OPTIONAL_SUITE_WEBAPPS];
-const RETIRED_WEBAPPS = new Set([
-  "signalk-ajrm-marine-alerts",
-  "signalk-ajrm-marine-dr-plotter",
-  "signalk-ajrm-marine-instrument-alerts",
-  "signalk-ajrm-marine-harbour-editor",
-  "signalk-ajrm-marine-logger",
-  "signalk-ajrm-marine-navigation-reference",
-  "signalk-ajrm-marine-voyage-viewer",
-]);
-
 const SUITE_APP_INFO = {
   "signalk-ajrm-marine-display": {
     title: "Display",
@@ -244,8 +234,7 @@ function discoverWebapps(options = {}) {
     const pkg = readJson(packageJsonPath);
     if (
       !isSignalKWebapp(pkg) ||
-      pkg.name === currentPackage ||
-      RETIRED_WEBAPPS.has(pkg.name)
+      pkg.name === currentPackage
     ) continue;
     packages.push(webappModule(pkg));
   }

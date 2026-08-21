@@ -1231,6 +1231,23 @@
                       fix state.
                     </li>
                     <li>
+                      <strong>Location Editor</strong> is the sole spatial
+                      catalogue and owns location names, types, geometry,
+                      revisions, anchoring attributes, and profile areas.
+                    </li>
+                    <li>
+                      <strong>Tidal Database</strong> and
+                      <strong>Weather Database</strong> independently own their
+                      providers and durable offline caches. Display and Marine
+                      Planning consume those services rather than fetching or
+                      caching provider data themselves.
+                    </li>
+                    <li>
+                      <strong>Marine Planning</strong> is a read-only consumer
+                      of Locations, Tidal Database, Weather Database, and live
+                      Signal K values.
+                    </li>
+                    <li>
                       <strong>BITE</strong> exercises installed plugins through
                       their public Signal K/API surfaces and records evidence
                       through Capture.

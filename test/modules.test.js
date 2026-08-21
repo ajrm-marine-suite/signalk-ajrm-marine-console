@@ -39,10 +39,6 @@ function writePackage(nodeModulesDir, name, value = {}) {
 
 test("Console discovers installed Signal K webapps dynamically", () => {
   const nodeModulesDir = fs.mkdtempSync(path.join(os.tmpdir(), "console-webapps-"));
-  writePackage(nodeModulesDir, "signalk-ajrm-marine-logger", {
-    version: "1.0.12",
-    signalk: { displayName: "Capture Plus" },
-  });
   writePackage(nodeModulesDir, "signalk-freeboard-sk", {
     version: "2.0.0",
     signalk: { displayName: "Freeboard SK" },

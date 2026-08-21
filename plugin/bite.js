@@ -285,14 +285,14 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
   }),
   pluginContractTest({
     pluginId: CAPTURE_PLUGIN_ID,
-    id: "voyage-viewer-review-contract",
+    id: "capture-review-contract",
     number: "9.4.1",
     title: "Capture review contract",
     description: "Checks Capture advertises voyage-review capability and its current voyage-bundle source model.",
   }),
   pluginContractTest({
     pluginId: CAPTURE_PLUGIN_ID,
-    id: "voyage-viewer-bundle-round-trip",
+    id: "capture-bundle-round-trip",
     number: "9.4.2",
     title: "Completed BITE bundle round trip",
     description: "After Capture stops, checks Capture review can analyse the completed BITE ZIP and find its BITE evidence.",
@@ -343,6 +343,15 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     number: "0.10.1",
     title: "Weather Database services",
     description: "Checks Weather Database owns provider caches and exposes explicit multi-provider source selection.",
+    optional: false,
+    groupId: "required-plugins",
+  }),
+  pluginContractTest({
+    pluginId: TIDAL_DATABASE_PLUGIN_ID,
+    id: "shared-data-topology-contract",
+    number: "0.11.1",
+    title: "Shared data topology",
+    description: "Checks tidal ports and regions refer to typed Locations and form a coherent cross-app catalogue.",
     optional: false,
     groupId: "required-plugins",
   }),
@@ -1752,11 +1761,11 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "vessel-database-summary-contract") {
     return runVesselDatabaseSummaryContractBite(app, { consoleVersion });
   }
-  if (testId === "voyage-viewer-review-contract") {
-    return runVoyageViewerReviewContractBite(app, { consoleVersion });
+  if (testId === "capture-review-contract") {
+    return runCaptureReviewContractBite(app, { consoleVersion });
   }
-  if (testId === "voyage-viewer-bundle-round-trip") {
-    return runVoyageViewerBundleRoundTripBite(app, { consoleVersion });
+  if (testId === "capture-bundle-round-trip") {
+    return runCaptureBundleRoundTripBite(app, { consoleVersion });
   }
   if (testId === "instruments-derived-path-contract") {
     return runInstrumentsDerivedPathContractBite(app, { consoleVersion });
@@ -1775,6 +1784,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   }
   if (testId === "weather-database-services-contract") {
     return runWeatherDatabaseServicesContractBite(app, { consoleVersion });
+  }
+  if (testId === "shared-data-topology-contract") {
+    return runSharedDataTopologyContractBite(app, { consoleVersion });
   }
   if (testId === "planning-shared-services-contract") {
     return runPlanningSharedServicesContractBite(app, { consoleVersion });
@@ -3875,7 +3887,7 @@ async function runInstrumentsDerivedPathContractBite(app, { consoleVersion }) {
   });
 }
 
-async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
+async function runCaptureReviewContractBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
@@ -3889,9 +3901,6 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
     capabilities.review === true ||
     status.reviewSupported === true;
   const voyageDirectory = status.voyageDirectory || status.directories?.voyages || status.paths?.voyages;
-  const logDirectory = status.logDirectory || status.directories?.logs || status.paths?.logs;
-  const rawDirectory = logDirectory || status.captureDirectory || status.rawDirectory;
-  const clipDirectory = status.clipDirectory || status.directories?.clips || status.paths?.clips;
   const voyageOnly = capabilities.voyageOnly === true;
   const api = captureApi(app);
   const assertions = [
@@ -3909,19 +3918,14 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
     ),
     assertion(
       "review-source-model-visible",
-      voyageOnly || Boolean(rawDirectory),
-      voyageOnly
-        ? "Capture review explicitly uses completed voyage bundles as its only review source."
-        : "A legacy review source should expose raw log/capture directory information.",
+      voyageOnly,
+      "Capture review must use completed voyage bundles as its only review source.",
     ),
     assertion(
       "review-source-model-coherent",
-      voyageOnly
-        ? !rawDirectory && !clipDirectory
-        : Boolean(clipDirectory || status.clipDirectory === null),
-      voyageOnly
-        ? "Voyage-only mode should not advertise retired raw-log or clip sources."
-        : "A legacy review source should expose clip directory information, even if clips are disabled.",
+      !status.logDirectory && !status.captureDirectory && !status.rawDirectory &&
+        !status.clipDirectory && !status.directories?.logs && !status.directories?.clips,
+      "Capture review must not advertise retired raw-log or clip sources.",
     ),
     assertion(
       "review-capability-visible",
@@ -3945,19 +3949,19 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
   return biteReport({
     consoleVersion,
     runId,
-    scenario: "voyage-viewer-review-contract",
-    testId: "voyage-viewer-review-contract",
+    scenario: "capture-review-contract",
+    testId: "capture-review-contract",
     result,
     startedAt,
     startedAtMs,
     assertions,
     observations: [{ evidence, review, voyageOnly }],
     summary: result === "pass"
-      ? `Capture exposes a coherent ${voyageOnly ? "voyage-only" : "legacy multi-source"} review contract.`
+      ? "Capture exposes a coherent voyage-bundle-only review contract."
       : `Capture review contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: {
       status,
-      directories: { voyageDirectory, logDirectory, rawDirectory, clipDirectory },
+      directories: { voyageDirectory },
       review,
       capabilities,
       voyageOnly,
@@ -3965,7 +3969,7 @@ async function runVoyageViewerReviewContractBite(app, { consoleVersion }) {
   });
 }
 
-async function runVoyageViewerBundleRoundTripBite(app, { consoleVersion }) {
+async function runCaptureBundleRoundTripBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
@@ -4033,8 +4037,8 @@ async function runVoyageViewerBundleRoundTripBite(app, { consoleVersion }) {
   return biteReport({
     consoleVersion,
     runId,
-    scenario: "voyage-viewer-bundle-round-trip",
-    testId: "voyage-viewer-bundle-round-trip",
+    scenario: "capture-bundle-round-trip",
+    testId: "capture-bundle-round-trip",
     result,
     startedAt,
     startedAtMs,
@@ -4277,6 +4281,7 @@ async function runTidalDatabaseServicesContractBite(app, { consoleVersion }) {
   const startedAt = new Date(startedAtMs).toISOString();
   const evidence = optionalPluginEvidence(app, TIDAL_DATABASE_PLUGIN_ID);
   const status = evidence.status || {};
+  const displayStatus = readSelfPath(app, WATCH_PATHS.display) || {};
   const tides = app.ajrmMarineTidalDatabase || globalThis[Symbol.for("mcdonaldajr.ajrmMarineTidalDatabase")];
   let database = null;
   let serviceError = "";
@@ -4289,13 +4294,19 @@ async function runTidalDatabaseServicesContractBite(app, { consoleVersion }) {
     assertion("station-catalogue", finiteNonNegative(database?.summary?.stationCount), serviceError || "Tidal Database should expose its provider-station catalogue."),
     assertion("port-catalogue", Array.isArray(database?.ports) && database.ports.length > 0, "Tidal Database should expose configured tidal ports."),
     assertion("refresh-floor", database?.policy?.refreshFloorHours === 24, "Tidal Database should enforce the 24-hour per-station refresh floor."),
+    assertion(
+      "display-tide-consumer",
+      displayStatus.locationsService === "ajrm-marine-locations-service-v1" &&
+        displayStatus.tideService === "ajrm-marine-tidal-database-service-v1",
+      "Display should declare the current Locations and Tidal Database contracts it consumes.",
+    ),
   ];
   const result = assertions.every((item) => item.pass) ? "pass" : "fail";
   return biteReport({
     consoleVersion, runId, scenario:"tidal-database-services-contract", testId:"tidal-database-services-contract",
-    result, startedAt, startedAtMs, assertions, observations:[{ evidence, database, serviceError }],
+    result, startedAt, startedAtMs, assertions, observations:[{ evidence, database, displayStatus, serviceError }],
     summary: result === "pass" ? "Tidal Database owns prediction data and enforces its offline cache policy." : `Tidal Database contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
-    snapshot:{ evidence, database, serviceError },
+    snapshot:{ evidence, database, displayStatus, serviceError },
   });
 }
 
@@ -4324,6 +4335,77 @@ async function runWeatherDatabaseServicesContractBite(app, { consoleVersion }) {
     result, startedAt, startedAtMs, assertions, observations:[{ evidence, database, serviceError }],
     summary:result === "pass" ? "Weather Database owns provider-separated caches and exposes its resolver service." : `Weather Database contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot:{ evidence, database, serviceError },
+  });
+}
+
+async function runSharedDataTopologyContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const locations = app.ajrmMarineLocations || globalThis[Symbol.for("mcdonaldajr.ajrmMarineLocations")];
+  const tides = app.ajrmMarineTidalDatabase || globalThis[Symbol.for("mcdonaldajr.ajrmMarineTidalDatabase")];
+  let catalogue = [];
+  let ports = [];
+  let areas = [];
+  let serviceError = "";
+  try {
+    [catalogue, ports, areas] = await Promise.all([
+      locations?.list?.(),
+      Promise.resolve(tides?.listPorts?.()),
+      Promise.resolve(tides?.listAreas?.()),
+    ]);
+  } catch (error) {
+    serviceError = error?.message || String(error);
+  }
+  catalogue = Array.isArray(catalogue) ? catalogue : [];
+  ports = Array.isArray(ports) ? ports : [];
+  areas = Array.isArray(areas) ? areas : [];
+  const locationById = new Map(catalogue.map((location) => [String(location?.id || ""), location]));
+  const portById = new Map(ports.map((port) => [String(port?.locationId || ""), port]));
+  const areaById = new Map(areas.map((area) => [String(area?.locationId || ""), area]));
+  const missingPortLocations = ports.filter((port) => !locationById.has(String(port?.locationId || "")));
+  const mistypedPortLocations = ports.filter((port) => {
+    const type = port?.kind === "standard" ? "tidalStandardPort" : "tidalSecondaryPort";
+    return !locationById.get(String(port?.locationId || ""))?.types?.includes(type);
+  });
+  const stalePortNames = ports.filter((port) => {
+    const location = locationById.get(String(port?.locationId || ""));
+    return location && String(port?.name || "").trim() !== String(location.name || "").trim();
+  });
+  const missingAreaLocations = areas.filter((area) => !locationById.has(String(area?.locationId || "")));
+  const mistypedAreaLocations = areas.filter((area) =>
+    !locationById.get(String(area?.locationId || ""))?.types?.includes("tidalRegion"));
+  const brokenAreaReferences = areas.filter((area) =>
+    !portById.has(String(area?.portLocationId || "")) ||
+    (area?.parentAreaLocationId && !areaById.has(String(area.parentAreaLocationId))));
+  const assertions = [
+    assertion("locations-list-contract", locations?.contract === "ajrm-marine-locations-service-v1" && catalogue.length > 0, serviceError || "Locations should expose a non-empty catalogue."),
+    assertion("tides-definition-contract", tides?.contract === "ajrm-marine-tidal-database-service-v1" && ports.length > 0 && areas.length > 0, serviceError || "Tidal Database should expose port and region definitions."),
+    assertion("tidal-port-location-join", missingPortLocations.length === 0 && mistypedPortLocations.length === 0, "Every tidal port must refer to a Location with the matching tidal-port type."),
+    assertion("tidal-port-name-join", stalePortNames.length === 0, "Tidal Database display labels must agree with Location-owned names."),
+    assertion("tidal-region-location-join", missingAreaLocations.length === 0 && mistypedAreaLocations.length === 0, "Every tidal region must refer to a tidalRegion Location."),
+    assertion("tidal-region-reference-join", brokenAreaReferences.length === 0, "Every tidal region must refer to an existing serving port and parent region."),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion, runId, scenario: "shared-data-topology-contract", testId: "shared-data-topology-contract",
+    result, startedAt, startedAtMs, assertions,
+    observations: [{ serviceError, locationCount: catalogue.length, portCount: ports.length, areaCount: areas.length }],
+    summary: result === "pass"
+      ? `Locations and Tidal Database form a coherent ${ports.length}-port, ${areas.length}-region catalogue.`
+      : `Shared data topology failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot: {
+      serviceError,
+      locationCount: catalogue.length,
+      portCount: ports.length,
+      areaCount: areas.length,
+      missingPortLocationIds: missingPortLocations.map((entry) => entry.locationId),
+      mistypedPortLocationIds: mistypedPortLocations.map((entry) => entry.locationId),
+      stalePortNameIds: stalePortNames.map((entry) => entry.locationId),
+      missingAreaLocationIds: missingAreaLocations.map((entry) => entry.locationId),
+      mistypedAreaLocationIds: mistypedAreaLocations.map((entry) => entry.locationId),
+      brokenAreaReferenceIds: brokenAreaReferences.map((entry) => entry.locationId),
+    },
   });
 }
 
@@ -4483,6 +4565,15 @@ async function runSnapshotApiContractBite(app, { consoleVersion }) {
       "snapshot-has-content",
       !snapshot || Object.keys(snapshot).length > 0,
       "Snapshot API should return a non-empty object.",
+    ),
+    assertion(
+      "snapshot-shared-data-visible",
+      !snapshot || Boolean(
+        snapshot.sharedPlanning?.locations &&
+        snapshot.sharedPlanning?.tides &&
+        snapshot.sharedPlanning?.weather
+      ),
+      "Snapshot should include Locations, Tidal Database, and Weather Database diagnostics without fetching provider data.",
     ),
     assertion(
       "snapshot-status-api-visible",
@@ -8928,9 +9019,7 @@ function isCollisionClearEligibleState(state) {
 
 function findAudioEvidence(audio, {
   startedAtMs,
-  targetName,
   targetMmsi,
-  strict = false,
   preferSuppressed = false,
 }) {
   const candidates = [];
@@ -8958,22 +9047,18 @@ function findAudioEvidence(audio, {
   const matches = candidates.filter((candidate) => {
     const ts = candidate.occurredAt || candidate.ts || candidate.renderedAt || candidate.queuedAt ||
       candidate.receivedAt || candidate.timestamp;
-    const message = candidate.message || "";
     const state = String(candidate.state || candidate.event || "");
     const expectedSubjectKey = targetMmsi
       ? `ajrm-marine:traffic:vessel:${targetMmsi}`
       : "";
     const subjectKey = String(candidate.subjectKey || candidate.vesselId || "");
     const candidateMmsi = String(candidate.mmsi || candidate.context?.mmsi || "");
-    const hasExplicitIdentity = Boolean(subjectKey || candidateMmsi);
     const explicitIdentityMatches = Boolean(
       (expectedSubjectKey && subjectKey === expectedSubjectKey) ||
       (targetMmsi && candidateMmsi === String(targetMmsi)),
     );
-    const legacyMessageMatches = !hasExplicitIdentity &&
-      messageMatches(message, targetName, targetMmsi, { allowBiteWildcard: !strict });
     return freshEnough(ts, startedAtMs)
-      && (explicitIdentityMatches || legacyMessageMatches)
+      && explicitIdentityMatches
       && /accepted|queued|active|preparing|prepared|audio-ready|rendered|speaker|skipped|muted|lastAnnouncement/i.test(state);
   });
   const match = preferSuppressed

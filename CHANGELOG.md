@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.22 — 2026-08-21
+
+- Adds required cross-app BITE validation for Location/Tidal Database port and
+  region joins and verifies Snapshot carries Locations, tide, and weather data.
+- Requires Capture's current voyage-bundle-only review contract and explicit
+  Audio subject identity; retired raw-log, clip, message-text, and package
+  discovery adapters are no longer accepted.
+- Updates onboard architecture help for the separate Locations, Tidal Database,
+  Weather Database, and Marine Planning authorities.
+
 ## 0.7.21 — 2026-08-21
 
 - Add Weather Database as a required Setup/Planning module and BITE its service, provider registry and provider-separated cache status.
