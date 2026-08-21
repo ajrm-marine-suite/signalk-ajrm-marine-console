@@ -1865,6 +1865,7 @@ test("Console exposes BITE status and run routes", async () => {
           { id: "region-1", name: "Test Tidal Region", types: ["tidalRegion"] },
           { id: "area-1", name: "Profile Area One", types: ["harbour"] },
           { id: "area-2", name: "Profile Area Two", types: ["marina"] },
+					{ id: "weather-1", name: "Test Weather Forecast", types: ["weatherForecastLocation"], feature:{ geometry:{ type:"Point", coordinates:[-5.6,56.2] } } },
         ];
       },
       async profileAreas() { return [{ id: "area-1" }, { id: "area-2" }]; },
@@ -1877,7 +1878,8 @@ test("Console exposes BITE status and run routes", async () => {
     },
     ajrmMarineWeatherDatabase: {
       contract: "ajrm-marine-weather-database-service-v1",
-      async databaseStatus() { return { providers:[{ id:"open-meteo",cacheEntries:1 }] }; },
+			async databaseStatus() { return { providers:[{ id:"open-meteo",cacheEntries:1 }], weatherLocationCount:1, locationsService:"ajrm-marine-locations-service-v1" }; },
+			async listLocations() { return [{ id:"weather-1",name:"Test Weather Forecast",position:{latitude:56.2,longitude:-5.6} }]; },
     },
     ajrmMarineAnchoring: { contract: "ajrm-marine-anchoring-service-v1" },
     ajrmMarineInstrumentsApi: {

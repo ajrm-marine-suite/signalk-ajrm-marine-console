@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>AJRM Marine Help</title>
-    <link rel="stylesheet" href="./help.css?v=0.7.23" />
-    <script defer src="./help.js?v=0.7.23"></script>
+    <link rel="stylesheet" href="./help.css?v=0.7.24" />
+    <script defer src="./help.js?v=0.7.24"></script>
   </head>
   <body>
     <main class="help-page">
@@ -466,13 +466,16 @@
                     </li>
                     <li>
                       <strong>Locations</strong> stores versioned positions and
-                      geometry for anchorages, tidal ports, gates and hazards.
+                      geometry for anchorages, tidal ports, gates, named weather
+                      forecast points and hazards.
                       <strong>Tidal Database</strong> owns prediction providers,
                       secondary-port corrections and the offline tide cache;
                       configure the UKHO key and correct subscription tier there.
                       <strong>Weather Database</strong> owns weather providers,
                       provider-separated offline caches, freshness and source
-                      selection; Open-Meteo is enabled by default.
+                      selection; Open-Meteo is enabled by default. Create or edit
+                      forecast points in the Weather workspace in Locations, then
+                      select, inspect and refresh them in Weather Database.
                       <strong>Planning</strong> then provides Gate Passage and
                       Anchor Force views without storing another provider key,
                       tide cache or weather cache. Treat these
@@ -1233,12 +1236,15 @@
                     <li>
                       <strong>Location Editor</strong> is the sole spatial
                       catalogue and owns location names, types, geometry,
-                      revisions, anchoring attributes, and profile areas.
+                      revisions, anchoring attributes, profile areas, and named
+                      weather forecast coordinates.
                     </li>
                     <li>
                       <strong>Tidal Database</strong> and
                       <strong>Weather Database</strong> independently own their
-                      providers and durable offline caches. Display and Marine
+                      providers and durable offline caches. Weather Database
+                      resolves its selectable forecast points through Locations.
+                      Display and Marine
                       Planning consume those services rather than fetching or
                       caching provider data themselves.
                     </li>

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.24 — 2026-08-21
+
+- Extend Weather Database BITE to verify Location-owned named forecast points,
+  valid coordinates and consistent selectable-location counts.
+- Update onboard help for the Weather workspace and cached forecast browser.
+
 ## 0.7.23 — 2026-08-21
 
 - Show the canonical BITE group and test numbers in the panel so failed-test

@@ -119,7 +119,8 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
 - Optional plugin contracts such as Vessel Database summary publication,
   Instruments derived paths, Marine Planning, Snapshot and Pi
   Controller host telemetry.
-- Required Location, Tidal Database and Weather Database contracts, including a
+- Required Location, Tidal Database and Weather Database contracts, including
+  named weather forecast locations and a
   cross-app join proving every tidal port and region refers to a correctly
   typed Location and a valid serving-port/parent-region relationship.
 - Any mute condition being explicit rather than silent.
@@ -143,7 +144,7 @@ Current numbered BITE tests:
 | 0.9 | Tidal Database availability | Required tide provider/cache service is installed and publishing status. |
 | 0.9.1 | Tidal Database services | Provider stations, ports and 24-hour refresh floor are visible. |
 | 0.10 | Weather Database availability | Required provider-neutral forecast cache is installed and publishing status. |
-| 0.10.1 | Weather Database services | Provider registry and provider-separated cache counts are visible. |
+| 0.10.1 | Weather Database services | Provider registry, provider-separated cache counts and Location-owned selectable weather forecast points are visible. |
 | 0.11.1 | Shared data topology | Tidal ports and regions join to correctly typed Location records with valid serving-port and parent-region references. |
 | 1.1 | Core status projections | Traffic, Display, Notifications, and Audio publish the observable state BITE needs. |
 | 1.2 | Projection contracts | Core projections retain expected contracts, versioning, sessions, sequence counters, and authority markers. |
@@ -210,7 +211,7 @@ Current numbered BITE tests:
 | 0.8.1 | Locations spatial services | Locations owns the versioned spatial catalogue and directly supplies profile areas and anchoring. |
 | 0.9 | Tidal Database availability | Required Tidal Database webapp, status and shared service are present. |
 | 0.9.1 | Tidal Database services | Tidal Database owns station mappings, corrections and cache state, and enforces the 24-hour refresh floor. |
-| 0.10.1 | Weather Database services | Weather Database owns provider-separated caches and exposes the multi-provider resolver contract. |
+| 0.10.1 | Weather Database services | Weather Database owns provider-separated caches, resolves named forecast points through Locations and exposes the multi-provider resolver contract. |
 | 9.9 | Marine Planning availability | Optional Marine Planning presence/status check when the app is installed. |
 | 9.9.1 | Marine Planning shared-services contract | Planning consumes Locations, Tidal Database and Weather Database without private duplicate data stores. |
 | 9.10 | Pi Controller availability | Optional Pi Controller plugin is installed, enabled, and visible to Console when present. |
