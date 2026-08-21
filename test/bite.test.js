@@ -1303,6 +1303,11 @@ test("Console exposes BITE status and run routes", async () => {
       locationCount: 668,
       profileAreaCount: 2,
     },
+    "plugins.ajrmMarineTidalDatabase": {
+      contract: "ajrm-marine-tidal-database-status-v1",
+      contractVersion: 1,
+      enabled: true,
+    },
     "plugins.ajrmMarineNavigationReference.state": {
       contract: "ajrm-marine-navigation-reference",
       schemaVersion: 1,
@@ -1840,7 +1845,10 @@ test("Console exposes BITE status and run routes", async () => {
       contract: "ajrm-marine-locations-service-v1",
       async profileAreas() { return [{ id: "area-1" }, { id: "area-2" }]; },
     },
-    ajrmMarineTides: { contract: "ajrm-marine-tides-service-v1" },
+    ajrmMarineTidalDatabase: {
+      contract: "ajrm-marine-tidal-database-service-v1",
+      async databaseStatus() { return { summary:{ stationCount:50 }, ports:[{ locationId:"port-1" }], policy:{ refreshFloorHours:24 } }; },
+    },
     ajrmMarineWeather: { contract: "ajrm-marine-weather-service-v1" },
     ajrmMarineAnchoring: { contract: "ajrm-marine-anchoring-service-v1" },
     ajrmMarineInstrumentsApi: {
@@ -2437,7 +2445,7 @@ test("Console exposes BITE status and run routes", async () => {
     enabled: true,
     ready: true,
     locationsService: "ajrm-marine-locations-service-v1",
-    tideService: "ajrm-marine-tides-service-v1",
+    tideService: "ajrm-marine-tidal-database-service-v1",
     weatherService: "ajrm-marine-weather-service-v1",
   };
   routes.get("GET /ajrmMarineConsole/bite/status")({}, {

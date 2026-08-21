@@ -196,9 +196,11 @@ Current numbered BITE tests:
 | 9.8.1 | Instruments depth-callout contract | The built-in alert engine exposes active, scheduled-expiry, and last-clear-reason state so a stuck callout is detectable. |
 | 9.8.2 | Instruments XTE alert contract | The built-in alert engine uses the derived metre path, absolute thresholds, port/starboard wording, and clears safely when XTE is null. |
 | 0.8 | Locations availability | Required Locations webapp, status and shared service are present. |
-| 0.8.1 | Locations shared services | Locations owns the versioned catalogue and directly supplies profile areas, tides, weather and anchoring to the suite. |
+| 0.8.1 | Locations spatial services | Locations owns the versioned spatial catalogue and directly supplies profile areas and anchoring. |
+| 0.9 | Tidal Database availability | Required Tidal Database webapp, status and shared service are present. |
+| 0.9.1 | Tidal Database services | Tidal Database owns station mappings, corrections and cache state, and enforces the 24-hour refresh floor. |
 | 9.9 | Marine Planning availability | Optional Marine Planning presence/status check when the app is installed. |
-| 9.9.1 | Marine Planning shared-services contract | Planning consumes the current Locations, tide and weather services without private duplicate data stores. |
+| 9.9.1 | Marine Planning shared-services contract | Planning consumes Locations, Tidal Database and weather services without private duplicate data stores. |
 | 9.10 | Pi Controller availability | Optional Pi Controller plugin is installed, enabled, and visible to Console when present. |
 | 9.10.1 | Pi Controller telemetry contract | Pi Controller publishes host/process telemetry useful to Capture and Snapshot diagnostics. |
 | 99 | Audible summary output | Publishes a spoken BITE summary; the report confirms software request, while the skipper confirms sound was physically heard. |

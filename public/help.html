@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>AJRM Marine Help</title>
-    <link rel="stylesheet" href="./help.css?v=0.7.19" />
-    <script defer src="./help.js?v=0.7.19"></script>
+    <link rel="stylesheet" href="./help.css?v=0.7.20" />
+    <script defer src="./help.js?v=0.7.20"></script>
   </head>
   <body>
     <main class="help-page">
@@ -209,14 +209,15 @@
                     <strong>Server &gt; Plugin Config</strong>, and restart Signal
                     K after the first installation. The installation should
                     include Display, Traffic, Notifications, Audio, Voyages
-                    (Capture), and Navigation Integrity. Notifications works in
+                    (Capture), Navigation Integrity, Locations, and Tidal Database. Notifications works in
                     the background and therefore has no separate top-menu page.
                   </p>
                   <p>
                     <strong>Why:</strong> these packages form one chain. Traffic
                     makes the safety decision, Notifications manages the event,
-                    Audio delivers speech, Display shows it, and Capture records
-                    the evidence. A missing link can leave apparently unrelated
+                    Audio delivers speech, Display shows it, Capture records
+                    the evidence, Locations owns spatial records, and Tidal
+                    Database owns predictions. A missing link can leave apparently unrelated
                     features unavailable.
                   </p>
                   <p>
@@ -462,12 +463,14 @@
                       support diagnosis and testing.
                     </li>
                     <li>
-                      <strong>Locations</strong> stores versioned anchorages,
-                      tidal ports, gates and hazards, and provides the suite's
-                      shared tide and weather services. Configure the UKHO key
-                      and correct subscription tier there. <strong>Planning</strong>
-                      then provides Gate Passage and Anchor Force views without
-                      storing another provider key or forecast cache. Treat both
+                      <strong>Locations</strong> stores versioned positions and
+                      geometry for anchorages, tidal ports, gates and hazards.
+                      <strong>Tidal Database</strong> owns prediction providers,
+                      secondary-port corrections and the offline tide cache;
+                      configure the UKHO key and correct subscription tier there.
+                      <strong>Planning</strong> then provides Gate Passage and
+                      Anchor Force views without storing another provider key or
+                      tide cache. Treat these
                       as planning aids and verify their inputs against current
                       official sources and observed conditions.
                     </li>

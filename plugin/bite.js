@@ -50,6 +50,7 @@ const SAR_AIRCRAFT_TEST_TARGET_NAME = "BITE SAR AIRCRAFT";
 const AUDIO_SUMMARY_PRIORITY = 500;
 const AUDIO_SUMMARY_EXPIRES_SECONDS = 600;
 const LOCATION_EDITOR_PLUGIN_ID = "signalk-ajrm-marine-location-editor";
+const TIDAL_DATABASE_PLUGIN_ID = "signalk-ajrm-marine-tidal-database";
 const PLANNING_PLUGIN_ID = "signalk-ajrm-marine-planning";
 const ALERT_PANEL_PLUGIN_ID = packageInfo.name;
 const CAPTURE_PLUGIN_ID = "signalk-ajrm-marine-capture";
@@ -97,6 +98,7 @@ const WATCH_PATHS = {
   audio: "plugins.ajrmMarineAudio",
   display: "plugins.ajrmMarineDisplay",
   locationEditor: "plugins.ajrmMarineLocationEditor",
+  tidalDatabase: "plugins.ajrmMarineTidalDatabase",
   planning: "plugins.ajrmMarinePlanning",
   gpsIntegrity: "plugins.ajrmMarineGpsIntegrity.navigationIntegrity",
   gpsIntegrityNotification: "notifications.navigation.gnss.integrity",
@@ -319,8 +321,17 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     pluginId: LOCATION_EDITOR_PLUGIN_ID,
     id: "location-editor-services-contract",
     number: "0.8.1",
-    title: "Locations shared services",
-    description: "Checks Locations owns the catalogue and exposes profile areas, tides, weather and anchoring directly to Traffic and Display.",
+    title: "Locations spatial services",
+    description: "Checks Locations owns the spatial catalogue and exposes profile areas and anchoring directly to Traffic and Display.",
+    optional: false,
+    groupId: "required-plugins",
+  }),
+  pluginContractTest({
+    pluginId: TIDAL_DATABASE_PLUGIN_ID,
+    id: "tidal-database-services-contract",
+    number: "0.9.1",
+    title: "Tidal Database services",
+    description: "Checks Tidal Database owns provider stations, secondary-port calculations and the 24-hour offline cache policy.",
     optional: false,
     groupId: "required-plugins",
   }),
@@ -329,7 +340,7 @@ const OPTIONAL_PLUGIN_CONTRACT_TESTS = Object.freeze([
     id: "planning-shared-services-contract",
     number: "9.9.1",
     title: "Marine Planning shared services",
-    description: "Checks Planning consumes the current Locations, tides and weather contracts without private duplicate data services.",
+    description: "Checks Planning consumes Locations, Tidal Database and weather contracts without private duplicate services.",
   }),
   pluginContractTest({
     pluginId: PI_CONTROLLER_PLUGIN_ID,
@@ -355,6 +366,7 @@ const OPTIONAL_PLUGIN_STATUS_PATHS = Object.freeze({
   "signalk-ajrm-marine-notifications": WATCH_PATHS.notifications,
   "signalk-ajrm-marine-gps-integrity": WATCH_PATHS.gpsIntegrity,
   [LOCATION_EDITOR_PLUGIN_ID]: WATCH_PATHS.locationEditor,
+  [TIDAL_DATABASE_PLUGIN_ID]: WATCH_PATHS.tidalDatabase,
   [PLANNING_PLUGIN_ID]: WATCH_PATHS.planning,
   [INSTRUMENTS_PLUGIN_ID]: "plugins.ajrmMarineInstruments",
   [PI_CONTROLLER_PLUGIN_ID]: "plugins.ajrmMarinePiController",
@@ -1746,6 +1758,9 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   if (testId === "location-editor-services-contract") {
     return runLocationEditorServicesContractBite(app, { consoleVersion });
   }
+  if (testId === "tidal-database-services-contract") {
+    return runTidalDatabaseServicesContractBite(app, { consoleVersion });
+  }
   if (testId === "planning-shared-services-contract") {
     return runPlanningSharedServicesContractBite(app, { consoleVersion });
   }
@@ -2357,6 +2372,15 @@ function requiredSuitePluginEvidence(app) {
           "ajrm-marine-locations-service-v1",
       message: "Locations status or shared service is missing, disabled, or not recognised.",
     },
+    {
+      id: TIDAL_DATABASE_PLUGIN_ID,
+      ok:
+        snapshot.tidalDatabase?.contract === "ajrm-marine-tidal-database-status-v1" &&
+        snapshot.tidalDatabase?.enabled === true &&
+        (app.ajrmMarineTidalDatabase || globalThis[Symbol.for("mcdonaldajr.ajrmMarineTidalDatabase")])?.contract ===
+          "ajrm-marine-tidal-database-service-v1",
+      message: "Tidal Database status or shared service is missing, disabled, or not recognised.",
+    },
   ].filter((item) => REQUIRED_SUITE_PLUGINS.includes(item.id));
   const installedMissing = REQUIRED_SUITE_PLUGINS.filter((id) => {
     if (installed.has(id)) return false;
@@ -2463,6 +2487,7 @@ function suitePluginTitle(pluginId) {
     "signalk-ajrm-marine-display": "Display",
     "signalk-ajrm-marine-gps-integrity": "GPS Integrity",
     "signalk-ajrm-marine-location-editor": "Locations",
+    "signalk-ajrm-marine-tidal-database": "Tidal Database",
     "signalk-ajrm-marine-planning": "Planning",
     "signalk-ajrm-marine-instruments": "Instruments",
     "signalk-ajrm-marine-notifications": "Notifications",
@@ -4149,8 +4174,6 @@ async function runLocationEditorServicesContractBite(app, { consoleVersion }) {
   const evidence = optionalPluginEvidence(app, LOCATION_EDITOR_PLUGIN_ID);
   const status = evidence.status || {};
   const locations = app.ajrmMarineLocations || globalThis[Symbol.for("mcdonaldajr.ajrmMarineLocations")];
-  const tides = app.ajrmMarineTides || globalThis[Symbol.for("mcdonaldajr.ajrmMarineTides")];
-  const weather = app.ajrmMarineWeather || globalThis[Symbol.for("mcdonaldajr.ajrmMarineWeather")];
   const anchoring = app.ajrmMarineAnchoring || globalThis[Symbol.for("mcdonaldajr.ajrmMarineAnchoring")];
   const display = app.ajrmMarineDisplayApi || globalThis[Symbol.for("mcdonaldajr.ajrmMarineDisplayApi")];
   const trafficAutoProfile = readSelfPath(app, WATCH_PATHS.trafficAutoProfile) || {};
@@ -4183,11 +4206,9 @@ async function runLocationEditorServicesContractBite(app, { consoleVersion }) {
       "The profile-area service and Locations status count should agree.",
     ),
     assertion(
-      "shared-service-contracts",
-      tides?.contract === "ajrm-marine-tides-service-v1" &&
-        weather?.contract === "ajrm-marine-weather-service-v1" &&
-        anchoring?.contract === "ajrm-marine-anchoring-service-v1",
-      "Locations should expose current tide, weather and anchoring services.",
+      "anchoring-service-contract",
+      anchoring?.contract === "ajrm-marine-anchoring-service-v1",
+      "Locations should expose the spatial anchoring service.",
     ),
     assertion(
       "traffic-profile-area-consumer",
@@ -4226,6 +4247,34 @@ async function runLocationEditorServicesContractBite(app, { consoleVersion }) {
   });
 }
 
+async function runTidalDatabaseServicesContractBite(app, { consoleVersion }) {
+  const runId = randomUUID();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
+  const evidence = optionalPluginEvidence(app, TIDAL_DATABASE_PLUGIN_ID);
+  const status = evidence.status || {};
+  const tides = app.ajrmMarineTidalDatabase || globalThis[Symbol.for("mcdonaldajr.ajrmMarineTidalDatabase")];
+  let database = null;
+  let serviceError = "";
+  try { database = await tides?.databaseStatus?.(); }
+  catch (error) { serviceError = error?.message || String(error); }
+  const assertions = [
+    assertion("tidal-database-visible", evidence.installed, "Tidal Database should be installed and visible to Console."),
+    assertion("status-contract", status.contract === "ajrm-marine-tidal-database-status-v1" && status.enabled === true, "Tidal Database should publish its enabled v1 status contract."),
+    assertion("service-contract", tides?.contract === "ajrm-marine-tidal-database-service-v1", "Tidal Database should expose its v1 suite service."),
+    assertion("station-catalogue", finiteNonNegative(database?.summary?.stationCount), serviceError || "Tidal Database should expose its provider-station catalogue."),
+    assertion("port-catalogue", Array.isArray(database?.ports) && database.ports.length > 0, "Tidal Database should expose configured tidal ports."),
+    assertion("refresh-floor", database?.policy?.refreshFloorHours === 24, "Tidal Database should enforce the 24-hour per-station refresh floor."),
+  ];
+  const result = assertions.every((item) => item.pass) ? "pass" : "fail";
+  return biteReport({
+    consoleVersion, runId, scenario:"tidal-database-services-contract", testId:"tidal-database-services-contract",
+    result, startedAt, startedAtMs, assertions, observations:[{ evidence, database, serviceError }],
+    summary: result === "pass" ? "Tidal Database owns prediction data and enforces its offline cache policy." : `Tidal Database contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
+    snapshot:{ evidence, database, serviceError },
+  });
+}
+
 async function runPlanningSharedServicesContractBite(app, { consoleVersion }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
@@ -4242,8 +4291,8 @@ async function runPlanningSharedServicesContractBite(app, { consoleVersion }) {
     ),
     assertion(
       "planning-tide-contract",
-      status.tideService === "ajrm-marine-tides-service-v1",
-      "Marine Planning should consume the shared tide service.",
+      status.tideService === "ajrm-marine-tidal-database-service-v1",
+      "Marine Planning should consume Tidal Database v1.",
     ),
     assertion(
       "planning-weather-contract",
@@ -4263,7 +4312,7 @@ async function runPlanningSharedServicesContractBite(app, { consoleVersion }) {
     assertions,
     observations: [evidence],
     summary: result === "pass"
-      ? "Marine Planning uses the current shared Locations, tide and weather services."
+      ? "Marine Planning uses Locations, Tidal Database and the current weather service."
       : `Marine Planning shared-services contract failed: ${assertions.filter((item) => !item.pass).map((item) => item.id).join(", ")}.`,
     snapshot: evidence,
   });
@@ -8615,6 +8664,7 @@ function collectSnapshot(app) {
     audio: readSelfPath(app, WATCH_PATHS.audio),
     display: readSelfPath(app, WATCH_PATHS.display),
     locationEditor: readSelfPath(app, WATCH_PATHS.locationEditor),
+    tidalDatabase: readSelfPath(app, WATCH_PATHS.tidalDatabase),
     gpsIntegrity: readSelfPath(app, WATCH_PATHS.gpsIntegrity),
     gpsIntegrityNotification: readSelfPath(app, WATCH_PATHS.gpsIntegrityNotification),
     navigationReference: readSelfPath(app, WATCH_PATHS.navigationReference),

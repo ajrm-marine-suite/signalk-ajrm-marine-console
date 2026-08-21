@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.20
+
+- Add the standalone Tidal Database to Console workspaces and required-plugin checks.
+- Split BITE ownership between Locations spatial services and Tidal Database.
+- Move UKHO setup guidance from Location Editor to Tidal Database.
+
 ## 0.7.19
 
 - Package the Suite icon at both the npm root for App Store metadata and the

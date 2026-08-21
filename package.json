@@ -1,6 +1,6 @@
 {
   "name": "signalk-ajrm-marine-console",
-  "version": "0.7.19",
+  "version": "0.7.20",
   "description": "Suite entry point, navigation shell, and shared help for AJRM Marine applications.",
   "main": "plugin/index.js",
   "scripts": {
@@ -54,7 +54,8 @@
       "signalk-ajrm-marine-audio",
       "signalk-ajrm-marine-capture",
       "signalk-ajrm-marine-gps-integrity",
-      "signalk-ajrm-marine-location-editor"
+      "signalk-ajrm-marine-location-editor",
+      "signalk-ajrm-marine-tidal-database"
     ],
     "recommends": [
       "signalk-derived-data",
