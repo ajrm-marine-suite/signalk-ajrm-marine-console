@@ -402,12 +402,13 @@ function biteIsRunning() {
 }
 
 function biteGroupDisplayNumber(group, groupIndex = 0) {
-  if (String(group?.number || "") === "99") return "99";
-  return String(groupIndex);
+  const label = String(group?.number || "").trim();
+  return label || String(groupIndex);
 }
 
-function biteChildDisplayNumber(_test, _group, testIndex = 0, groupNumber = "") {
-  return `${groupNumber || "0"}.${testIndex + 1}`;
+function biteChildDisplayNumber(test, _group, testIndex = 0, groupNumber = "") {
+  const label = String(test?.number || "").trim();
+  return label || `${groupNumber || "0"}.${testIndex + 1}`;
 }
 
 function biteStateLabel(state) {

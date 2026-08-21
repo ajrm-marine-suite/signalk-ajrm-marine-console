@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.23 — 2026-08-21
+
+- Show the canonical BITE group and test numbers in the panel so failed-test
+  descriptions agree with the run summary and saved evidence.
+
 ## 0.7.22 — 2026-08-21
 
 - Adds required cross-app BITE validation for Location/Tidal Database port and
