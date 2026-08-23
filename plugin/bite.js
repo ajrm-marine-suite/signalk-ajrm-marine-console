@@ -2402,10 +2402,12 @@ function requiredSuitePluginEvidence(app) {
     {
       id: TIDAL_DATABASE_PLUGIN_ID,
       ok:
-        snapshot.tidalDatabase?.contract === "ajrm-marine-tidal-database-status-v1" &&
+        snapshot.tidalDatabase?.contract === "ajrm-marine-tidal-database-status-v2" &&
+        snapshot.tidalDatabase?.contractVersion === 2 &&
         snapshot.tidalDatabase?.enabled === true &&
         (app.ajrmMarineTidalDatabase || globalThis[Symbol.for("mcdonaldajr.ajrmMarineTidalDatabase")])?.contract ===
-          "ajrm-marine-tidal-database-service-v1",
+          "ajrm-marine-tidal-database-service-v2" &&
+        (app.ajrmMarineTidalDatabase || globalThis[Symbol.for("mcdonaldajr.ajrmMarineTidalDatabase")])?.contractVersion === 2,
       message: "Tidal Database status or shared service is missing, disabled, or not recognised.",
     },
     {
@@ -4289,15 +4291,16 @@ async function runTidalDatabaseServicesContractBite(app, { consoleVersion }) {
   catch (error) { serviceError = error?.message || String(error); }
   const assertions = [
     assertion("tidal-database-visible", evidence.installed, "Tidal Database should be installed and visible to Console."),
-    assertion("status-contract", status.contract === "ajrm-marine-tidal-database-status-v1" && status.enabled === true, "Tidal Database should publish its enabled v1 status contract."),
-    assertion("service-contract", tides?.contract === "ajrm-marine-tidal-database-service-v1", "Tidal Database should expose its v1 suite service."),
+    assertion("status-contract", status.contract === "ajrm-marine-tidal-database-status-v2" && status.contractVersion === 2 && status.enabled === true, "Tidal Database should publish its enabled v2 status contract."),
+    assertion("service-contract", tides?.contract === "ajrm-marine-tidal-database-service-v2" && tides?.contractVersion === 2, "Tidal Database should expose its v2 suite service."),
     assertion("station-catalogue", finiteNonNegative(database?.summary?.stationCount), serviceError || "Tidal Database should expose its provider-station catalogue."),
     assertion("port-catalogue", Array.isArray(database?.ports) && database.ports.length > 0, "Tidal Database should expose configured tidal ports."),
+    assertion("location-joins", database?.locationJoins?.state === "ready" && database.locationJoins.degradedCount === 0, "Tidal Database should report valid Location joins with no cached-name fallback or classification mismatch."),
     assertion("refresh-floor", database?.policy?.refreshFloorHours === 24, "Tidal Database should enforce the 24-hour per-station refresh floor."),
     assertion(
       "display-tide-consumer",
       displayStatus.locationsService === "ajrm-marine-locations-service-v1" &&
-        displayStatus.tideService === "ajrm-marine-tidal-database-service-v1",
+        displayStatus.tideService === "ajrm-marine-tidal-database-service-v2",
       "Display should declare the current Locations and Tidal Database contracts it consumes.",
     ),
   ];
@@ -4387,7 +4390,8 @@ async function runSharedDataTopologyContractBite(app, { consoleVersion }) {
     (area?.parentAreaLocationId && !areaById.has(String(area.parentAreaLocationId))));
   const assertions = [
     assertion("locations-list-contract", locations?.contract === "ajrm-marine-locations-service-v1" && catalogue.length > 0, serviceError || "Locations should expose a non-empty catalogue."),
-    assertion("tides-definition-contract", tides?.contract === "ajrm-marine-tidal-database-service-v1" && ports.length > 0 && areas.length > 0, serviceError || "Tidal Database should expose port and region definitions."),
+    assertion("tides-definition-contract", tides?.contract === "ajrm-marine-tidal-database-service-v2" && tides?.contractVersion === 2 && ports.length > 0 && areas.length > 0, serviceError || "Tidal Database should expose asynchronous v2 port and region definitions."),
+    assertion("tidal-definition-join-state", [...ports,...areas].every((entry) => entry.locationJoin === "valid" && entry.nameSource === "location"), "Tidal definitions should expose current Location-owned names and valid joins without cached fallback."),
     assertion("tidal-port-location-join", missingPortLocations.length === 0 && mistypedPortLocations.length === 0, "Every tidal port must refer to a Location with the matching tidal-port type."),
     assertion("tidal-port-name-join", stalePortNames.length === 0, "Tidal Database display labels must agree with Location-owned names."),
     assertion("tidal-region-location-join", missingAreaLocations.length === 0 && mistypedAreaLocations.length === 0, "Every tidal region must refer to a tidalRegion Location."),
@@ -4432,8 +4436,8 @@ async function runPlanningSharedServicesContractBite(app, { consoleVersion }) {
     ),
     assertion(
       "planning-tide-contract",
-      status.tideService === "ajrm-marine-tidal-database-service-v1",
-      "Marine Planning should consume Tidal Database v1.",
+      status.tideService === "ajrm-marine-tidal-database-service-v2",
+      "Marine Planning should consume Tidal Database v2.",
     ),
     assertion(
       "planning-weather-contract",

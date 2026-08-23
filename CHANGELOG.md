@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.26 — 2026-08-23
+
+- Recognise Tidal Database service/status contract v2 throughout required-plugin
+  preflight, Tidal services, shared topology and Planning consumer BITE checks.
+- Await the v2 asynchronous port/area lists and require their explicit Location
+  joins and Location-owned name sources to be valid; fail BITE when Tidal status
+  reports a degraded join or cached-name fallback.
+- Align the public release heading and development acknowledgement with the
+  suite's current Alpha classification.
+- Include this changelog in the published package.
+
 ## 0.7.25 — 2026-08-21
 
 - Align Weather Database BITE and onboard help with forecasts selectable for

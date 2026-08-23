@@ -1304,7 +1304,7 @@ test("Console exposes BITE status and run routes", async () => {
       sequence: 1,
       enabled: true,
       locationsService: "ajrm-marine-locations-service-v1",
-      tideService: "ajrm-marine-tidal-database-service-v1",
+      tideService: "ajrm-marine-tidal-database-service-v2",
     },
     "plugins.ajrmMarineLocationEditor": {
       contract: "ajrm-marine-location-editor-status-v1",
@@ -1314,8 +1314,8 @@ test("Console exposes BITE status and run routes", async () => {
       profileAreaCount: 2,
     },
     "plugins.ajrmMarineTidalDatabase": {
-      contract: "ajrm-marine-tidal-database-status-v1",
-      contractVersion: 1,
+      contract: "ajrm-marine-tidal-database-status-v2",
+      contractVersion: 2,
       enabled: true,
     },
     "plugins.ajrmMarineWeatherDatabase": {
@@ -1871,10 +1871,11 @@ test("Console exposes BITE status and run routes", async () => {
       async profileAreas() { return [{ id: "area-1" }, { id: "area-2" }]; },
     },
     ajrmMarineTidalDatabase: {
-      contract: "ajrm-marine-tidal-database-service-v1",
-      listPorts() { return [{ locationId:"port-1", name:"Test Standard Port", kind:"standard" }]; },
-      listAreas() { return [{ locationId:"region-1", name:"Test Tidal Region", portLocationId:"port-1", parentAreaLocationId:null }]; },
-      async databaseStatus() { return { summary:{ stationCount:50 }, ports:[{ locationId:"port-1" }], policy:{ refreshFloorHours:24 } }; },
+      contract: "ajrm-marine-tidal-database-service-v2",
+      contractVersion: 2,
+      async listPorts() { return [{ locationId:"port-1", name:"Test Standard Port", nameSource:"location", locationJoin:"valid", kind:"standard" }]; },
+      async listAreas() { return [{ locationId:"region-1", name:"Test Tidal Region", nameSource:"location", locationJoin:"valid", portLocationId:"port-1", parentAreaLocationId:null }]; },
+      async databaseStatus() { return { summary:{ stationCount:50 }, locationJoins:{ state:"ready",degradedCount:0 },ports:[{ locationId:"port-1" }], policy:{ refreshFloorHours:24 } }; },
     },
     ajrmMarineWeatherDatabase: {
       contract: "ajrm-marine-weather-database-service-v1",
@@ -1968,7 +1969,7 @@ test("Console exposes BITE status and run routes", async () => {
           },
           sharedPlanning: {
             locations: { contract: "ajrm-marine-location-diagnostics-v1" },
-            tides: { contract: "ajrm-marine-tidal-database-status-v1" },
+            tides: { contract: "ajrm-marine-tidal-database-status-v2", contractVersion: 2 },
             weather: { contract: "ajrm-marine-weather-database-status-v1" },
           },
         };
@@ -2448,7 +2449,7 @@ test("Console exposes BITE status and run routes", async () => {
     enabled: true,
     ready: true,
     locationsService: "ajrm-marine-locations-service-v1",
-    tideService: "ajrm-marine-tidal-database-service-v1",
+    tideService: "ajrm-marine-tidal-database-service-v2",
     weatherService: "ajrm-marine-weather-database-service-v1",
   };
   routes.get("GET /ajrmMarineConsole/bite/status")({}, {

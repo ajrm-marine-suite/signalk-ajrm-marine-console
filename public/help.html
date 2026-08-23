@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>AJRM Marine Help</title>
-    <link rel="stylesheet" href="./help.css?v=0.7.25" />
-    <script defer src="./help.js?v=0.7.25"></script>
+    <link rel="stylesheet" href="./help.css?v=0.7.26" />
+    <script defer src="./help.js?v=0.7.26"></script>
   </head>
   <body>
     <main class="help-page">
@@ -469,8 +469,11 @@
                       geometry for anchorages, tidal ports, gates, named weather
                       forecast points and hazards.
                       <strong>Tidal Database</strong> owns prediction providers,
-                      secondary-port corrections and the offline tide cache;
-                      configure the UKHO key and correct subscription tier there.
+                      secondary-port corrections and the offline tide cache.
+                      Its v2 service joins port and region names read-only from
+                      Locations and reports any missing, mistyped or cached-name
+                      fallback as degraded. Configure the UKHO key and correct
+                      subscription tier there.
                       <strong>Weather Database</strong> owns weather providers,
                       provider-separated offline caches, freshness and source
                       selection; Open-Meteo is enabled by default. Create or edit
@@ -1248,6 +1251,9 @@
                       <strong>Weather Database</strong> independently own their
                       providers and durable offline caches. Weather Database
                       resolves its selectable forecast places through Locations.
+                      Tidal Database likewise derives port and region names from
+                      Locations through its v2 service and fails calculations
+                      closed for missing or mismatched joins.
                       Display and Marine
                       Planning consume those services rather than fetching or
                       caching provider data themselves.

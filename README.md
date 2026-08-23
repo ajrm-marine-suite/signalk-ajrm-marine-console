@@ -50,7 +50,10 @@ Location Editor for spatial data, Tidal Database for predictions, and Weather Da
 Setup includes BITE so a new or changed installation can be validated alongside
 its configuration tools, including Locations, Tidal Database, Weather Database, and Planning.
 Configure the UKHO key and subscription tier once in Tidal Database; Planning
-does not keep a second key or provider cache. Vessel Database is available under Reviewing and
+does not keep a second key or provider cache. Current consumers require Tidal
+Database service/status v2. Tidal port and region names are joined read-only
+from Location Editor; BITE fails when a missing/mistyped Location or explicit
+cached-name fallback degrades that join. Vessel Database is available under Reviewing and
 Show All Plugins rather than Setup. Snapshot is a diagnostic tool, so it is
 available under Debugging and Show All Plugins rather than Reviewing.
 
@@ -247,7 +250,7 @@ not duplicate safety or delivery policy.
 
 ```bash
 cd ~/.signalk
-npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.7.25 --omit=dev --no-package-lock
+npm install git+https://github.com/ajrm-marine-suite/signalk-ajrm-marine-console.git#v0.7.26 --omit=dev --no-package-lock
 sudo systemctl restart signalk
 ```
 
@@ -267,9 +270,9 @@ Commercial licensing is available by arrangement for organisations that want dif
 > software.
 
 
-## Public Beta
+## Alpha Release
 
 Suite entry point, navigation shell, and shared help for AJRM Marine
 applications.
 
-Development assistance: OpenAI Codex helped with code generation, refactoring, and automated testing during the beta development cycle.
+Development assistance: OpenAI Codex helped with code generation, refactoring, and automated testing during the alpha development cycle.

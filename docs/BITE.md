@@ -122,7 +122,9 @@ The runner returns a machine-readable report with `pass`/`fail` assertions for:
 - Required Location, Tidal Database and Weather Database contracts, including
   named weather forecast locations and a
   cross-app join proving every tidal port and region refers to a correctly
-  typed Location and a valid serving-port/parent-region relationship.
+  typed Location and a valid serving-port/parent-region relationship. Current
+  Tidal checks require service/status v2, asynchronous definition lists,
+  Location-owned names and no degraded or cached-name join fallback.
 - Any mute condition being explicit rather than silent.
 - A final spoken BITE summary being requested so the skipper can confirm the
   selected physical/browser/player output was actually heard.
@@ -142,10 +144,10 @@ Current numbered BITE tests:
 | 0.8 | Location Editor availability | Required spatial catalogue is installed and publishing status. |
 | 0.8.1 | Locations spatial services | Location profile areas and anchoring services agree with Traffic and Display consumers. |
 | 0.9 | Tidal Database availability | Required tide provider/cache service is installed and publishing status. |
-| 0.9.1 | Tidal Database services | Provider stations, ports and 24-hour refresh floor are visible. |
+| 0.9.1 | Tidal Database services | Service/status v2, provider stations, ports, Location-join health and the 24-hour refresh floor are visible. |
 | 0.10 | Weather Database availability | Required provider-neutral forecast cache is installed and publishing status. |
 | 0.10.1 | Weather Database services | Provider registry, provider-separated cache counts and Location-owned selectable weather forecast points are visible. |
-| 0.11.1 | Shared data topology | Tidal ports and regions join to correctly typed Location records with valid serving-port and parent-region references. |
+| 0.11.1 | Shared data topology | Asynchronous v2 tidal ports and regions expose current Location-owned names, join to correctly typed Location records and retain valid serving-port/parent-region references. |
 | 1.1 | Core status projections | Traffic, Display, Notifications, and Audio publish the observable state BITE needs. |
 | 1.2 | Projection contracts | Core projections retain expected contracts, versioning, sessions, sequence counters, and authority markers. |
 | 1.3 | Audio policy consistency | Traffic owns mute/automute policy and Audio consumes that policy without disagreement. |
