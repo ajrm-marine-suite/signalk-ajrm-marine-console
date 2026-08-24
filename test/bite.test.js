@@ -33,11 +33,47 @@ const {
   publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,
   publishSyntheticTrafficScenario,
+  waitForRequiredSuitePlugins,
   unwrapSignalKLeaf,
 } = require("../plugin/bite");
 
 const BITE_OWN_POSITION = { latitude: 56.21122, longitude: -5.55756 };
 const EARTH_RADIUS_METERS = 6378137;
+
+test("BITE preflight waits for required startup contracts", async () => {
+  let attempts = 0;
+  const evidence = await waitForRequiredSuitePlugins({}, {
+    timeoutMs: 100,
+    pollMs: 1,
+    readEvidence() {
+      attempts += 1;
+      return {
+        ok: attempts >= 3,
+        message: attempts >= 3 ? "ready" : "starting",
+      };
+    },
+  });
+  assert.equal(evidence.ok, true);
+  assert.equal(evidence.readinessWait.attempts, 3);
+  assert.equal(evidence.readinessWait.timedOut, false);
+  assert.equal(evidence.readinessWait.reason, "required-plugins-ready");
+  assert.ok(evidence.readinessWait.waitedMs >= 1);
+});
+
+test("BITE preflight reports a bounded startup-readiness timeout", async () => {
+  const evidence = await waitForRequiredSuitePlugins({}, {
+    timeoutMs: 5,
+    pollMs: 1,
+    readEvidence() {
+      return { ok: false, message: "Tidal Database is starting." };
+    },
+  });
+  assert.equal(evidence.ok, false);
+  assert.equal(evidence.readinessWait.timedOut, true);
+  assert.equal(evidence.readinessWait.reason, "required-plugins-timeout");
+  assert.ok(evidence.readinessWait.waitedMs >= 5);
+  assert.match(evidence.message, /did not complete within 5 ms/);
+});
 
 function trafficProjection(state = "alarm") {
   return {
@@ -1248,6 +1284,7 @@ test("BITE cleanup moves synthetic targets out of operational range", async () =
 test("Console exposes BITE status and run routes", async () => {
   process.env.AJRM_MARINE_BITE_CAPTURE_START_SETTLE_MS = "0";
   process.env.AJRM_MARINE_BITE_AUDIO_CLIENT_SETTLE_MS = "0";
+  process.env.AJRM_MARINE_BITE_PREFLIGHT_READY_WAIT_MS = "0";
   const reportsDir = fs.mkdtempSync(path.join(os.tmpdir(), "ajrm-console-bite-"));
   process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR = reportsDir;
   const startedAtMs = Date.now();
@@ -3210,6 +3247,7 @@ test("Console exposes BITE status and run routes", async () => {
 
   delete process.env.AJRM_MARINE_BITE_CAPTURE_START_SETTLE_MS;
   delete process.env.AJRM_MARINE_BITE_AUDIO_CLIENT_SETTLE_MS;
+  delete process.env.AJRM_MARINE_BITE_PREFLIGHT_READY_WAIT_MS;
   delete process.env.AJRM_MARINE_CONSOLE_BITE_REPORTS_DIR;
   fs.rmSync(reportsDir, { recursive: true, force: true });
 });

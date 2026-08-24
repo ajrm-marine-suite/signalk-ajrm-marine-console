@@ -16,6 +16,8 @@ const POLL_MS = 1000;
 const REFRESH_MS = 2000;
 const CLEAR_REFRESH_MS = 250;
 const PREFLIGHT_LIVE_DATA_MAX_AGE_MS = 15000;
+const PREFLIGHT_READY_WAIT_MS = 15000;
+const PREFLIGHT_READY_POLL_MS = 500;
 const KNOTS_TO_MPS = 0.514444;
 const TEST_TARGET_MMSI = "235912345";
 const TEST_TARGET_NAME = "BITE TEST TARGET";
@@ -401,8 +403,8 @@ const TESTS = [
     id: PREFLIGHT_TEST_ID,
     number: "0",
     title: "Required plugins and safety isolation",
-    description: "Checks that required AJRM Marine plugins are installed/enabled, simulator or live feeds are not active, then snapshots skipper settings and applies BITE defaults.",
-    timeoutSeconds: 5,
+    description: "Checks that required AJRM Marine plugins are installed/enabled, waits briefly for startup status, verifies simulator or live feeds are not active, then snapshots skipper settings and applies BITE defaults.",
+    timeoutSeconds: 15,
     blocking: true,
   },
   {
@@ -1706,6 +1708,18 @@ function biteAudioClientSettleMs() {
   return Math.max(0, Math.min(30000, value));
 }
 
+function preflightReadyWaitMs() {
+  const value = Number(process.env.AJRM_MARINE_BITE_PREFLIGHT_READY_WAIT_MS);
+  if (!Number.isFinite(value)) return PREFLIGHT_READY_WAIT_MS;
+  return Math.max(0, Math.min(PREFLIGHT_READY_WAIT_MS, value));
+}
+
+function preflightReadyPollMs() {
+  const value = Number(process.env.AJRM_MARINE_BITE_PREFLIGHT_READY_POLL_MS);
+  if (!Number.isFinite(value)) return PREFLIGHT_READY_POLL_MS;
+  return Math.max(1, Math.min(PREFLIGHT_READY_POLL_MS, value));
+}
+
 function runAllSummary({ failed, captureStart, captureStop, captureError, restoreError, count }) {
   const testText = `${count} BITE test${count === 1 ? "" : "s"}`;
   if (captureError) return `${testText} completed with Capture error: ${captureError}`;
@@ -1721,7 +1735,9 @@ function runAllSummary({ failed, captureStart, captureStop, captureError, restor
 }
 
 async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutMs, priorReports = [] }) {
-  if (testId === PREFLIGHT_TEST_ID) return runPreflightBite(app, { consoleVersion });
+  if (testId === PREFLIGHT_TEST_ID) {
+    return runPreflightBite(app, { consoleVersion, timeoutMs });
+  }
   if (testId === SKIPPER_SETTINGS_SANITY_TEST_ID) return runSkipperSettingsSanityBite(app, { consoleVersion });
   const availabilityTest = pluginAvailabilityTestById(testId);
   if (availabilityTest) {
@@ -1888,19 +1904,46 @@ async function runBiteTestById(app, { pluginId, testId, consoleVersion, timeoutM
   return runCollisionAudioBite(app, { pluginId, testId, consoleVersion, timeoutMs });
 }
 
-async function runPreflightBite(app, { consoleVersion }) {
+async function runPreflightBite(app, { consoleVersion, timeoutMs }) {
   const runId = randomUUID();
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
-  const requiredPluginEvidence = requiredSuitePluginEvidence(app);
-  const simulatorEvidence = simulatorOutputEvidence(app);
-  const liveFeedEvidence = recentLiveFeedEvidence(app, startedAtMs);
+  const configuredReadyWaitMs = preflightReadyWaitMs();
+  const readinessTimeoutMs = Number.isFinite(Number(timeoutMs))
+    ? Math.min(configuredReadyWaitMs, Math.max(0, Number(timeoutMs)))
+    : configuredReadyWaitMs;
+  let simulatorEvidence = simulatorOutputEvidence(app);
+  let liveFeedEvidence = recentLiveFeedEvidence(app, startedAtMs);
+  const initiallySafe = !simulatorEvidence.running && liveFeedEvidence.length === 0;
+  const requiredPluginEvidence = initiallySafe
+    ? await waitForRequiredSuitePlugins(app, {
+        timeoutMs: readinessTimeoutMs,
+        pollMs: preflightReadyPollMs(),
+      })
+    : {
+        ...requiredSuitePluginEvidence(app),
+        readinessWait: {
+          attempted: false,
+          attempts: 1,
+          waitedMs: 0,
+          timeoutMs: readinessTimeoutMs,
+          pollMs: preflightReadyPollMs(),
+          timedOut: false,
+          reason: "safety-isolation-failed",
+        },
+      };
+  if (initiallySafe) {
+    simulatorEvidence = simulatorOutputEvidence(app);
+    liveFeedEvidence = recentLiveFeedEvidence(app, Date.now());
+  }
   const baseAssertions = [
     assertion(
       "required-suite-plugins",
       requiredPluginEvidence.ok,
       requiredPluginEvidence.ok
-        ? "All required AJRM Marine suite plugins are installed and publishing/available."
+        ? requiredPluginEvidence.readinessWait?.waitedMs > 0
+          ? `All required AJRM Marine suite plugins became ready after ${requiredPluginEvidence.readinessWait.waitedMs} ms.`
+          : "All required AJRM Marine suite plugins are installed and publishing/available."
         : requiredPluginEvidence.message,
     ),
     assertion(
@@ -1971,6 +2014,45 @@ async function runPreflightBite(app, { consoleVersion }) {
       settings: settingsEvidence,
     },
   };
+}
+
+async function waitForRequiredSuitePlugins(
+  app,
+  {
+    timeoutMs = PREFLIGHT_READY_WAIT_MS,
+    pollMs = PREFLIGHT_READY_POLL_MS,
+    readEvidence = requiredSuitePluginEvidence,
+  } = {},
+) {
+  const maximumWaitMs = Math.max(0, Number(timeoutMs) || 0);
+  const intervalMs = Math.max(1, Number(pollMs) || PREFLIGHT_READY_POLL_MS);
+  const startedAtMs = Date.now();
+  let attempts = 0;
+  let evidence;
+  do {
+    attempts += 1;
+    evidence = readEvidence(app);
+    const waitedMs = Date.now() - startedAtMs;
+    if (evidence.ok || waitedMs >= maximumWaitMs) {
+      const timedOut = !evidence.ok && waitedMs >= maximumWaitMs;
+      return {
+        ...evidence,
+        message: timedOut
+          ? `${evidence.message} Startup readiness did not complete within ${maximumWaitMs} ms.`
+          : evidence.message,
+        readinessWait: {
+          attempted: true,
+          attempts,
+          waitedMs,
+          timeoutMs: maximumWaitMs,
+          pollMs: intervalMs,
+          timedOut,
+          reason: evidence.ok ? "required-plugins-ready" : "required-plugins-timeout",
+        },
+      };
+    }
+    await delay(Math.min(intervalMs, maximumWaitMs - waitedMs));
+  } while (true);
 }
 
 async function prepareBiteSettings(app) {
@@ -9646,5 +9728,6 @@ module.exports = {
   publishDeadReckoningExerciseSample,
   publishSyntheticEncounter,
   publishSyntheticTrafficScenario,
+  waitForRequiredSuitePlugins,
   unwrapSignalKLeaf,
 };

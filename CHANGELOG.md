@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.27 — 2026-08-24
+
+- Let BITE test 0 wait up to 15 seconds for required plugins and their status
+  contracts to finish asynchronous Signal K startup, polling every 500 ms.
+- Continue automatically as soon as every required runtime is ready and record
+  the attempts, elapsed time and timeout reason in the preflight snapshot.
+- Keep safety isolation immediate: active simulator output or an existing live
+  feed skips the readiness wait, and both are checked again after any wait.
+
 ## 0.7.26 — 2026-08-23
 
 - Recognise Tidal Database service/status contract v2 throughout required-plugin

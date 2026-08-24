@@ -76,6 +76,13 @@ checks required package/webapp presence, core status projections, the Capture
 API, simulator output state, and fresh live own-vessel data. If this preflight
 fails, the run stops and Capture is not started.
 
+Immediately after Signal K restarts, required plugins may still be publishing
+their asynchronous startup status. Test `0` waits for these readiness contracts
+for up to 15 seconds and continues as soon as they are all present. It does not
+wait when simulator output or an existing live feed makes the test unsafe, and
+it checks both conditions again after any readiness wait. The report snapshot
+records the number of attempts, elapsed wait and whether readiness timed out.
+
 The collision test publishes a short synthetic crossing encounter using the
 temporary AIS target `BITE TEST TARGET` / MMSI `235912345`, then watches Traffic,
 Display, Notifications, and Audio status/projection paths. At the end of the run
